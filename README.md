@@ -1,6 +1,13 @@
 SmartEVSE v3
 =========
 
+# Changes in regards with the original firmware
+* New Status page UI
+* New Status page using the Rest API
+* Disabled WebSockets
+* Added max temperature to menu and settings
+* Added RGB leds enabled/disabled to menu and settings
+
 Smart Electric Vehicle Charge Controller
 
 ![Image of SmartEVSE](/pictures/SmartEVSEv3.png)
