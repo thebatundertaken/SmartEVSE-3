@@ -22,27 +22,12 @@
 ; THE SOFTWARE.
  */
 
-#include <Arduino.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "evse.h"
 #include "utils.h"
 
 unsigned long pow_10[10] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
-
-
-// read Mac, and reverse to ID
-uint32_t MacId() {
-
-    uint32_t id = 0;
-
-    for (int i=0; i<17; i=i+8) {
-        id |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-    }
-    return id >> 2;         // low two bits are unused.
-}
-
 
 unsigned char crc8(unsigned char *buf, unsigned char len) {
 	unsigned char crc = 0, i, mix, inbyte;

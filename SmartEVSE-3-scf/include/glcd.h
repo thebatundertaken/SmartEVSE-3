@@ -1,5 +1,5 @@
 /*
-;    Project:       Smart EVSE
+;	 Project:       Smart EVSE
 ;
 ;
 ;
@@ -20,21 +20,28 @@
 ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ; THE SOFTWARE.
- */
+*/
 
-// This is a guard condition so that contents of this file are not included
-// more than once.  
-#ifndef UTILS_H
-#define	UTILS_H
+#ifndef __GLCD_H
+#define __GLCD_H
 
-extern unsigned long pow_10[10];
+#define GLCD_MERGE 0b00001000
+#define GLCD_HIRES_FONT
+#define GLCD_FULL_CHARSET
+#define GLCD_ALIGN_LEFT   0
+#define GLCD_ALIGN_CENTER 1
+#define GLCD_ALIGN_RIGHT  2
 
-uint32_t MacId();
-unsigned char crc8(unsigned char *buf, unsigned char len);
-unsigned int crc16(unsigned char *buf, unsigned char len);
-void sprintfl(char *str, const char *Format, signed long Value, unsigned char Divisor, unsigned char Decimal);
-unsigned char triwave8(unsigned char in);
-unsigned char scale8(unsigned char i, unsigned char scale);
-unsigned char ease8InOutQuad(unsigned char i);
+extern void GLCD_init();
 
-#endif	/* UTILS_H */
+extern void GLCDMenuItemHelp();
+extern void GLCDHoldForMenu();
+extern void GLCDMenu();
+extern void GLCDControllerNoCTCommError();
+extern void GLCDControllerTempHighError();
+extern void GLCDControllerOTAFlashError();
+extern void GLCDControllerRCMError();
+extern void GLCDSmartSolarMode();
+extern void GLCDNormalMode();
+
+#endif
