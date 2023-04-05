@@ -8,7 +8,7 @@ SmartEVSE v3
 * Added max temperature to menu and settings
 * Added RGB leds enabled/disabled to menu and settings
 
-Smart Electric Vehicle Charge Controller
+# Smart Electric Vehicle Charge Controller
 
 ![Image of SmartEVSE](/pictures/SmartEVSEv3.png)
 
