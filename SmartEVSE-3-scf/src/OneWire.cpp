@@ -1,8 +1,4 @@
 /*
-;	 Project:       Smart EVSE
-;
-;
-;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -20,7 +16,9 @@
 ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ; THE SOFTWARE.
-*/
+ */
+
+#include "OneWire.h"
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -29,11 +27,11 @@
 #include <string.h>
 
 #include "EVSEController.h"
+#include "EVSELogger.h"
 #include "EVSEModbus.h"
 #include "EVSEPin.h"
 #include "EVSERFID.h"
 #include "EVSEScreen.h"
-#include "OneWire.h"
 #include "utils.h"
 
 unsigned char RFID[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -266,7 +264,7 @@ void CheckRFID() {
         case RFID_READER_ENABLED:
             x = MatchRFID();
             if (x && !evseRFID.RFIDstatus) {
-                // Serial.printf("RFID card found!\n");
+                EVSELogger::info("[OneWire] RFID card found!");
                 if (evseRFID.isRFIDAccessGranted()) {
                     // Access Off, Switch back to state B1/C1
                     evseController.setAccess(false);
@@ -284,7 +282,7 @@ void CheckRFID() {
         case RFID_READER_ENABLE_ONE:
             x = MatchRFID();
             if (x && !evseRFID.RFIDstatus) {
-                // Serial.printf("RFID card found!\n");
+                EVSELogger::info("[OneWire] RFID card found!");
                 if (!evseRFID.isRFIDAccessGranted()) {
                     cardoffset = x;                                // store cardoffset from current card
                     evseRFID.rfidAccessBit = RFID_ACCESS_GRANTED;  // Access On
@@ -302,13 +300,13 @@ void CheckRFID() {
         case RFID_READER_LEARN:
             x = StoreRFID();
             if (x == 1) {
-                Serial.printf("RFID card stored!\n");
+                EVSELogger::info("[OneWire] RFID card stored!");
                 evseRFID.RFIDstatus = RFID_STATUS_CARDSTORED;
             } else if (x == 2 && !evseRFID.RFIDstatus) {
-                Serial.printf("RFID card was already stored!\n");
+                EVSELogger::info("[OneWire] RFID card was already stored!");
                 evseRFID.RFIDstatus = RFID_STATUS_CARDSTOREDALREADY;
             } else if (!evseRFID.RFIDstatus) {
-                Serial.printf("RFID storage full! Delete card first\n");
+                EVSELogger::error("[OneWire] RFID storage full! Delete card first");
                 evseRFID.RFIDstatus = RFID_STATUS_CARDSTORAGEFULL;
             }
             break;
@@ -316,10 +314,10 @@ void CheckRFID() {
         case RFID_READER_DELETE:
             x = DeleteRFID();
             if (x) {
-                Serial.printf("RFID card deleted!\n");
+                EVSELogger::info("[OneWire] RFID card deleted!");
                 evseRFID.RFIDstatus = RFID_STATUS_CARDDELETED;
             } else if (!evseRFID.RFIDstatus) {
-                Serial.printf("RFID card not in list!\n");
+                EVSELogger::warn("[OneWire] RFID card not in list!");
                 evseRFID.RFIDstatus = RFID_STATUS_CARDUNKNOWN;
             }
             break;

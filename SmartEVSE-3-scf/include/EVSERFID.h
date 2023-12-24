@@ -1,7 +1,4 @@
-#/*
-;    Project: Smart EVSE v3
-;
-;
+/*
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -29,7 +26,8 @@
 // Seconds delay for the EVSE to revoke access
 #define RFID_REVOKE_ACCESS_TIMEOUT_MILLIS 60000
 
-// RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All)
+// RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete /
+// 5:Delete All)
 #define RFID_READER_DISABLED 0
 // Enable: All learned cards accepted for locking /unlocking
 #define RFID_READER_ENABLED 1
@@ -54,30 +52,29 @@
 #define RFID_CHECK_PERIOD_MILLIS 1000
 
 class EVSERFID {
-   public:
-    EVSERFID(){};
-    void setup();
-    void loop();
-    bool isEnabled() { return RFIDReader != RFID_READER_DISABLED; };
-    bool isRFIDAccessGranted();
-    void updateSettings();
-    void resetSettings();
-    void setRFIDReader(uint8_t value);
+ public:
+  EVSERFID(){};
+  void setup();
+  void loop();
+  bool isEnabled() { return RFIDReader != RFID_READER_DISABLED; };
+  bool isRFIDAccessGranted();
+  void updateSettings();
+  void resetSettings();
+  void setRFIDReader(uint8_t value);
 
+  //  1 => RFID ok, access granted; 0 => false
+  uint8_t rfidAccessBit = RFID_NO_ACCESS;
+  uint8_t RFIDstatus = RFID_STATUS_NONE;
+  uint8_t RFIDReader = RFID_READER_DISABLED;
 
-    //  1 => RFID ok, access granted; 0 => false
-    uint8_t rfidAccessBit = RFID_NO_ACCESS;
-    uint8_t RFIDstatus = RFID_STATUS_NONE;
-    uint8_t RFIDReader = RFID_READER_DISABLED;
-
-   private:
-    void readEpromSettings();
-    void writeEpromSettings();
-    void validateSettings();
-    void disableAccessTimeout();
-    unsigned long lastRFIDCheckMillis = 0;
-    // Timer to re-lock the EVSE (and unlock the cable) after 60 seconds
-    unsigned long rfidLockWaitMillis = 0;
+ private:
+  void readEpromSettings();
+  void writeEpromSettings();
+  void validateSettings();
+  void disableAccessTimeout();
+  unsigned long lastRFIDCheckMillis = 0;
+  // Timer to re-lock the EVSE (and unlock the cable) after 60 seconds
+  unsigned long rfidLockWaitMillis = 0;
 };
 
 extern EVSERFID evseRFID;

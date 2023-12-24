@@ -1,8 +1,4 @@
 /*
-;	 Project:       Smart EVSE
-;
-;
-;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -22,27 +18,25 @@
 ; THE SOFTWARE.
  */
 
+#include "glcd.h"
+
 #include <Arduino.h>
 #include <SPI.h>
 #include <WiFi.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#include "glcd.h"
-#include "utils.h"
-
-#include "font.cpp"
-#include "font2.cpp"
-
+#include "EVSECluster.h"
+#include "EVSEController.h"
 #include "EVSEMenu.h"
 #include "EVSEPin.h"
 #include "EVSERFID.h"
 #include "EVSEScreen.h"
 #include "EVSEWifi.h"
-#include "EVSEController.h"
+#include "font.cpp"
+#include "font2.cpp"
 #include "i18n.h"
 #include "main.h"
+#include "utils.h"
 
 #define _A0_0 digitalWrite(PIN_LCD_A0_B2, LOW);
 #define _A0_1 digitalWrite(PIN_LCD_A0_B2, HIGH);
@@ -50,25 +44,32 @@
 #define _RSTB_1 digitalWrite(PIN_LCD_RST, HIGH);
 
 const unsigned char LCD_Flow[] = {
-    0x00, 0x00, 0x98, 0xCC, 0x66, 0x22, 0x22, 0x22, 0xF2, 0xAA, 0x26, 0x2A, 0xF2, 0x22, 0x22, 0x22, 0x66, 0xCC, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC0, 0x60, 0x30, 0x60, 0xC0, 0x90, 0x20, 0x40, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x42, 0x04, 0xE0,
-    0x10, 0x08, 0x0B, 0x08, 0x10, 0xE0, 0x04, 0x42, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x22, 0x41, 0x4F, 0x49, 0x22, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x61,
-    0x31, 0x18, 0x08, 0x08, 0x08, 0x08, 0xFF, 0x08, 0x8D, 0x4A, 0xFF, 0x08, 0x08, 0x08, 0x08, 0x18, 0x31, 0x61, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x60, 0x30,
-    0x18, 0x0C, 0x06, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x06, 0x0C, 0x19, 0x32, 0x64, 0xC8, 0x10, 0x00, 0x00, 0x08, 0x04, 0x00, 0x01, 0x02,
-    0x1A, 0x02, 0x01, 0x00, 0x04, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0xFF, 0x05, 0x88, 0x50, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0xF8, 0x08, 0x08,
-    0x08, 0x08, 0xF8, 0x00, 0x00, 0x00, 0xF0, 0x10, 0x10, 0x10, 0x10, 0x10, 0xF0, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x60, 0x10, 0x08, 0x04, 0x02, 0x82, 0x81, 0x81, 0x81,
-    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x04, 0x84, 0x8C, 0x88, 0x88, 0x10, 0x10, 0x20, 0x40, 0x80, 0x00, 0x00, 0x00, 0x00, 0x40, 0x60, 0x30,
-    0x18, 0x0C, 0x07, 0x05, 0x04, 0x04, 0x07, 0x0C, 0x18, 0x30, 0x68, 0x48, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-    0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x00, 0x7F, 0x40, 0x41, 0x41, 0x41, 0x41, 0x41,
-    0x41, 0x40, 0x40, 0x40, 0x7F, 0x40, 0x40, 0x40, 0x42, 0x40, 0x7F, 0x40, 0x40, 0x7F, 0x00, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-    0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x00, 0x06, 0x19, 0x10, 0x10, 0x1C, 0x02, 0x19, 0x24, 0x42, 0x42, 0x24, 0x19, 0x02,
+    0x00, 0x00, 0x98, 0xCC, 0x66, 0x22, 0x22, 0x22, 0xF2, 0xAA, 0x26, 0x2A, 0xF2, 0x22, 0x22, 0x22, 0x66, 0xCC, 0x88,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x80, 0xC0, 0x60, 0x30, 0x60, 0xC0, 0x90, 0x20, 0x40, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x42,
+    0x04, 0xE0, 0x10, 0x08, 0x0B, 0x08, 0x10, 0xE0, 0x04, 0x42, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x22, 0x41,
+    0x4F, 0x49, 0x22, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x61, 0x31, 0x18, 0x08,
+    0x08, 0x08, 0x08, 0xFF, 0x08, 0x8D, 0x4A, 0xFF, 0x08, 0x08, 0x08, 0x08, 0x18, 0x31, 0x61, 0x40, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x60, 0x30, 0x18, 0x0C, 0x06, 0x03, 0x01, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x01, 0x03, 0x06, 0x0C, 0x19, 0x32, 0x64, 0xC8, 0x10, 0x00, 0x00, 0x08, 0x04, 0x00, 0x01, 0x02, 0x1A,
+    0x02, 0x01, 0x00, 0x04, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x05,
+    0x88, 0x50, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0xFF, 0x00, 0xF8, 0x08, 0x08, 0x08, 0x08, 0xF8, 0x00, 0x00, 0x00, 0xF0, 0x10, 0x10, 0x10, 0x10,
+    0x10, 0xF0, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x60, 0x10, 0x08, 0x04, 0x02, 0x82,
+    0x81, 0x81, 0x81, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x04, 0x84, 0x8C, 0x88, 0x88, 0x10, 0x10,
+    0x20, 0x40, 0x80, 0x00, 0x00, 0x00, 0x00, 0x40, 0x60, 0x30, 0x18, 0x0C, 0x07, 0x05, 0x04, 0x04, 0x07, 0x0C, 0x18,
+    0x30, 0x68, 0x48, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+    0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x00, 0x7F, 0x40,
+    0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x40, 0x40, 0x40, 0x7F, 0x40, 0x40, 0x40, 0x42, 0x40, 0x7F, 0x40, 0x40, 0x7F,
+    0x00, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+    0x08, 0x08, 0x08, 0x08, 0x08, 0x00, 0x06, 0x19, 0x10, 0x10, 0x1C, 0x02, 0x19, 0x24, 0x42, 0x42, 0x24, 0x19, 0x02,
     0x1C, 0x10, 0x10, 0x10, 0x10, 0x1C, 0x02, 0x19, 0x24, 0x42, 0x42, 0x24, 0x19, 0x02, 0x1C, 0x10, 0x10, 0x1F};
 
 // Toggle display between two values
@@ -117,15 +118,6 @@ void glcd_clrln(unsigned char ln, unsigned char data) {
     goto_xy(0, ln);
     for (i = 0; i < 128; i++) {
         st7565_data(data);  // put data on data port
-    }
-}
-
-void glcd_clrln_buffer(unsigned char ln) {
-    unsigned char i;
-    if (ln > 7)
-        return;
-    for (i = 0; i < 128; i++) {
-        GLCDbuf[i + (ln * 128)] = 0;
     }
 }
 
@@ -376,12 +368,12 @@ void GLCDMenuItemHelp() {
     GLCD_print_buf2_left(menuEntries[evseMenu.currentMenuOption].Desc + evseScreen.LCDpos);
 
     if (evseScreen.LCDpos++ == 0) {
-        evseScreen.ScrollTimer = millis() - 4000;
+        evseScreen.ScrollTimerHelpMenu = millis() - 4000;
     } else if (evseScreen.LCDpos > (x - 10)) {
-        evseScreen.ScrollTimer = millis() - 3000;
+        evseScreen.ScrollTimerHelpMenu = millis() - 3000;
         evseScreen.LCDpos = 0;
     } else {
-        evseScreen.ScrollTimer = millis() - 4700;
+        evseScreen.ScrollTimerHelpMenu = millis() - 4700;
     }
 }
 
@@ -452,38 +444,68 @@ void GLCDRFID() {
 }
 
 void GLCDWifiPortalCountdown() {
-    sprintf(LCDStr, "Start portal in %u sec", evseWifi.getPortalCountdownSeconds());
+    glcd_clrln(0, 0);
+    // Bottom row of the GLCD
+    GLCD_buffer_clr();
+
+    sprintf(LCDStr, "WiFi portal start in %u", evseWifi.getPortalCountdownSeconds());
     GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
+
     GLCD_sendbuf(0, 1);
 }
 
+uint8_t GLCDAccessPoint_toggle = 0;
 void GLCDAccessPoint() {
+    // Top row of the GLCD
+    glcd_clrln(0, 0);
+    // Bottom row of the GLCD
+    GLCD_buffer_clr();
+
     // Show Access Point name and password
-    sprintf(LCDStr, "AP:%s", evseWifi.getApHostname());
-    GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
-    sprintf(LCDStr, "PW:%s", evseWifi.getApPassword());
-    GLCD_write_buf_str(127, 0, LCDStr, GLCD_ALIGN_RIGHT);
+    if (GLCDAccessPoint_toggle++ < 2) {
+        sprintf(LCDStr, "Wifi: %s", evseWifi.getApHostname());
+        GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
+    } else {
+        sprintf(LCDStr, "Pass: %s", evseWifi.getApPassword());
+        GLCD_write_buf_str(127, 0, LCDStr, GLCD_ALIGN_RIGHT);
+        if (GLCDAccessPoint_toggle++ > 5) {
+            GLCDAccessPoint_toggle = 0;
+        }
+    }
+
     GLCD_sendbuf(0, 1);
 }
 
 void GLCDWifiInfo() {
-    if (WiFi.status() != WL_CONNECTED) {
+    // Displays IP and time in top row
+
+    // Bottom row of the GLCD
+    GLCD_buffer_clr();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        // Display IP Address
+        IPAddress localIp = evseWifi.getLlocalIp();
+        sprintf(LCDStr, "%u.%u.%u.%u", localIp[0], localIp[1], localIp[2], localIp[3]);
+        GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
+
+        /*    // Display local time
+            if (evseWifi.isNTPLocalTimeAvailable())
+            {
+              struct tm timeinfo = evseWifi.getNTPLocalTime();
+              sprintf(LCDStr, "%02u:%02u", timeinfo.tm_hour, timeinfo.tm_min);
+            }
+            else
+            {
+              sprintf(LCDStr, "--:--");
+            }*/
+
+        sprintf(LCDStr, "--:--");
+        GLCD_write_buf_str(127, 0, LCDStr, GLCD_ALIGN_RIGHT);
+        GLCD_sendbuf(0, 1);
+    } else {
         GLCD_write_buf_str(0, 0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
         GLCD_sendbuf(0, 1);
     }
-
-    IPAddress localIp = WiFi.localIP();
-    sprintf(LCDStr, "%u.%u.%u.%u", localIp[0], localIp[1], localIp[2], localIp[3]);
-    GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
-    if (evseWifi.isNTPLocalTimeAvailable()) {
-        struct tm timeinfo = evseWifi.getNTPLocalTime();
-        sprintf(LCDStr, "%02u:%02u", timeinfo.tm_hour, timeinfo.tm_min);
-    } else {
-        sprintf(LCDStr, "--:--");
-    }
-
-    GLCD_write_buf_str(127, 0, LCDStr, GLCD_ALIGN_RIGHT);
-    GLCD_sendbuf(0, 1);
 }
 
 void GLCDRemoveSunFromBuffer() {
@@ -506,7 +528,7 @@ void GLCDRemoveLineBetweenHouseAndCar() {
 }
 
 void GLCDAnimateMainsEnergyFlow() {
-    if (evseModbus.Isum < 0) {
+    if (evseCluster.Isum < 0) {
         // animate the flow of Mains energy on LCD
         energy_mains -= 3;
         if (energy_mains < 20) {
@@ -524,7 +546,7 @@ void GLCDAnimateMainsEnergyFlow() {
     GLCDy = 3;
 
     // Show energy flow 'blob' between Grid and House if current flow is >= 0.3A
-    if (abs(evseModbus.Isum) > 3) {
+    if (abs(evseCluster.Isum) > 3) {
         GLCD_write_buf(0x0A, 0);
     }
 }
@@ -548,8 +570,9 @@ void GLCDAnimateEVEnergyFlow() {
             sprintfl(LCDStr, I18N_POWERMEASURED_FORMAT_LONG, evseModbus.powerMeasured, 3, 0);
         }
     } else {
-        //sprintfl(LCDStr, I18N_POWERAMPS_FORMAT, evseModbus.balancedCurrent[0], 1, 0);
-        sprintfl(LCDStr, I18N_POWERAMPS_FORMAT, evseController.chargeCurrent, 1, 0);
+        // sprintfl(LCDStr, I18N_POWERAMPS_FORMAT, evseModbus.balancedCurrent[0], 1,
+        // 0);
+        sprintfl(LCDStr, I18N_POWERAMPS_FORMAT, evseController.getChargeCurrent(), 1, 0);
     }
     GLCD_write_buf_str(85, 2, LCDStr, GLCD_ALIGN_CENTER);
 }
@@ -576,14 +599,17 @@ void circleChargingMessage() {
             break;
 
         case 4:
-            //sprintf(LCDStr, I18N_STATE_CHARGING2, evseModbus.balancedCurrent[0] / 10, evseModbus.balancedCurrent[0] % 10);
-            sprintf(LCDStr, I18N_STATE_CHARGING2, evseController.chargeCurrent / 10, evseController.chargeCurrent % 10);
+            // sprintf(LCDStr, I18N_STATE_CHARGING2, evseModbus.balancedCurrent[0] /
+            // 10, evseModbus.balancedCurrent[0] % 10);
+            sprintf(LCDStr, I18N_STATE_CHARGING2, evseController.getChargeCurrent() / 10,
+                    evseController.getChargeCurrent() % 10);
             GLCD_print_buf2(5, LCDStr);
             break;
 
         default:
             if (evseController.mode != MODE_NORMAL) {
-                GLCD_print_buf2(5, (const char*)(evseController.mode == MODE_SOLAR) ? I18N_MODE_SOLAR : I18N_MODE_SMART);
+                GLCD_print_buf2(5,
+                                (const char*)(evseController.mode == MODE_SOLAR) ? I18N_MODE_SOLAR : I18N_MODE_SMART);
             }
     }
 }
@@ -612,18 +638,12 @@ void GLCDSmartSolarMode() {
 
     GLCDAnimateMainsEnergyFlow();
 
-    // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
+    // If we have a EV kWh meter configured, Show total charged energy in kWh on
+    // LCD.
     if (evseModbus.evMeter != EV_METER_DISABLED) {
         sprintfl(LCDStr, I18N_ENERGYCHARGED_FORMAT, evseModbus.energyCharged, 3, 1);
         GLCD_write_buf_str(89, 1, LCDStr, GLCD_ALIGN_LEFT);
     }
-
-    // Write number of used phases into the car
-    /*     if (evseModbus.Node[0].Phases) {
-             GLCDx = 110;
-             GLCDy = 2;
-             GLCD_write_buf(evseModbus.Node[0].Phases, 2 | GLCD_MERGE);
-         }*/
 
     bool LCDToggle = getLCDToggle();
     switch (evseController.state) {
@@ -643,37 +663,46 @@ void GLCDSmartSolarMode() {
         // Sum symbol
         GLCD_write_buf(0x0B, 0);
 
-        sprintfl(LCDStr, I18N_CURRENTS_FORMAT, evseModbus.Isum, 1, 0);
-        GLCD_write_buf_str(46, 2, LCDStr, GLCD_ALIGN_RIGHT);
+        sprintfl(LCDStr, I18N_CURRENTS_FORMAT, evseCluster.Isum, 1, 0);
+        // GLCD_write_buf_str(46, 2, LCDStr, GLCD_ALIGN_RIGHT);
+        GLCD_write_buf_str(48, 2, LCDStr, GLCD_ALIGN_RIGHT);
     } else {
         // Displayed only in Smart and Solar modes
         // Display L1, L2 and L3 currents on LCD
         for (unsigned char x = 0; x < 3; x++) {
-            sprintfl(LCDStr, I18N_CURRENTS_FORMAT, evseController.Irms[x], 1, 0);
-            GLCD_write_buf_str(46, x, LCDStr, GLCD_ALIGN_RIGHT);
+            sprintf(LCDStr, I18N_CURRENTS_FORMAT2, (int)(evseController.Irms[x] / 10),
+                    (unsigned int)abs(evseController.Irms[x]) % 10);
+            // sprintfl(LCDStr, I18N_CURRENTS_FORMAT, evseController.Irms[x], 1, 1);
+            // GLCD_write_buf_str(46, x, LCDStr, GLCD_ALIGN_RIGHT);
+            GLCD_write_buf_str(48, x, LCDStr, GLCD_ALIGN_RIGHT);
         }
     }
     GLCD_sendbuf(0, 4);
 
     glcd_clrln(4, 0);
     if (evseController.errorFlags & ERROR_FLAG_LESS_6A) {
+        // No power error
         if (!LCDToggle) {
             GLCD_print_buf2(5, (const char*)I18N_ERROR_LESS6A1);
         } else {
             GLCD_print_buf2(5, (const char*)I18N_ERROR_LESS6A2);
         }
     } else if (evseController.errorFlags & ERROR_FLAG_NO_SUN) {
+        // No sun error
         GLCD_print_buf2(5, (const char*)LCDToggle ? I18N_ERROR_NOSUN2 : I18N_ERROR_NOSUN1);
     } else if (evseController.state != STATE_C_CHARGING) {
         if (evseController.isChargeDelayed()) {
+            // Charge delayed
             sprintf(LCDStr, I18N_STATE_READY1DELAY, evseController.getChargeDelaySeconds());
             GLCD_print_buf2(5, LCDStr);
         } else {
+            // Ready to charge
             GLCD_print_buf2(5, (const char*)I18N_STATE_READY1NODELAY);
         }
     } else if (evseController.state == STATE_C_CHARGING) {
         circleChargingMessage();
     }
+
     glcd_clrln(7, 0x00);
 }
 
@@ -691,18 +720,22 @@ void GLCDNormalMode() {
 
     if (evseController.state == STATE_C_CHARGING) {
         GLCD_print_buf2(2, (const char*)I18N_STATE_CHARGING);
-        //sprintf(LCDStr, I18N_STATE_CHARGING2, evseModbus.balancedCurrent[0] / 10, evseModbus.balancedCurrent[0] % 10);
-        sprintf(LCDStr, I18N_STATE_CHARGING2, evseController.chargeCurrent / 10, evseController.chargeCurrent % 10);
+        // sprintf(LCDStr, I18N_STATE_CHARGING2, evseModbus.balancedCurrent[0] / 10,
+        // evseModbus.balancedCurrent[0] % 10);
+        sprintf(LCDStr, I18N_STATE_CHARGING2, evseController.getChargeCurrent() / 10,
+                evseController.getChargeCurrent() % 10);
         GLCD_print_buf2(4, LCDStr);
         return;
     }
 
     if (evseRFID.isRFIDAccessGranted()) {
         if (evseController.isChargeDelayed()) {
+            // Charge delayed
             GLCD_print_buf2(2, (const char*)I18N_STATE_READY1);
             sprintf(LCDStr, I18N_STATE_READY2DELAY, evseController.getChargeDelaySeconds());
             GLCD_print_buf2(4, LCDStr);
         } else {
+            // Ready to charge
             GLCD_print_buf2(2, (const char*)I18N_STATE_READY1);
             GLCD_print_buf2(4, (const char*)I18N_STATE_READY2);
         }
@@ -710,7 +743,7 @@ void GLCDNormalMode() {
         return;
     }
 
-    if (evseRFID.RFIDReader != RFID_READER_DISABLED) {
+    if (evseRFID.isEnabled()) {
         switch (evseRFID.RFIDstatus) {
             case RFID_STATUS_INVALIDCARD:
                 GLCD_print_buf2(2, (const char*)I18N_RFID_INVALID1);
@@ -743,26 +776,36 @@ void GLCDMenu() {
     // add navigation arrows on both sides
     GLCD_print_menu(2, menuEntries[evseMenu.currentMenuOption].LCD);
 
+    uint8_t wifimode = evseWifi.getWifiMode();
+    // When connected to Wifi, display IP and time in top row
+    if (wifimode == WIFI_MODE_ENABLED) {
+        GLCDWifiInfo();
+    }
+
     switch (evseMenu.currentMenuOption) {
         case MENU_CALIBRATION:
             if (evseMenu.subMenu) {
                 sprintf(LCDStr, I18N_CALIBRATION_FORMAT, evseMenu.CT1 / 10, evseMenu.CT1 % 10);
             } else {
-                sprintf(LCDStr, I18N_CALIBRATION_FORMAT, ((unsigned int)abs(evseController.Irms[0]) / 10), ((unsigned int)abs(evseController.Irms[0]) % 10));
+                sprintf(LCDStr, I18N_CALIBRATION_FORMAT, ((unsigned int)abs(evseController.Irms[0]) / 10),
+                        ((unsigned int)abs(evseController.Irms[0]) % 10));
             }
             GLCD_print_menu(4, LCDStr);
             break;
 
         case MENU_WIFI:
-            if (evseMenu.subMenu && evseWifi.getWifiMode() == WIFI_MODE_START_PORTAL) {
+            if (evseMenu.subMenu && wifimode == WIFI_MODE_DISABLED) {
+                // Clear Wifi info from top row of the GLCD
+                glcd_clrln(0, 0);
+            } else if (evseMenu.subMenu && wifimode == WIFI_MODE_START_PORTAL) {
                 if (evseWifi.isPortalReady()) {
                     GLCDAccessPoint();
                 } else {
                     GLCDWifiPortalCountdown();
                 }
-            } else {
-                GLCD_print_menu(4, evseMenu.getMenuItemi18nText(evseMenu.currentMenuOption));
             }
+
+            GLCD_print_menu(4, evseMenu.getMenuItemi18nText(evseMenu.currentMenuOption));
 
             break;
 
@@ -782,12 +825,6 @@ void GLCDMenu() {
 
     // Bottom row of the GLCD
     GLCD_buffer_clr();
-
-    // When connected to Wifi, display IP and time in top row
-    if (evseWifi.getWifiMode() == WIFI_MODE_ENABLED) {
-        GLCDWifiInfo();
-    }
-
     // show the internal temperature. ° Degree symbol
     sprintf(LCDStr, I18N_TEMPERATURE_FORMAT, evseController.temperature, 0x0C);
     GLCD_write_buf_str(6, 0, LCDStr, GLCD_ALIGN_LEFT);
@@ -803,7 +840,8 @@ void GLCDMenu() {
 }
 
 void GLCD_init() {
-    delay(200);  // transients on the line could have garbled the LCD, wait 200ms then re-init.
+    delay(200);  // transients on the line could have garbled the LCD, wait 200ms
+                 // then re-init.
     _A0_0;       // A0=0
     _RSTB_0;     // Reset GLCD module
     delayMicroseconds(4);

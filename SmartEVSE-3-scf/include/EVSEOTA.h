@@ -1,7 +1,4 @@
-#/*
-;    Project: Smart EVSE v3
-;
-;
+/*
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -30,10 +27,13 @@
 #define SPI_PARTITION_SIZE 0x90000
 
 class EVSEOTA {
-   public:
-    static void updateGETRequestHandler(AsyncWebServerRequest* request);
-    static void updatePOSTRequestHandler(AsyncWebServerRequest* request);
-    static void updateMultipartUploadHandler(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final);
+ public:
+  static void updateGETRequestHandler(AsyncWebServerRequest* request);
+  static void updatePOSTRequestHandler(AsyncWebServerRequest* request);
+  static void updateMultipartUploadHandler(AsyncWebServerRequest* request,
+                                           String filename, size_t index,
+                                           uint8_t* data, size_t len,
+                                           bool final);
 };
 
 #endif

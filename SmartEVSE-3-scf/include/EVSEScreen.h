@@ -1,7 +1,4 @@
-#/*
-;    Project: Smart EVSE v3
-;
-;
+/*
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -24,32 +21,33 @@
 #ifndef __EVSESCREEN
 #define __EVSESCREEN
 
-//#define BACKLIGHT_ON digitalWrite(PIN_LCD_LED, HIGH);
-//#define BACKLIGHT_OFF digitalWrite(PIN_LCD_LED, LOW);
+// #define BACKLIGHT_ON digitalWrite(PIN_LCD_LED, HIGH);
+// #define BACKLIGHT_OFF digitalWrite(PIN_LCD_LED, LOW);
+#define DEFAULT_SCROLLTIMERHELPMENU_MILLIS 5000
 
 #include "EVSEController.h"
 
 class EVSEScreen {
-   public:
-    EVSEScreen(){};
+ public:
+  EVSEScreen(){};
 
-    void setup();
-    void redraw();
-    void lightUp();
-    void resetLCD();
-    void onUserActivity();
-    unsigned long ScrollTimer = 0;
-    uint8_t LCDpos = 0;
+  void setup();
+  void redraw();
+  void lightUp();
+  void resetLCD();
+  void onUserActivity();
+  unsigned long ScrollTimerHelpMenu = 0;
+  uint8_t LCDpos = 0;
 
-   private:
-    void lightFadeOut();
-    void drawMenu();
+ private:
+  void lightFadeOut();
+  void drawMenu();
 
-    uint8_t evseControllerOldState = STATE_A_STANDBY;
-    uint8_t evseControllerOldErrorFlags = 0;
-    uint8_t evseControllerOldMode = 0;
-    uint8_t lcdBrightness = 0;
-    unsigned long backlightTimer = 0;
+  uint8_t evseControllerOldState = STATE_A_STANDBY;
+  uint8_t evseControllerOldErrorFlags = 0;
+  uint8_t evseControllerOldMode = 0;
+  uint8_t lcdBrightness = 0;
+  unsigned long backlightTimer = 0;
 };
 
 extern EVSEScreen evseScreen;

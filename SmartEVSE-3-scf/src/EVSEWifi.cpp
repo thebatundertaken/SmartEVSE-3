@@ -1,85 +1,150 @@
+/*
+; Permission is hereby granted, free of charge, to any person obtaining a copy
+; of this software and associated documentation files (the "Software"), to deal
+; in the Software without restriction, including without limitation the rights
+; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+; copies of the Software, and to permit persons to whom the Software is
+; furnished to do so, subject to the following conditions:
+;
+; The above copyright notice and this permission notice shall be included in
+; all copies or substantial portions of the Software.
+;
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+; THE SOFTWARE.
+ */
+
+#include "EVSEWifi.h"
+
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <AsyncTCP.h>
+#include <ESPAsync_WiFiManager.h>
+#include <ESPmDNS.h>
+#include <Preferences.h>
+#include <SPIFFS.h>
+#include <WiFi.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <Preferences.h>
-
-#include <AsyncTCP.h>
-#include <ESPAsync_WiFiManager.h>
-#include <ESPmDNS.h>
-#include <SPIFFS.h>
-#include <WiFi.h>
-
+#include "EVSECluster.h"
 #include "EVSEController.h"
 #include "EVSELogger.h"
 #include "EVSEModbus.h"
 #include "EVSEOTA.h"
 #include "EVSERFID.h"
-#include "EVSEWifi.h"
 #include "i18n.h"
 #include "main.h"
 
 const char* PREFS_WIFI_NAMESPACE = "settings";
 const char* PREFS_WIFI_MODE_KEY = "WIFImode";
 const char* PREFS_WIFI_AP_PASSWORD = "APpassword";
+const char* PREFS_WIFI_KEYSTORAGE = "KeyStorage";
 
 // only one server is supported
 const char* NTP_SERVER = "europe.pool.ntp.org";
 
 // Specification of the Time Zone string:
 // http://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
-// list of time zones: https://remotemonitoringsystems.ca/time-zone-abbreviations.php
-// Europe/Madrid
+// list of time zones:
+// https://remotemonitoringsystems.ca/time-zone-abbreviations.php Europe/Madrid
 const char* TZ_INFO = "CET-1CEST,M3.5.0,M10.5.0/3";
 
 // Out of class due to multiple definitions linked error
 ESPAsync_WiFiManager* espAsync_wifiManager;
 
-void EVSEWifi::enableWiFi() {
+void EVSEWifi::wifiSetup() {
     dnsServer = new DNSServer();
     webServer = new AsyncWebServer(WEB_SERVER_PORT);
     espAsync_wifiManager = new ESPAsync_WiFiManager(webServer, dnsServer, apHostname.c_str());
-    asyncWebSocket = new AsyncWebSocket("/ws");
+    // asyncWebSocket = new AsyncWebSocket("/ws");
 
     espAsync_wifiManager->setDebugOutput(true);
     espAsync_wifiManager->setConfigPortalChannel(CONFIG_PORTAL_CHANNEL);
-    espAsync_wifiManager->setAPStaticIPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
+    espAsync_wifiManager->setAPStaticIPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1),
+                                              IPAddress(255, 255, 255, 0));
 
-    // Portal will be available 2 minutes to connect to, then close. (if connected within this time, it will remain active)
+    // Portal will be available 2 minutes to connect to, then close. (if connected
+    // within this time, it will remain active)
     espAsync_wifiManager->setConfigPortalTimeout(CONFIG_PORTAL_TIMEOUT);
+    localIp = WiFi.localIP();
 
-    // Start the mDNS responder so that the SmartEVSE can be accessed using a local hostame: http://SmartEVSE-xxxxxx.local
+    // Start the mDNS responder so that the SmartEVSE can be accessed using a
+    // local hostame: http://SmartEVSE-xxxxxx.local
     if (!MDNS.begin(apHostname.c_str())) {
-        EVSELogger::error("EVSEWifi:: Error setting up MDNS responder!");
+        EVSELogger::error("[EVSEWifi] Error setting up MDNS responder!");
     } else {
-        EVSELogger::info("mDNS responder started. http://");
-        EVSELogger::info(apHostname + ".local");
+        sprintf(sprintfStr, "[EVSEWifi] mDNS responder started. http://%s.local", apHostname);
+        EVSELogger::info(sprintfStr);
     }
 
-    // WiFi.onEvent(onWifiDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
-    //  WiFi.onEvent(onWifiGotIp, ARDUINO_EVENT_WIFI_STA_GOT_IP);
+    WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    WiFi.onEvent(WiFiStationGotIp, ARDUINO_EVENT_WIFI_STA_GOT_IP);
     //  WiFi.onEvent(onWifiStop, SYSTEM_EVENT_AP_STOP);
 
     configTzTime(TZ_INFO, NTP_SERVER);
     // if(!getLocalTime(&timeinfo)) EVSELogger::info("Failed to obtain time");
 }
 
+/*void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info)
+{
+  EVSELogger::debug("[EVSEWiFi] WiFi connection lost");
+  // try to reconnect when not connected to AP
+  if (WiFi.getMode() != WIFI_AP_STA)
+  {
+    EVSELogger::debug("[EVSEWiFi] Trying to Reconnect");
+    WiFi.begin();
+  }
+}*/
+
+void WiFiStationGotIp(WiFiEvent_t event, WiFiEventInfo_t info) {
+    evseWifi.onWiFiStationGotIp();
+}
+
+void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
+    EVSELogger::debug("[EVSEWiFi] WiFi connection lost");
+    // try to reconnect when not connected to AP
+    if (WiFi.getMode() != WIFI_AP_STA) {
+        EVSELogger::debug("[EVSEWiFi] Trying to reconnect");
+        // WiFi.begin();
+    }
+}
+
+void EVSEWifi::onWiFiStationGotIp() {
+    localIp = WiFi.localIP();
+    sprintf(sprintfStr, "[EVSEWifi] Connected to AP: %s; Local IP: %s", WiFi.SSID(), localIp);
+    EVSELogger::info(sprintfStr);
+}
+
+IPAddress EVSEWifi::getLlocalIp() {
+    return localIp;
+}
+
 void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     DynamicJsonDocument doc(1200);
     doc["version"] = String(EVSE_VERSION);
+    doc["hostname"] = String(evseWifi.apHostname);
 
     doc["controller"]["vehicleConnected"] = evseController.isVehicleConnected();
-    doc["controller"]["minCurrent"] = evseController.minCurrent;
-    doc["controller"]["maxCurrent"] = evseController.maxCurrent;
+    doc["controller"]["isCharging"] = evseController.state == STATE_C_CHARGING;
+    doc["controller"]["minEVCurrent"] = evseController.minEVCurrent;
+    doc["controller"]["maxMains"] = evseController.maxMains;
+    doc["controller"]["maxDeviceCurrent"] = evseController.maxDeviceCurrent;
     doc["controller"]["mode"] = evseController.mode;
-    doc["controller"]["modeText"] = evseController.mode == MODE_SMART ? i18nStrSmart : (evseController.mode == MODE_SOLAR ? i18nStrSolar : i18nStrNormal);
+    doc["controller"]["modeText"] = evseController.mode == MODE_SMART
+                                        ? i18nStrSmart
+                                        : (evseController.mode == MODE_SOLAR ? i18nStrSolar : i18nStrNormal);
     doc["controller"]["config"] = evseController.config;
     doc["controller"]["state"] = evseController.state;
     doc["controller"]["stateText"] = geti18nStateText(evseController.state);
     doc["controller"]["error"] = evseController.errorFlags;
-    doc["controller"]["errorText"] = (evseController.errorFlags != 0) ? geti18nErrorText(evseController.errorFlags) : "";
+    doc["controller"]["errorText"] =
+        (evseController.errorFlags != 0) ? geti18nErrorText(evseController.errorFlags) : "";
     doc["controller"]["temperature"] = evseController.temperature;
     doc["controller"]["maxTemperature"] = evseController.maxTemperature;
     doc["controller"]["Irms"]["L1"] = evseController.Irms[0];
@@ -88,7 +153,7 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["controller"]["cableMaxCapacity"] = evseController.cableMaxCapacity;
     doc["controller"]["maxMains"] = evseController.maxMains;
     doc["controller"]["chargeDelaySeconds"] = evseController.getChargeDelaySeconds();
-    doc["controller"]["chargeCurrent"] = evseController.chargeCurrent;
+    doc["controller"]["chargeCurrent"] = evseController.getChargeCurrent();
     doc["controller"]["solarStopTimer"] = evseController.solarStopTimer;
     doc["controller"]["solarStartCurrent"] = evseController.solarStartCurrent;
     doc["controller"]["solarImportCurrent"] = evseController.solarImportCurrent;
@@ -102,12 +167,19 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["modbus"]["evMeterEnergy"] = round(evseModbus.getEvMeterEnergy() / 100) / 10;
     // in kWh, precision 1 decimal
     doc["modbus"]["energyCharged"] = round(evseModbus.energyCharged / 100) / 10;
-    doc["modbus"]["overrideCurrent"] = evseModbus.getOverrideCurrent();
+    doc["modbus"]["overrideCurrent"] = evseCluster.getOverrideCurrent();
 
     doc["rfid"]["reader"] = evseRFID.RFIDReader;
     doc["rfid"]["status"] = evseRFID.RFIDstatus;
     doc["rfid"]["statusText"] = evseRFID.isEnabled() ? geti18nRfidStatusText(evseRFID.RFIDstatus) : "";
     doc["rfid"]["accessBit"] = evseRFID.rfidAccessBit == RFID_ACCESS_GRANTED ? true : false;
+
+    doc["nerd"]["controller"]["CP"] = evseController.getControlPilot();
+    doc["nerd"]["errorFlags"] = evseController.errorFlags;
+    doc["nerd"]["chargeDelaySeconds"] = evseController.errorFlags;
+    doc["nerd"]["logLevel"] = EVSELogger::LogLevel;
+    doc["nerd"]["clusterCurrent"] = evseCluster.getClusterCurrent();
+    doc["nerd"]["DEBUG_LAST_CHARGE_REBALANCE_CALC"] = evseCluster.DEBUG_LAST_CHARGE_REBALANCE_CALC;
 
     String json;
     serializeJson(doc, json);
@@ -119,29 +191,56 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
 
 void EVSEWifi::postSettings(AsyncWebServerRequest* request) {
     DynamicJsonDocument doc(512);
+    bool updateSettings = false;
 
     if (request->hasParam("mode")) {
         String mode = request->getParam("mode")->value();
+        updateSettings = true;
         switch (mode.toInt()) {
             case MODE_NORMAL:
                 evseController.setAccess(true);
-                evseController.setMode(MODE_NORMAL);
+                evseController.switchMode(MODE_NORMAL);
                 break;
 
             case MODE_SOLAR:
                 evseController.setAccess(true);
-                evseController.setMode(MODE_SOLAR);
+                evseController.switchMode(MODE_SOLAR);
                 break;
 
             case MODE_SMART:
                 evseController.setAccess(true);
-                evseController.setMode(MODE_SMART);
+                evseController.switchMode(MODE_SMART);
                 break;
 
             default:
+                updateSettings = false;
                 mode = "ERROR: Value not allowed!";
         }
         doc["mode"] = mode;
+    }
+
+    if (request->hasParam("loglevel")) {
+        String value = request->getParam("loglevel")->value();
+        uint8_t logLevel = _max((uint8_t)value.toInt(), LOG_LEVEL_ERROR);
+        EVSELogger::LogLevel = logLevel;
+        doc["mode"] = "OK";
+    }
+
+    if (request->hasParam("resetFlags")) {
+        evseController.errorFlags = ERROR_FLAG_NO_ERROR;
+        doc["mode"] = "OK";
+    }
+    /*
+      if (request->hasParam("maxDeviceCurrent")) {
+        int maxDeviceCurrent = request->getParam("maxDeviceCurrent")->value().toInt();
+        if (maxDeviceCurrent >= evseController.maxDeviceCurrent && maxDeviceCurrent <=
+      evseController.cableMaxCapacity) { evseController.maxDeviceCurrent = maxDeviceCurrent;
+      updateSettings = true; doc["mode"] = "OK"; } else { doc["mode"] = "ERROR: Value not allowed!";
+        }
+      }
+    */
+    if (updateSettings) {
+        evseController.updateSettings();
     }
 
     String json;
@@ -163,7 +262,7 @@ void EVSEWifi::postReboot(AsyncWebServerRequest* request) {
 
 void EVSEWifi::startwebServer() {
     webServer->on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-        EVSELogger::debug("page / (root) requested and sent");
+        EVSELogger::debug("[EVSEWiFi] page / (root) requested and sent");
         request->send(SPIFFS, "/index.html");
     });
 
@@ -171,28 +270,41 @@ void EVSEWifi::startwebServer() {
     webServer->on("/update", HTTP_POST, EVSEOTA::updatePOSTRequestHandler, EVSEOTA::updateMultipartUploadHandler);
 
     webServer->on("/settings", HTTP_GET, EVSEWifi::getSettings);
-    webServer->on("/settings", HTTP_POST, EVSEWifi::postSettings,
-                  [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
+    webServer->on(
+        "/settings", HTTP_POST, EVSEWifi::postSettings,
+        [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
 
-    webServer->on("/reboot", HTTP_POST, EVSEWifi::postReboot,
-                  [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
+    webServer->on(
+        "/reboot", HTTP_POST, EVSEWifi::postReboot,
+        [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
 
     webServer->serveStatic("/", SPIFFS, "/");
     webServer->onNotFound([](AsyncWebServerRequest* request) { request->send(404); });
-    webServer->addHandler(asyncWebSocket);
+    // webServer->addHandler(asyncWebSocket);
     webServer->begin();
 
-    EVSELogger::info("HTTP server started");
+    EVSELogger::info("[EVSEWiFi] HTTP server started");
 }
 
 void EVSEWifi::stopwebServer() {
-    asyncWebSocket->closeAll();
+    // asyncWebSocket->closeAll();
     webServer->end();
 }
 
 void EVSEWifi::startConfigPortal() {
-    // blocking until connected or timeout
-    espAsync_wifiManager->startConfigPortal(apHostname.c_str(), apPassword.c_str());
+    if (wifiMode == WIFI_MODE_START_PORTAL && WiFi.getMode() != WIFI_AP_STA) {
+        evseWifi.stopwebServer();
+        // blocking until connected or timeout
+        espAsync_wifiManager->startConfigPortal(apHostname.c_str(), apPassword.c_str());
+        evseWifi.wifiMode = WIFI_MODE_ENABLED;
+        evseWifi.writeEpromSettings();
+        // restart webserver
+        evseWifi.startwebServer();
+
+        // Force disconnect and re-connect
+        evseWifi.setWifiMode(WIFI_MODE_DISABLED);
+        evseWifi.setWifiMode(WIFI_MODE_ENABLED);
+    }
 }
 
 void EVSEWifi::endPortalTask() {
@@ -202,40 +314,32 @@ void EVSEWifi::endPortalTask() {
     }
 }
 
-void EVSEWifi::startPortalTask(EVSEWifi* myself) {
-    // Wait 10 seconds before starting the portal
+void EVSEWifi::startPortalTask() {
+    // Wait 5 seconds before starting the portal
     vTaskDelay((PORTAL_START_WAIT_SECONDS * 1000) / portTICK_PERIOD_MS);
 
-    if (WiFi.getMode() != WIFI_AP_STA) {
-        EVSELogger::info("Start Portal...");
-        myself->stopwebServer();
-        // blocking until connected or timeout
-        myself->startConfigPortal();
-        // restart webserver
-        myself->startwebServer();
-
-        myself->setWifiMode(WIFI_MODE_ENABLED);
-    }
-
-    myself->startPortalTimer = 0;
-    myself->endPortalTask();
+    EVSELogger::info("[EVSEWiFi] Starting wifi config portal...");
+    evseWifi.startConfigPortal();
 }
 
-void EVSEWifi::setWifiMode(const uint8_t mode) {
-    if (wifiMode == mode) {
-        return;
-    }
+void EVSEWifi::setWifiMode(const uint8_t newMode) {
+    char buffer[50];
+    sprintf(buffer, "[EVSEWifi] Setting wifi mode from %u to %u", wifiMode, newMode);
+    EVSELogger::info(buffer);
+
+    wifiMode = newMode;
 
     // Stop portal thread
-    if (startPortalTaskHandle != NULL) {
-        vTaskDelete(startPortalTaskHandle);
-        startPortalTaskHandle = NULL;
-    }
+    endPortalTask();
 
-    switch (mode) {
+    switch (newMode) {
         case WIFI_MODE_ENABLED:
-            if (WiFi.getMode() == WIFI_OFF) {
-                EVSELogger::info("Starting WiFi...");
+            sprintf(sprintfStr, "[EVSEWifi] WiFi.getMode() = %u", WiFi.getMode());
+            EVSELogger::debug(sprintfStr);
+
+            // On boot WiFi.getMode() says it is connected, but it is not
+            if (isBootLoader || WiFi.getMode() == WIFI_OFF) {
+                EVSELogger::info("[EVSEWifi] Starting WiFi...");
                 WiFi.mode(WIFI_STA);
                 WiFi.begin();
                 WiFi.setAutoReconnect(true);
@@ -244,15 +348,24 @@ void EVSEWifi::setWifiMode(const uint8_t mode) {
 
         case WIFI_MODE_DISABLED:
             if (WiFi.getMode() != WIFI_OFF) {
-                EVSELogger::info("Stopping WiFi...");
+                EVSELogger::info("[EVSEWiFi] Stopping WiFi...");
                 WiFi.disconnect(true);
             }
             break;
 
         case WIFI_MODE_START_PORTAL:
-            // new thread to wait 10 seconds before starting the portal
-            startPortalTimer = millis() + (PORTAL_START_WAIT_SECONDS * 1000);
-            xTaskCreate((TaskFunction_t)&startPortalTask, "startPortalTask", 10000, this, 1, &startPortalTaskHandle);
+            if (WiFi.getMode() != WIFI_AP_STA) {
+                if (startPortalTaskHandle != NULL) {
+                    EVSELogger::warn("[EVSEWiFi] Race condition detected. Portal not started");
+                    break;
+                }
+
+                EVSELogger::info("[EVSEWifi] Starting portal task...");
+                // new thread to wait 5 seconds before starting the portal
+                startPortalTimer = millis() + (PORTAL_START_WAIT_SECONDS * 1000);
+                xTaskCreate((TaskFunction_t)&startPortalTask, "startPortalTask", 16384, NULL, 1,
+                            &startPortalTaskHandle);
+            }
             break;
     }
 }
@@ -325,7 +438,7 @@ void EVSEWifi::readEpromSettings() {
 
     Preferences preferences;
     if (preferences.begin(PREFS_WIFI_NAMESPACE, true) != true) {
-        EVSELogger::error("Unable to open preferences for EVSEWifi");
+        EVSELogger::error("[EVSEWiFi] Unable to open preferences for EVSEWifi");
         return;
     }
 
@@ -344,21 +457,25 @@ void EVSEWifi::readEpromSettings() {
         writeEpromSettings();
     }
 
-    if (preferences.begin("KeyStorage", true) == true) {
-        uint32_t serialnr = preferences.getUInt("serialnr", 0);
-        preferences.end();
+    if (preferences.isKey(PREFS_WIFI_KEYSTORAGE)) {
+        if (preferences.begin(PREFS_WIFI_KEYSTORAGE, true) == true) {
+            uint32_t serialnr = preferences.getUInt("serialnr", 0);
+            preferences.end();
 
-        if (serialnr) {
-            // overwrite APhostname if serialnr is programmed
-            apHostname = I18N_WIFI_APHOSTNAME_PREFIX + String(serialnr & 0xffff, 10);
+            if (serialnr) {
+                // overwrite APhostname if serialnr is programmed
+                apHostname = I18N_WIFI_APHOSTNAME_PREFIX + String(serialnr & 0xffff, 10);
+            }
         }
+    } else {
+        EVSELogger::info("[EVSEWifi] Keystorage not present");
     }
 }
 
 void EVSEWifi::writeEpromSettings() {
     Preferences preferences;
     if (preferences.begin(PREFS_WIFI_NAMESPACE, false) != true) {
-        EVSELogger::error("Unable to write preferences for EVSEWifi");
+        EVSELogger::error("[EVSEWiFi] Unable to write preferences for EVSEWifi");
         return;
     }
 
@@ -379,9 +496,10 @@ void EVSEWifi::resetSettings() {
 void EVSEWifi::setup() {
     readEpromSettings();
 
-    enableWiFi();
+    wifiSetup();
     startwebServer();
     setWifiMode(wifiMode);
+    isBootLoader = false;
 }
 
 EVSEWifi evseWifi;

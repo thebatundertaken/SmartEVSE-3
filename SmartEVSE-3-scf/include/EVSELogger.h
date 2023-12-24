@@ -1,7 +1,4 @@
-#/*
-;    Project: Smart EVSE v3
-;
-;
+/*
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -24,14 +21,21 @@
 #ifndef __EVSELOGGER
 #define __EVSELOGGER
 
+#define LOG_LEVEL_DEBUG 0
+#define LOG_LEVEL_INFO 1
+#define LOG_LEVEL_WARN 2
+#define LOG_LEVEL_ERROR 3
+
 #include <Arduino.h>
 
 class EVSELogger {
    public:
-    static void error(const String &s);
-    static void warn(const String &s);
-    static void info(const String &s);
-    static void debug(const String &s);
+    static uint8_t LogLevel;
+
+    static void error(const String& s);
+    static void warn(const String& s);
+    static void info(const String& s);
+    static void debug(const String& s);
 };
 
 #endif

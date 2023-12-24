@@ -1,3 +1,12 @@
 {
-    "cmake.configureOnOpen": false
+  "cmake.configureOnOpen": false,
+  "files.associations": {
+    "array": "cpp",
+    "string_view": "cpp",
+    "sstream": "cpp",
+    "regex": "cpp",
+    "*.tcc": "cpp",
+    "algorithm": "cpp"
+  },
+  "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, ColumnLimit: 120 }"
 }

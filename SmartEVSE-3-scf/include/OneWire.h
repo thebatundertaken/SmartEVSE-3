@@ -1,8 +1,4 @@
 /*
-;	 Project:       Smart EVSE
-;
-;
-;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -22,7 +18,6 @@
 ; THE SOFTWARE.
 */
 
-
 #ifndef __ONEWIRE_H
 #define __ONEWIRE_H
 
@@ -30,4 +25,4 @@ void ReadRFIDlist();
 void DeleteAllRFID();
 void CheckRFID();
 
-#endif // #ifndef __ONEWIRE_H 
+#endif

@@ -1,8 +1,4 @@
 /*
-;	 Project:       Smart EVSE
-;
-;
-;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -28,9 +24,9 @@
 #define GLCD_MERGE 0b00001000
 #define GLCD_HIRES_FONT
 #define GLCD_FULL_CHARSET
-#define GLCD_ALIGN_LEFT   0
+#define GLCD_ALIGN_LEFT 0
 #define GLCD_ALIGN_CENTER 1
-#define GLCD_ALIGN_RIGHT  2
+#define GLCD_ALIGN_RIGHT 2
 
 extern void GLCD_init();
 

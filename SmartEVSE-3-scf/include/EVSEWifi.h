@@ -1,7 +1,4 @@
-#/*
-;    Project: Smart EVSE v3
-;
-;
+/*
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -31,7 +28,7 @@
 #define WIFI_MODE_DISABLED 0
 #define WIFI_MODE_ENABLED 1
 #define WIFI_MODE_START_PORTAL 2
-#define PORTAL_START_WAIT_SECONDS 10
+#define PORTAL_START_WAIT_SECONDS 5
 #define DEFAULT_AP_PASSWORD "00000000"
 
 static const uint16_t WEB_SERVER_PORT = 80;
@@ -41,12 +38,15 @@ static const uint16_t CONFIG_PORTAL_TIMEOUT = 120;
 // Use 0 => random channel from 1-13
 static const uint8_t CONFIG_PORTAL_CHANNEL = 0;
 
+static void WiFiStationGotIp(WiFiEvent_t event, WiFiEventInfo_t info);
+static void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);
+
 class EVSEWifi {
    public:
     EVSEWifi(){};
 
     void setup();
-    void setWifiMode(const uint8_t mode);
+    void setWifiMode(const uint8_t newMode);
     const uint8_t getWifiMode();
     const char* getApHostname();
     const char* getApPassword();
@@ -59,30 +59,35 @@ class EVSEWifi {
     void resetSettings();
     bool isPortalReady();
     uint8_t getPortalCountdownSeconds();
+    IPAddress getLlocalIp();
+    void onWiFiStationGotIp();
 
     uint8_t wifiMode = WIFI_MODE_DISABLED;
 
    protected:
     TaskHandle_t startPortalTaskHandle = NULL;
-    static void startPortalTask(EVSEWifi* myself);
+    static void startPortalTask();
     void endPortalTask();
-    static void getSettings(AsyncWebServerRequest *request);
-    static void postSettings(AsyncWebServerRequest *request);
-    static void postReboot(AsyncWebServerRequest *request);
+    static void getSettings(AsyncWebServerRequest* request);
+    static void postSettings(AsyncWebServerRequest* request);
+    static void postReboot(AsyncWebServerRequest* request);
 
    private:
     String apHostname;
     String apPassword;
     struct tm timeinfo;
+    IPAddress localIp;
+    bool isBootLoader = true;
+    char sprintfStr[255];
 
     DNSServer* dnsServer;
     AsyncWebServer* webServer;
-    AsyncWebSocket* asyncWebSocket;
+    // AsyncWebSocket *asyncWebSocket;
     unsigned long startPortalTimer = 0;
 
     void readEpromSettings();
     void writeEpromSettings();
-    void enableWiFi();
+    void wifiSetup();
     String genRandomAPpassword();
     uint32_t getMacId();
 };

@@ -1,7 +1,4 @@
-#/*
-;    Project: Smart EVSE v3
-;
-;
+/*
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -24,6 +21,8 @@
 #ifndef __EVSELOCKACTUATOR
 #define __EVSELOCKACTUATOR
 
+#include <Arduino.h>
+
 // No Cable lock
 #define LOCK_DISABLED 0
 // Solenoid
@@ -32,47 +31,47 @@
 #define LOCK_MOTOR 2
 
 class EVSELockActuator {
-   public:
-    EVSELockActuator(){};
+ public:
+  EVSELockActuator(){};
 
-    void setup();
-    void loop();
-    void updateSettings();
-    void resetSettings();
+  void setup();
+  void loop();
+  void updateSettings();
+  void resetSettings();
 
-    // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
-    uint8_t getLockType() { return lockType; }
-    void setLockType(uint8_t lockType);
-    bool isLockEnabled() { return lockType != LOCK_DISABLED; };
+  // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
+  uint8_t getLockType() { return lockType; }
+  void setLockType(uint8_t lockType);
+  bool isLockEnabled() { return lockType != LOCK_DISABLED; };
 
-   protected:
-    static void onCableLockUnlockThread(EVSELockActuator* myself);
+ protected:
+  static void onCableLockUnlockThread(EVSELockActuator* myself);
 
-   private:
-    void readEpromSettings();
-    void writeEpromSettings();
+ private:
+  void readEpromSettings();
+  void writeEpromSettings();
 
-    void setUnlockCable(bool val);
-    void setLockCable(bool val);
-    bool checkPinCableLocked();
-    bool checkPinCableUnlocked();
+  void setUnlockCable(bool val);
+  void setLockCable(bool val);
+  bool checkPinCableLocked();
+  bool checkPinCableUnlocked();
 
-    void startCableLockUnlockThread();
-    void stopCableLockUnlockThread();
-    void unlockCableWorkflow();
-    void lockCableWorkflow();
+  void startCableLockUnlockThread();
+  void stopCableLockUnlockThread();
+  void unlockCableWorkflow();
+  void lockCableWorkflow();
 
-    TaskHandle_t taskHandle = NULL;
+  TaskHandle_t taskHandle = NULL;
 
-    unsigned long cableUnlockMillis = 0;
-    unsigned long cableLockMillis = 0;
-    bool unlockCable = false;
-    bool lockCable = false;
+  unsigned long cableUnlockMillis = 0;
+  unsigned long cableLockMillis = 0;
+  bool unlockCable = false;
+  bool lockCable = false;
 
-    // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
-    uint8_t lockType = LOCK_DISABLED;
-    uint8_t lock1 = 0;
-    uint8_t lock2 = 1;
+  // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
+  uint8_t lockType = LOCK_DISABLED;
+  uint8_t lock1 = 0;
+  uint8_t lock2 = 1;
 };
 
 extern EVSELockActuator evseLockActuator;

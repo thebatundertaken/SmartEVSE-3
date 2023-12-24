@@ -1,8 +1,4 @@
 /*
-;    Project:       Smart EVSE
-;
-;
-;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -22,77 +18,83 @@
 ; THE SOFTWARE.
  */
 
+#include "utils.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "utils.h"
-
-unsigned long pow_10[10] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
+unsigned long pow_10[10] = {1,      10,      100,      1000,      10000,
+                            100000, 1000000, 10000000, 100000000, 1000000000};
 
 unsigned char crc8(unsigned char *buf, unsigned char len) {
-	unsigned char crc = 0, i, mix, inbyte;
+  unsigned char crc = 0, i, mix, inbyte;
 
-	while (len--) {
-		inbyte = *buf++;
-		for (i = 8; i; i--) {
-			mix = (crc ^ inbyte) & 0x01;
-			crc >>= 1;
-			if (mix) crc ^= 0x8C;
-			inbyte >>= 1;
-		}
-	}
-	return crc;
+  while (len--) {
+    inbyte = *buf++;
+    for (i = 8; i; i--) {
+      mix = (crc ^ inbyte) & 0x01;
+      crc >>= 1;
+      if (mix) crc ^= 0x8C;
+      inbyte >>= 1;
+    }
+  }
+  return crc;
 }
 
 /**
  * Calculates 16-bit CRC of given data
  * used for Frame Check Sequence on data frame
- * 
+ *
  * @param unsigned char pointer to buffer
  * @param unsigned char length of buffer
  * @return unsigned int CRC
  */
 unsigned int crc16(unsigned char *buf, unsigned char len) {
-    unsigned int pos, crc = 0xffff;
-    unsigned char i;
+  unsigned int pos, crc = 0xffff;
+  unsigned char i;
 
-    // Poly used is x^16+x^15+x^2+x
-    for (pos = 0; pos < len; pos++) {
-        crc ^= (unsigned int)buf[pos];                                          // XOR byte into least sig. byte of crc
+  // Poly used is x^16+x^15+x^2+x
+  for (pos = 0; pos < len; pos++) {
+    crc ^= (unsigned int)buf[pos];  // XOR byte into least sig. byte of crc
 
-        for (i = 8; i != 0; i--) {                                              // Loop over each bit
-            if ((crc & 0x0001) != 0) {                                          // If the LSB is set
-                crc >>= 1;                                                      // Shift right and XOR 0xA001
-                crc ^= 0xA001;
-            } else                                                              // Else LSB is not set
-                crc >>= 1;                                                      // Just shift right
-        }
+    for (i = 8; i != 0; i--) {    // Loop over each bit
+      if ((crc & 0x0001) != 0) {  // If the LSB is set
+        crc >>= 1;                // Shift right and XOR 0xA001
+        crc ^= 0xA001;
+      } else        // Else LSB is not set
+        crc >>= 1;  // Just shift right
     }
+  }
 
-    return crc;
+  return crc;
 }
-
 
 /**
  * Insert rounded value into string in printf style
- * 
+ *
  * @param pointer to string
  * @param string Format
  * @param signed long Value to round and insert
  * @param unsinged char Divisor where to set decimal point
  * @param unsigned char Decimal place count
  */
-void sprintfl(char *str, const char *Format, signed long Value, unsigned char Divisor, unsigned char Decimal) {
-    signed long val;
+void sprintfl(char *str, const char *Format, signed long Value, unsigned char Divisor,
+              unsigned char Decimal) {
+  signed long val;
 
-    val = Value / (signed long) pow_10[Divisor - Decimal - 1];
-    // Round value
-    if(val < 0) val -= 5;
-    else val += 5;
-    val /= 10;
-    // Split value
-    if(Decimal > 0) sprintf(str, Format, (signed int) (val / (signed long) pow_10[Decimal]), (unsigned int) (abs(val) % pow_10[Decimal]));
-    else sprintf(str, Format, (signed int) val);
+  val = Value / (signed long)pow_10[Divisor - Decimal - 1];
+  // Round value
+  if (val < 0)
+    val -= 5;
+  else
+    val += 5;
+  val /= 10;
+  // Split value
+  if (Decimal > 0)
+    sprintf(str, Format, (signed int)(val / (signed long)pow_10[Decimal]),
+            (unsigned int)(abs(val) % pow_10[Decimal]));
+  else
+    sprintf(str, Format, (signed int)val);
 }
 
 /* triwave8: triangle (sawtooth) wave generator.  Useful for
@@ -104,15 +106,15 @@ void sprintfl(char *str, const char *Format, signed long Value, unsigned char Di
            128..255      254..0 (negative slope)
  */
 unsigned char triwave8(unsigned char in) {
-    if (in & 0x80) {
-        in = 255u - in;
-    }
-    unsigned char out = in << 1;
-    return out;
+  if (in & 0x80) {
+    in = 255u - in;
+  }
+  unsigned char out = in << 1;
+  return out;
 }
 
 unsigned char scale8(unsigned char i, unsigned char scale) {
-    return (((unsigned int) i) * (1 + (unsigned int) (scale))) >> 8;
+  return (((unsigned int)i) * (1 + (unsigned int)(scale))) >> 8;
 }
 
 /* easing functions; see http://easings.net
@@ -120,14 +122,14 @@ unsigned char scale8(unsigned char i, unsigned char scale) {
     ease8InOutQuad: 8-bit quadratic ease-in / ease-out function
  */
 unsigned char ease8InOutQuad(unsigned char i) {
-    unsigned char j = i;
-    if (j & 0x80) {
-        j = 255u - j;
-    }
-    unsigned char jj = scale8(j, j);
-    unsigned char jj2 = jj << 1;
-    if (i & 0x80) {
-        jj2 = 255u - jj2;
-    }
-    return jj2;
+  unsigned char j = i;
+  if (j & 0x80) {
+    j = 255u - j;
+  }
+  unsigned char jj = scale8(j, j);
+  unsigned char jj2 = jj << 1;
+  if (i & 0x80) {
+    jj2 = 255u - jj2;
+  }
+  return jj2;
 }

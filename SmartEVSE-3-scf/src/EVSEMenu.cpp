@@ -1,11 +1,34 @@
+/*
+; Permission is hereby granted, free of charge, to any person obtaining a copy
+; of this software and associated documentation files (the "Software"), to deal
+; in the Software without restriction, including without limitation the rights
+; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+; copies of the Software, and to permit persons to whom the Software is
+; furnished to do so, subject to the following conditions:
+;
+; The above copyright notice and this permission notice shall be included in
+; all copies or substantial portions of the Software.
+;
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+; THE SOFTWARE.
+ */
+
+#include "EVSEMenu.h"
+
 #include <Arduino.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "EVSEButtons.h"
+#include "EVSECluster.h"
 #include "EVSEController.h"
 #include "EVSELockActuator.h"
-#include "EVSEMenu.h"
+#include "EVSELogger.h"
 #include "EVSEModbus.h"
 #include "EVSERFID.h"
 #include "EVSERgbLeds.h"
@@ -14,6 +37,9 @@
 #include "utils.h"
 
 void EVSEMenu::buildMenuItems() {
+    // MENU_XXX defines referes to menuEntries array position, if order changed in
+    // struct, then defines must be changed and EVSEMenu::buildMenuItems() too
+
     uint8_t m = 0;
 
     MenuItems[m++] = MENU_CONFIG;
@@ -23,7 +49,7 @@ void EVSEMenu::buildMenuItems() {
 
     MenuItems[m++] = MENU_MODE;
     // ? Solar mode and Load Balancing Disabled/Master?
-    if (evseController.mode == MODE_SOLAR && evseModbus.amIMasterOrDisabled()) {
+    if (evseController.mode == MODE_SOLAR && evseCluster.amIMasterOrLBDisabled()) {
         MenuItems[m++] = MENU_START;
         MenuItems[m++] = MENU_STOP;
         MenuItems[m++] = MENU_IMPORT;
@@ -31,15 +57,15 @@ void EVSEMenu::buildMenuItems() {
 
     MenuItems[m++] = MENU_LOADBL;
     // ? Mode Smart/Solar and Load Balancing Disabled/Master?
-    if (evseController.mode != MODE_NORMAL && evseModbus.amIMasterOrDisabled()) {
+    if (evseController.mode != MODE_NORMAL && evseCluster.amIMasterOrLBDisabled()) {
         MenuItems[m++] = MENU_MAINS;
     }
-    // ? Mode Smart/Solar or LoadBl Master?
-    if (evseController.mode != MODE_NORMAL && (evseModbus.amIMasterOrDisabled() || evseModbus.isLoadBalancerMaster())) {
+    // ? Mode Smart/Solar or Load Balancer Master?
+    if (evseController.mode != MODE_NORMAL && evseCluster.amIMasterOrLBDisabled()) {
         MenuItems[m++] = MENU_MIN;
     }
 
-    if (evseModbus.isLoadBalancerMaster()) {
+    if (evseCluster.isLoadBalancerMaster()) {
         MenuItems[m++] = MENU_CIRCUIT;
     }
 
@@ -50,7 +76,7 @@ void EVSEMenu::buildMenuItems() {
 
     // ? Smart or Solar mode?
     if (evseController.mode != MODE_NORMAL) {
-        if (evseModbus.amIMasterOrDisabled()) {
+        if (evseCluster.amIMasterOrLBDisabled()) {
             MenuItems[m++] = MENU_MAINSMETER;
             // - - ? Sensorbox?
             if (evseModbus.mainsMeter == MM_SENSORBOX) {
@@ -81,9 +107,10 @@ void EVSEMenu::buildMenuItems() {
             MenuItems[m++] = MENU_EVMETERADDRESS;
         }
 
-        if (evseModbus.amIMasterOrDisabled()) {
+        if (evseCluster.amIMasterOrLBDisabled()) {
             // ? Custom electric meter used?
-            if (evseModbus.mainsMeter == MM_CUSTOM || evseModbus.pvMeter == MM_CUSTOM || evseModbus.evMeter == MM_CUSTOM) {
+            if (evseModbus.mainsMeter == MM_CUSTOM || evseModbus.pvMeter == MM_CUSTOM ||
+                evseModbus.evMeter == MM_CUSTOM) {
                 MenuItems[m++] = MENU_EMCUSTOM_ENDIANESS;
                 MenuItems[m++] = MENU_EMCUSTOM_DATATYPE;
                 MenuItems[m++] = MENU_EMCUSTOM_FUNCTION;
@@ -99,9 +126,9 @@ void EVSEMenu::buildMenuItems() {
         }
     }
 
-    MenuItems[m++] = MENU_WIFI;
     MenuItems[m++] = MENU_MAX_TEMPERATURE;
     MenuItems[m++] = MENU_LEDS;
+    MenuItems[m++] = MENU_WIFI;
     MenuItems[m++] = MENU_EXIT;
 
     menuItemsCount = m;
@@ -117,19 +144,19 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
         case MENU_START:
             return evseController.solarStartCurrent;
         case MENU_STOP:
-            return evseController.solarStopTime;
+            return evseController.solarStopTimeMinutes;
         case MENU_IMPORT:
             return evseController.solarImportCurrent;
         case MENU_LOADBL:
-            return evseModbus.getLoadBl();
+            return evseCluster.getLoadBl();
         case MENU_MAINS:
             return evseController.maxMains;
         case MENU_MIN:
-            return evseController.minCurrent;
+            return evseController.minEVCurrent;
         case MENU_MAX:
-            return evseController.maxCurrent;
+            return evseController.maxDeviceCurrent;
         case MENU_CIRCUIT:
-            return evseModbus.maxCircuit;
+            return evseCluster.getMaxCircuit();
         case MENU_LOCK:
             return evseLockActuator.getLockType();
         case MENU_SWITCH:
@@ -191,8 +218,7 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
         case NODE_STATUS_ERROR:
             return evseController.errorFlags;
         case NODE_STATUS_CURRENT:
-            //return evseModbus.balancedCurrent[0];
-            return evseController.chargeCurrent;
+            return evseController.getChargeCurrent();
         case NODE_STATUS_SOLAR_TIMER:
             return evseController.solarStopTimer;
         case NODE_STATUS_ACCESS:
@@ -227,8 +253,9 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             evseController.config = val;
             break;
         case NODE_STATUS_MODE:
-            // Do not change Charge Mode when set to Normal or Load Balancing is disabled
-            if (evseController.mode == MODE_NORMAL || evseModbus.isLoadBalancerDisabled()) {
+            // Do not change Charge Mode when set to Normal or Load Balancing is
+            // disabled
+            if (evseController.mode == MODE_NORMAL || evseCluster.isLoadBalancerDisabled()) {
                 break;
             }
         case MENU_MODE:
@@ -238,26 +265,26 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             evseController.solarStartCurrent = val;
             break;
         case MENU_STOP:
-            evseController.solarStopTime = val;
+            evseController.solarStopTimeMinutes = val;
             break;
         case MENU_IMPORT:
             evseController.solarImportCurrent = val;
             break;
         case MENU_LOADBL:
             evseModbus.configureModbusMode(val);
-            evseModbus.setLoadBl(val);
+            evseCluster.setLoadBl(val);
             break;
         case MENU_MAINS:
             evseController.maxMains = val;
             break;
         case MENU_MIN:
-            evseController.minCurrent = val;
+            evseController.minEVCurrent = val;
             break;
         case MENU_MAX:
-            evseController.maxCurrent = val;
+            evseController.maxDeviceCurrent = val;
             break;
         case MENU_CIRCUIT:
-            evseModbus.maxCircuit = val;
+            evseCluster.setMaxCircuit(val);
             break;
         case MENU_LOCK:
             evseLockActuator.setLockType(val);
@@ -335,10 +362,11 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             evseWifi.setWifiMode(val);
             break;
         case MENU_MAX_TEMPERATURE:
-            return evseController.maxTemperature = val;
+            evseController.maxTemperature = val;
+            break;
         case MENU_LEDS:
-            return evseRgbLeds.ledsEnabled = val != 0;
-
+            evseRgbLeds.ledsEnabled = (val == 1);
+            break;
         // Status writeable
         case NODE_STATUS_STATE:
             evseController.setState(val);
@@ -349,7 +377,7 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             break;
 
         case NODE_STATUS_CURRENT:
-            evseModbus.setOverrideCurrent(val);
+            evseCluster.setOverrideCurrent(val);
             break;
 
         case NODE_STATUS_SOLAR_TIMER:
@@ -404,7 +432,7 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
             /*if (controller->externalMaster && value == 1)
                 return "Node 0";
             else*/
-            return i18nStrLoadBl[evseModbus.getLoadBl()];
+            return i18nStrLoadBl[evseCluster.getLoadBl()];
         case MENU_MAINS:
         case MENU_MIN:
         case MENU_MAX:
@@ -492,6 +520,9 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
             return i18nStrRFIDReader[evseRFID.RFIDReader];
         case MENU_WIFI:
             return i18nStrWiFi[evseWifi.getWifiMode()];
+        case MENU_MAX_TEMPERATURE:
+            sprintf(Str, I18N_TEMPERATURE_FORMAT, value, 0x0C);
+            return Str;
         case MENU_LEDS:
             return i18nStrLeds[evseRgbLeds.ledsEnabled ? 1 : 0];
         case MENU_EXIT:
@@ -516,34 +547,36 @@ uint8_t EVSEMenu::getPosInMenu() {
 /**
  * Navigate left/right in a menu of int options
  */
-unsigned int EVSEMenu::circleValues(uint8_t Buttons, unsigned int Value, unsigned int minValue, unsigned int maxValue) {
-    switch (Buttons) {
+uint16_t EVSEMenu::circleValues(uint8_t buttons, uint16_t value, uint16_t minValue, uint16_t maxValue) {
+    switch (buttons) {
         case BUTTON_RIGHT_MASK:
-            return (Value >= maxValue) ? minValue : Value++;
+            return (value >= maxValue) ? minValue : value + 1;
 
         case BUTTON_LEFT_MASK:
-            return (Value <= minValue) ? maxValue : Value--;
+            return (value <= minValue) ? maxValue : value - 1;
 
         default:
-            return Value;
+            return value;
     }
 }
 
 /**
  * Navigate left/right in a menu of char array options
  */
-unsigned char EVSEMenu::prevNextMenuEntry(uint8_t Buttons, unsigned char Value) {
+void EVSEMenu::prevNextMenuEntry(uint8_t buttons) {
+    // Rebuild menu, maybe some user selection added/changed menu values or
+    // entries
     buildMenuItems();
 
-    unsigned int posInMenu;
-    for (posInMenu = 0; posInMenu < menuItemsCount; posInMenu++) {
-        if (Value == MenuItems[posInMenu])
-            break;
+    uint8_t posInMenu = getPosInMenu();
+
+    if (posInMenu-- == 0) {
+        EVSELogger::error("Programming error, menu option not found");
+        return;
     }
 
-    posInMenu = circleValues(Buttons, posInMenu, 0, menuItemsCount - 1u);
-
-    return MenuItems[posInMenu];
+    posInMenu = circleValues(buttons, posInMenu, 0, menuItemsCount - 1u);
+    currentMenuOption = MenuItems[posInMenu];
 }
 
 void EVSEMenu::handleButtonsReleased() {
@@ -552,7 +585,8 @@ void EVSEMenu::handleButtonsReleased() {
         currentMenuOption = MENU_NO_OPTION;
     }
 
-    buttonRelease = 0;
+    // EVSELogger::debug("[EVSEMenu] handleButtonsReleased");
+    buttonReleased = 0;
     buttonRepeat = 0;
     // debounce keys (blocking)
     delay(10);
@@ -562,7 +596,7 @@ void EVSEMenu::handleButtonOPressed() {
     switch (currentMenuOption) {
         case MENU_NO_OPTION:
             // Button 2 just pressed, must hold for 2 seconds to enter menu
-            if (buttonRelease == 0) {
+            if (buttonReleased == 0) {
                 currentMenuOption = MENU_ENTER;
                 buttonTimer = millis() + 2000;
             }
@@ -572,12 +606,12 @@ void EVSEMenu::handleButtonOPressed() {
             // Button o was pressed for 2 seconds, then we enter the menu
             if (millis() >= buttonTimer) {
                 currentMenuOption = MENU_CONFIG;
-                buttonRelease = 1;
+                buttonReleased = 1;
             }
             break;
 
         case MENU_CALIBRATION:
-            if (buttonRelease != 0) {
+            if (buttonReleased != 0) {
                 return;
             }
 
@@ -589,15 +623,15 @@ void EVSEMenu::handleButtonOPressed() {
             }
 
             subMenu = subMenu ? 0 : 1;
-            buttonRelease = 1;
+            buttonReleased = 1;
             break;
 
         default:
-            if (buttonRelease != 0) {
+            if (buttonReleased != 0) {
                 return;
             }
 
-            buttonRelease = 1;
+            buttonReleased = 1;
             // In submenu => exit submenu
             if (subMenu) {
                 subMenu = 0;
@@ -608,12 +642,15 @@ void EVSEMenu::handleButtonOPressed() {
             subMenu = 1;
             // Exit Main Menu
             if (currentMenuOption == MENU_EXIT) {
+                EVSELogger::info("[EVSEMenu] Exit pressed. Saving menu options...");
                 currentMenuOption = MENU_NO_OPTION;
                 subMenu = 0;
-                endInactivityTask();
                 // Skip updating of the LCD
-                buttonRelease = 2;
+                buttonReleased = 2;
                 updateSettings();
+                delay(100);
+
+                endInactivityTask();
             }
     }
 }
@@ -624,16 +661,18 @@ void EVSEMenu::updateSettings() {
     evseRFID.updateSettings();
     evseLockActuator.updateSettings();
     evseModbus.updateSettings();
+    evseCluster.updateSettings();
+    evseRgbLeds.updateSettings();
 
     evseController.statusConfigChanged = 1;
 }
 
 void EVSEMenu::handleButtonBothArrowsPressed() {
-    if (buttonRelease != 0) {
+    if (buttonReleased != 0) {
         return;
     }
 
-    buttonRelease = 1;
+    buttonReleased = 1;
 
     // Press both arrows buttons to reset
     if ((currentMenuOption == MENU_CALIBRATION) && subMenu) {
@@ -647,10 +686,11 @@ void EVSEMenu::handleButtonBothArrowsPressed() {
     evseScreen.resetLCD();
 }
 
-void EVSEMenu::handleButtonArrowPressed(uint8_t Buttons) {
-    switch (buttonRelease) {
+void EVSEMenu::handleButtonArrowPressed(uint8_t buttons) {
+    switch (buttonReleased) {
         case 0:
-            buttonRelease = 1;
+        case 1:
+            buttonReleased = 1;
 
             // We are circling between submenu options
             if (subMenu) {
@@ -658,21 +698,23 @@ void EVSEMenu::handleButtonArrowPressed(uint8_t Buttons) {
 
                 switch (currentMenuOption) {
                     case MENU_CALIBRATION:
-                        CT1 = circleValues(Buttons, CT1, 100, 999);
+                        CT1 = circleValues(buttons, CT1, 100, 999);
                         break;
 
                     case MENU_EVMETER:
                         // do not display the Sensorbox here
                         value = getMenuItemValue(currentMenuOption);
                         do {
-                            value = circleValues(Buttons, value, menuEntries[currentMenuOption].Min, menuEntries[currentMenuOption].Max);
+                            value = circleValues(buttons, value, menuEntries[currentMenuOption].Min,
+                                                 menuEntries[currentMenuOption].Max);
                         } while (value == MM_SENSORBOX);
                         setMenuItemValue(currentMenuOption, value);
                         break;
 
                     default:
                         value = getMenuItemValue(currentMenuOption);
-                        value = circleValues(Buttons, value, menuEntries[currentMenuOption].Min, menuEntries[currentMenuOption].Max);
+                        value = circleValues(buttons, value, menuEntries[currentMenuOption].Min,
+                                             menuEntries[currentMenuOption].Max);
                         setMenuItemValue(currentMenuOption, value);
                         break;
                 }
@@ -681,21 +723,28 @@ void EVSEMenu::handleButtonArrowPressed(uint8_t Buttons) {
             }
 
             // Move to next / prev menu entry
-            currentMenuOption = prevNextMenuEntry(Buttons, currentMenuOption);
+            prevNextMenuEntry(buttons);
             break;
 
-        case 2:
+            /*  case 2:
+                // Repeat button after 0.5 second
+                if (buttonRepeat == 0)
+                {
+                  buttonRepeat = 500;
+                  buttonTimer = millis() + buttonRepeat;
+                }
+                break;*/
+
+        default:
             // Repeat button after 0.5 second
-            if (buttonRepeat == 0) {
+            if (buttonReleased == 2 && buttonRepeat == 0) {
                 buttonRepeat = 500;
                 buttonTimer = millis() + buttonRepeat;
             }
-            break;
 
-        default:
             // Repeat button if buttonTimer has passed
-            if (buttonRepeat && millis() >= buttonTimer) {
-                buttonRelease = 0;
+            if (buttonRepeat && (millis() >= buttonTimer)) {
+                buttonReleased = 0;
                 if (buttonRepeat > 1) {
                     buttonRepeat -= (buttonRepeat / 8);
                     buttonTimer = millis() + buttonRepeat;
@@ -704,8 +753,8 @@ void EVSEMenu::handleButtonArrowPressed(uint8_t Buttons) {
     }
 }
 
-void EVSEMenu::handleButtons(uint8_t Buttons) {
-    switch (Buttons) {
+void EVSEMenu::handleButtons(uint8_t buttons) {
+    switch (buttons) {
         case BUTTON_NONE_MASK:
             handleButtonsReleased();
             break;
@@ -721,26 +770,8 @@ void EVSEMenu::handleButtons(uint8_t Buttons) {
 
         case BUTTON_LEFT_MASK:
         case BUTTON_RIGHT_MASK:
-            handleButtonArrowPressed(Buttons);
+            handleButtonArrowPressed(buttons);
             break;
-    }
-}
-
-void EVSEMenu::checkFastModeSwitch(uint8_t Buttons) {
-    // Fast mode swith between "Sma-Sol" by pressing left button outside menu
-    if (evseController.externalSwitch == SWITCH_SMARTSOLAR_BUTTON) {
-        if (currentMenuOption == MENU_NO_OPTION && Buttons == BUTTON_LEFT_MASK && leftbuttonTimer == 0 && evseController.mode != MODE_NORMAL &&
-            evseModbus.amIMasterOrDisabled()) {
-            evseController.switchModeSolarSmart();
-            resetInactivityTimer();
-            leftbuttonTimer = 5;
-            return;
-        }
-
-        if (leftbuttonTimer > 0 && Buttons == BUTTON_NONE_MASK) {
-            leftbuttonTimer--;
-            return;
-        }
     }
 }
 
@@ -754,67 +785,84 @@ void EVSEMenu::onInactivityTaskHandle(EVSEMenu* myself) {
 
 void EVSEMenu::beginInactivityTask() {
     if (inactivityTaskHandle == NULL) {
+        EVSELogger::debug("[EVSEMenu] Starting inactivity task");
         // Thread to exit menu after 120 seconds of inactivity
-        xTaskCreate((TaskFunction_t)&onInactivityTaskHandle, "onInactivityTaskHandle", 1024, this, 1, &inactivityTaskHandle);
+        xTaskCreate((TaskFunction_t)&onInactivityTaskHandle, "onInactivity", 16384, &evseMenu, 0,
+                    &inactivityTaskHandle);
     }
 }
 
 void EVSEMenu::endInactivityTask() {
-    if (inactivityTaskHandle != NULL) {
-        vTaskDelete(inactivityTaskHandle);
-        inactivityTaskHandle = NULL;
-    }
+    currentMenuOption = MENU_NO_OPTION;
 }
 
 void EVSEMenu::checkExitMenuOnInactivity() {
-    // Exit Setup menu after 120 seconds, unless rfid submenu so it will not exit the menu when learning/deleting cards
-    while (true) {
-        // Clean-up, this case should never happen
-        if (currentMenuOption == MENU_NO_OPTION) {
-            endInactivityTask();
-            return;
-        }
+    // Exit Setup menu after 20 seconds, unless rfid submenu so it will not exit
+    // the menu when learning/deleting cards
+    while (currentMenuOption != MENU_NO_OPTION) {
+        if ((millis() - inactivityTimer) > (MENU_INACTIVITY_TIMEOUT_SECONDS * 1000)) {
+            // Corner case: RFID reader is storaging or deleting data... it might take
+            // longer than timeout
+            if (currentMenuOption == MENU_RFIDREADER && subMenu) {
+                EVSELogger::debug("EVSEMenu] Canceling menu exit due to RFID submenu");
+                continue;
+            }
 
-        if (inactivityTimer > MENU_INACTIVITY_TIMEOUT_SECONDS && !(currentMenuOption == MENU_RFIDREADER && subMenu)) {
-            endInactivityTask();
+            // Corner case: WiFi portal and WiFi configuration
+            if (currentMenuOption == MENU_WIFI && subMenu) {
+                EVSELogger::debug("EVSEMenu] Canceling menu exit due to WIFI submenu");
+                continue;
+            }
 
+            EVSELogger::debug("[EVSEMenu] Exiting menu on timeout...");
             currentMenuOption = MENU_NO_OPTION;
             // don't save, but restore settings
             evseController.resetSettings();
+            delay(100);
             evseWifi.resetSettings();
+            delay(100);
             evseModbus.resetSettings();
+            delay(100);
+            evseCluster.resetSettings();
+            delay(100);
             evseRFID.resetSettings();
+            delay(100);
             evseLockActuator.resetSettings();
-            return;
+            delay(100);
+            break;
         }
 
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
+
+    EVSELogger::debug("[EVSEMenu] Ending inactivity task...");
+    inactivityTaskHandle = NULL;
+    vTaskDelete(NULL);
+    EVSELogger::debug("[EVSEMenu] Task DELETED!");
 }
 
 /**
  * Called when one of the SmartEVSE buttons is pressed
  *
- * @param Buttons: < o >
+ * @param buttons: < o >
  *          Value: 1 2 4
  *            Bit: 0:Pressed / 1:Released
  */
-void EVSEMenu::onButtonChanged(uint8_t Buttons) {
+void EVSEMenu::onButtonChanged(uint8_t buttons) {
     resetInactivityTimer();
-    handleButtons(Buttons);
+    handleButtons(buttons);
 
-    if (buttonRelease == 1 || currentMenuOption == MENU_ENTER) {
+    if (buttonReleased == 1 || currentMenuOption == MENU_ENTER) {
         // Set value to 2, so that LCD will be updated only once
-        buttonRelease = 2;
+        buttonReleased = 2;
     }
 
-    checkFastModeSwitch(Buttons);
     beginInactivityTask();
 }
 
 bool EVSEMenu::shouldRedrawMenu() {
-    return (buttonRelease == 1 || currentMenuOption == MENU_ENTER || (currentMenuOption == MENU_RFIDREADER && subMenu) ||
-            (currentMenuOption == MENU_WIFI && subMenu));
+    return (buttonReleased == 1 || currentMenuOption == MENU_ENTER ||
+            (currentMenuOption == MENU_RFIDREADER && subMenu) || (currentMenuOption == MENU_WIFI && subMenu));
 }
 
 void EVSEMenu::setup() {

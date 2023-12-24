@@ -1,56 +1,88 @@
 SmartEVSE v3
 =========
 
-Smart Electric Vehicle Charge Controller
+Changes to original firmware v3.0.0
+- Massive code refactor to C++ objects
+- New web status page (UI design, Rest API and no webSockets)
+- New max EVSE temperature menu and settings
+- New RGB leds enabled/disabled menu and settings
+- Device dislay on Smart/Solar mode renders decimal amps for phases consumption
+- Fixed smart mode power rebalance on 3 phases grid
+- Improved timers and tasks
+- Special thanks to **serkri** for his work (https://github.com/serkri/SmartEVSE-3)
 
-![Image of SmartEVSE](/pictures/SmartEVSEv3.png)
+![Status page](./pictures/statuspage.jpg)
 
-# What is it?
+![Status page](./pictures/statuspage-mobile.jpg)
 
-It's an open source EVSE (Electric Vehicle Supply Equipment). It supports 1-3 phase charging, fixed charging cable or charging socket. Locking actuator support (5 different types). And it can directly drive a mains contactor for supplying power to the EV. It features a display from which all module parameters can be configured.<br>
-Up to 8 modules can be connected together to charge up to eight EV's from one mains connection without overloading it.<br>
-The mains connection can be monitored by the (optional) sensorbox or a modbus kWh meter. This allows smart charging.
-Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS485(modbus).
+![Status page](./pictures/power-monitor.jpg)
 
+![Status page](./pictures/device.jpg)
 
-# Features
+## Setting up WiFi
 
-- Fits into a standard DIN rail enclosure.
-- Measures the current consumption of other appliances, and automatically lowers or increases the charging current to the EV. (sensorbox required)
-- The load balancing feature let's you connect up to 8 SmartEVSE's to one mains supply.
-- Two switched 230VAC outputs, for contactors.
-- Powered RS485 communication bus for sensorbox / Modbus kWh Meters.
-- Can be used with fixed cable, or socket and charging cable.
-- Automatically selects current capacity of the connected cable (13/16/32A)
-- Locking actuator support, locks the charging cable in the socket.
-- RFID reader support, restrict the use of the charging station to max 20 RFID cards.
-- An optional modbus kWh meter will measure power and charged energy, and display this on the LCD.
-- Built-in temperature sensor.
-- RGB led output for status information while charging.
-- All module parameters can be configured using the display and buttons.
-- WiFi status page.
-- Firmware upgradable through USB-C port or through the buildt in webserver. 
+> Documentation from: https://github.com/tzapu/WiFiManager
+
+- From SmartEVSE menu select `WIFI` option and `SetupWifi` suboption
+- In 5 seconds Wifi portal will start and SmartEVSE will display Wifi access point name and password
+- using any wifi enabled device with a browser (computer, phone, tablet) connect to the newly created Access Point
+- because of the Captive Portal and the DNS server you will either get a 'Join to network' type of popup or get any domain you try to access redirected to the configuration portal
+- choose one of the access points scanned, enter password, click save
+- SmartEVSE will try to connect. If successful, it relinquishes control back to your app. If not, reconnect to AP and reconfigure.
+
+- When your SmartEVSE starts up, it sets it up in Station mode and tries to connect to a previously saved Access Point
+- if this is unsuccessful (or no previous network saved) it moves the SmartEVSE into Access Point mode and spins up a DNS and WebServer (default ip 192.168.4.1)
+
+![ESP8266 WiFi Captive Portal Homepage](http://i.imgur.com/YPvW9eql.png) ![ESP8266 WiFi Captive Portal Configuration](http://i.imgur.com/oicWJ4gl.png)
 
 
-# Connecting the SmartESVE to WiFi
+$~$
+## Building the firmware
+* Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
+* Compile `firmware.bin`: platformio run
+* Compile `spiffs.bin`: platformio run -t buildfs
 
-In order to connect the SmartEVSE to your local WiFi network, a temporarily hotspot is created by the SmartESVE to which you can connect using a phone/tablet.
-Here you can then scan for your local WiFi, and enter your Wifi network password. Then the SmartEVSE will use this information to connect to your local Wifi network.
+$~$
+## Flashing the device
 
-The steps to connect the SmartEVSE to Wifi are as follows:
-- in the SmartEVSE menu, go to the option WIFI, then select SetupWiFi.
-- after 10 seconds, a hotspot/access point SmartESVE-xxxx is started. (xxxx is the serial nr of your SmartEVSE)
-- Using a phone or tablet, connect to this access point.
-- You will be asked to enter a password. This password is visible on the top right corner of the SmartEVSE's display. (PW:xxxxxxxx)
-- Once connected you will be able to select your local WiFi network, and enter the password for this network.
-- click SAVE, the SmartEVSE will try to connect to your local WiFi network.
-- Enter the menu of your SmartEVSE again. The SmartEVSE should now display the IP address on the top row of the display.
-- use this IP address in a webbrowser to connect to the webserver of the controller. You can also use http://smartevse-xxxx.local  (replace xxxx with the serial nr of your controller)
+> [!CAUTION]
+> YOU CANNOT FLASH THE DEVICE WITH ANOTHER FILENAME rather than `firmware.bin`!
 
-# Updating Firmware
+### Option 1: WiFi flashing
+* Configure SmartEVSE WiFi
+* Open device `/update` endpoint on browser without HTTPS *(ex: http://your-smartevse-address/update)*
+* Select the `firmware.bin` archive
+* After OK, select `spiffs.bin`
+* If you get FAIL, check your wifi connection and try again
+* After OK, wait 10-30 seconds and your new firmware including the webserver should be online!
 
-Connect the SmartEVSE controller to your WiFi network (using the menu of the SmartEVSE), and then browse to http://IPaddress/update where IPaddress is the IP which is shown on the display.
-You can also use http://smartevse-xxxx.local/update where xxxx is the serial nr of your controller.<br>
-Here you can select the firmware.bin and press update to update the firmware.<br>
-It's also possible to update the spiffs partition from this page. (for v3.0.1 this is not needed)<br>
-After updating the firmware, you can access the status page again using the normal url: http://smartevse-xxxx.local  (replace xxxx with the serial nr of your controller)<br>
+
+$~$
+### Option 2: USB flashing (Windows OS)
+* InstallDriver for Virtual Port https://www.silabs.com/documents/public/software/CP210x_VCP_Windows.zip
+* Open `platformio.ini` file and replace COM4 port with your SmartEVSE device port (check via Windows device manager)
+* Upload via USB configured in platformio.ini: platformio run --target upload
+
+
+$~$
+### Embeded webserver HTML content
+* Update partition with `spiffs.bin` previously built 
+
+
+$~$
+## Erasing flash memory from the device / factory reset
+* `pip install esptool`
+* Download boot section `https://github.com/SmartEVSE/SmartEVSE-3/files/8864695/boot_app0.zip`
+* extract `boot_app0.zip`
+* Replace COM4 port with your SmartEVSE device port (check via Windows device manager)
+
+
+```
+esptool.py.exe --chip esp32 --port COM4 --before default_reset --after hard_reset write_flash 0xe000 boot_app0.bin
+```
+```
+esptool.py.exe --chip esp32 --port COM4 --before default_reset --after hard_reset erase_region 0xe000 0x2000
+```
+```
+esptool.py.exe --chip esp32 --port COM4 erase_flash
+```

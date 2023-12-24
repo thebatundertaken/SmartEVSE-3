@@ -1,7 +1,4 @@
-#/*
-;    Project: Smart EVSE v3
-;
-;
+/*
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -43,7 +40,7 @@
 #define PIN_PP_IN 34
 #define PIN_LOCK_IN 35
 #define PIN_SSR 32
-#define PIN_LCD_CLK 26 // = SPI_SCK
+#define PIN_LCD_CLK 26  // = SPI_SCK
 #define PIN_SSR2 27
 #define PIN_LCD_LED 14
 #define PIN_LEDB 12
@@ -54,16 +51,15 @@
 #define PIN_LCD_A0_B2 25
 #define PIN_IO0_B1 0
 
-#define SPI_MOSI 33 // SPI connections to LCD
+#define SPI_MOSI 33  // SPI connections to LCD
 #define SPI_MISO -1
 #define SPI_SCK 26
 #define SPI_SS -1
 
 #define CP_CHANNEL 0
-#define RED_CHANNEL 2 // PWM channel 2 (0 and 1 are used by CP signal)
+#define RED_CHANNEL 2  // PWM channel 2 (0 and 1 are used by CP signal)
 #define GREEN_CHANNEL 3
 #define BLUE_CHANNEL 4
-#define LCD_CHANNEL 5 // LED Backlight LCD
-
+#define LCD_CHANNEL 5  // LED Backlight LCD
 
 #endif

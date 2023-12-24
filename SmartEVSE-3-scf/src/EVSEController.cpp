@@ -1,23 +1,42 @@
-#include <Arduino.h>
-#include <SPI.h>
-
-#include <SPIFFS.h>
-
-#include <soc/sens_reg.h>
-#include <soc/sens_struct.h>
-#include "driver/adc.h"
-#include "esp_adc_cal.h"
-
-#include "driver/uart.h"
-#include "soc/rtc_io_struct.h"
-
-#include <Preferences.h>
+/*
+; Permission is hereby granted, free of charge, to any person obtaining a copy
+; of this software and associated documentation files (the "Software"), to deal
+; in the Software without restriction, including without limitation the rights
+; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+; copies of the Software, and to permit persons to whom the Software is
+; furnished to do so, subject to the following conditions:
+;
+; The above copyright notice and this permission notice shall be included in
+; all copies or substantial portions of the Software.
+;
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+; THE SOFTWARE.
+ */
 
 #include "EVSEController.h"
+
+#include <Arduino.h>
+#include <Preferences.h>
+#include <SPI.h>
+#include <SPIFFS.h>
+#include <soc/sens_reg.h>
+#include <soc/sens_struct.h>
+
+#include "EVSECluster.h"
 #include "EVSELogger.h"
 #include "EVSEModbus.h"
 #include "EVSEPin.h"
 #include "EVSERFID.h"
+#include "EVSEWorkflow.h"
+#include "driver/adc.h"
+#include "driver/uart.h"
+#include "esp_adc_cal.h"
+#include "soc/rtc_io_struct.h"
 
 // 5% of PWM
 #define PWM_5 50
@@ -50,7 +69,8 @@ const char* PREFS_MAXTEMP_KEY = "Temperature";
 
 // Alarm interrupt handler
 // in STATE A this is called every 1ms (autoreload)
-// in STATE B/C there is a PWM signal, and the Alarm is set to 5% after the low-> high transition of the PWM signal
+// in STATE B/C there is a PWM signal, and the Alarm is set to 5% after the
+// low-> high transition of the PWM signal
 void IRAM_ATTR EVSEController::onTimerA() {
     evseController.sampleADC();
 }
@@ -60,9 +80,7 @@ void IRAM_ATTR EVSEController::onCPpulseInterrupt() {
     evseController.onCPpulse();
 }
 
-void EVSEController::onDiodeOK() {
-    EVSELogger::debug("Diode OK");
-    isDiodeOk = true;
+void EVSEController::onDiodeCheckOK() {
     // Enable Timer alarm, set to start of CP signal (5%)
     timerAlarmWrite(timerA, PWM_5, false);
 }
@@ -73,15 +91,25 @@ bool EVSEController::isVehicleConnected() {
 }
 
 // Set EVSE mode
-void EVSEController::setMode(uint8_t newMode) {
+void EVSEController::switchMode(uint8_t newMode) {
     mode = newMode;
-    // Disable modbus reception on normal mode
-    if (mode == MODE_NORMAL) {
-        evseModbus.mainsMeter = MAINS_METER_DISABLED;
-        evseModbus.pvMeter = PV_METER_DISABLED;
-    }
+    evseCluster.setMasterNodeControllerMode(mode);
 
-    evseModbus.broadcastNewModeToNodes(mode);
+    cleanupNoPowerTimersFlags();
+}
+
+//  Change from Solar to Smart mode and vice versa
+void EVSEController::switchModeSolarSmart() {
+    switchMode(mode == MODE_SOLAR ? MODE_SMART : MODE_SOLAR);
+}
+
+void EVSEController::cleanupNoPowerTimersFlags() {
+    // Clear All errors
+    errorFlags &= ~(ERROR_FLAG_NO_SUN | ERROR_FLAG_LESS_6A);
+    // Clear any Chargedelay
+    chargeDelaySeconds = 0;
+    // Also make sure the SolarTimer is disabled.
+    setSolarStopTimer(0);
 }
 
 void EVSEController::onCPpulse() {
@@ -98,7 +126,8 @@ uint16_t IRAM_ATTR EVSEController::local_adc1_read(int channel) {
     SENS.sar_meas_wait2.force_xpd_sar = SENS_FORCE_XPD_SAR_PU;  // adc_power_on
     RTCIO.hall_sens.xpd_hall = false;                           // disable other peripherals
 
-    // adc_ll_amp_disable()  // Close ADC AMP module if don't use it for power save.
+    // adc_ll_amp_disable()  // Close ADC AMP module if don't use it for power
+    // save.
     SENS.sar_meas_wait2.force_xpd_amp = SENS_FORCE_XPD_AMP_PD;  // channel is set in the convert function
     // disable FSM, it's only used by the LNA.
     SENS.sar_meas_ctrl.amp_rst_fb_fsm = 0;
@@ -143,17 +172,30 @@ void EVSEController::sampleADC() {
 
 //  Tell EV to stop charging. When we are not charging switch to State B1
 void EVSEController::stopChargingOnError() {
-    if (state == STATE_C_CHARGING) {
-        setState(STATE_C1_CHARGING_NO_POWER);
-    } else if (state == STATE_B_VEHICLE_DETECTED) {
-        setState(STATE_B1_VEHICLE_DETECTED_NO_POWER);
+    EVSELogger::debug("[EVSEController] Stopping charging due to charge error");
+
+    switch (state) {
+        case STATE_C_CHARGING:
+            setState(STATE_C1_CHARGING_NO_POWER);
+            break;
+
+        case STATE_B_VEHICLE_DETECTED:
+            setState(STATE_B1_VEHICLE_DETECTED_NO_POWER);
+            break;
+
+        default:
+            // Invalid state
+            return;
     }
+
+    evseCluster.setMasterNodeBalancedState(state);
 }
 
 void EVSEController::onNodeReceivedError(uint8_t newErrorFlags) {
     errorFlags = newErrorFlags;
 
     if (errorFlags) {
+        EVSELogger::info("[EVSEController] Node received error. Stopping charging");
         stopChargingOnError();
         chargeDelaySeconds = DEFAULT_CHARGE_DELAY_SECONDS;
     }
@@ -163,50 +205,30 @@ void EVSEController::setAccess(bool access) {
     evseRFID.rfidAccessBit = access ? RFID_ACCESS_GRANTED : RFID_NO_ACCESS;
 
     if (!access) {
+        EVSELogger::info("[EVSEController] Disabled access bit. Stopping charging");
         stopChargingOnError();
     }
 }
 
 void EVSEController::onCTCommunicationLost() {
+    if (errorFlags & ERROR_FLAG_CT_NOCOMM) {
+        // Do not re-run if comms are already down
+        return;
+    }
+
     errorFlags |= ERROR_FLAG_CT_NOCOMM;
+    EVSELogger::info("[EVSEController] CT communication lost. Stopping charging");
     stopChargingOnError();
+
+    evseCluster.setMasterNodeErrorflags(errorFlags);
+    evseCluster.resetBalancedStates();
 }
 
 void EVSEController::waitForEnoughPower() {
+    EVSELogger::info("[EVSEController] Waiting for enough power. Stopping charging");
     stopChargingOnError();
     // Set Chargedelay
     chargeDelaySeconds = DEFAULT_CHARGE_DELAY_SECONDS;
-}
-
-// Set Charge Current
-// Current in Amps * 10 (160 = 16A)
-void EVSEController::setCurrent(uint16_t current) {
-    uint32_t DutyCycle;
-
-    if ((current >= 60) && (current <= 510)) {
-        DutyCycle = current / 0.6;
-        // calculate DutyCycle from current
-    } else if ((current > 510) && (current <= 800)) {
-        DutyCycle = (current / 2.5) + 640;
-    } else {
-        DutyCycle = 100;  // invalid, use 6A
-    }
-
-    // conversion to 1024 = 100%
-    DutyCycle = DutyCycle * 1024 / 1000;
-    // update PWM signal
-    ledcWrite(CP_CHANNEL, DutyCycle);
-}
-
-// Change from Solar to Smart mode and vice versa
-void EVSEController::switchModeSolarSmart() {
-    setMode(~mode & 0x3);
-    // Clear All errors
-    errorFlags &= ~(ERROR_FLAG_NO_SUN | ERROR_FLAG_LESS_6A);
-    // Clear any Chargedelay
-    chargeDelaySeconds = 0;
-    // Also make sure the SolarTimer is disabled.
-    setSolarStopTimer(0);
 }
 
 bool EVSEController::isEnoughPower() {
@@ -220,21 +242,133 @@ void EVSEController::onNotEnoughPower() {
 }
 
 void EVSEController::onPowerBackOn() {
-    if (!evseModbus.amIMasterOrDisabled()) {
+    errorFlags &= ~ERROR_FLAG_LESS_6A;
+    errorFlags &= ~ERROR_FLAG_NO_SUN;
+    cleanupNoPowerTimersFlags();
+
+    evseCluster.setMasterNodeErrorflags(errorFlags);
+}
+
+void EVSEController::onDisconnectInProgress() {
+    // PWM off, channel 0, duty cycle 0%
+    ledcWrite(CP_CHANNEL, CONTROL_PILOT_DUTYCICLE_0);
+}
+
+void EVSEController::onStandbyReadyToCharge() {
+    // No cable corner case
+    switch (config) {
+        case CONFIG_FIXED_CABLE:
+            if (cableMaxCapacity == 0) {
+                cableMaxCapacity = maxDeviceCurrent;
+            }
+            break;
+
+        case CONFIG_SOCKET:
+            if (cableMaxCapacity != maxDeviceCurrent) {
+                // Reset cableMaxCapacity after vehicle finished charging (cableMaxCapacity holds
+                // previous cable max capacity, but that cable is not gone)
+                cableMaxCapacity = maxDeviceCurrent;
+            }
+            break;
+    }
+
+    // Waiting for power corner case
+    // EVSE still waiting for power, but vehicle is not connected anymore
+    // reset flags and timers
+    cleanupNoPowerTimersFlags();
+}
+
+void EVSEController::onVehicleConnected() {
+    sampleProximityPilot();
+    resetChargeCurrent();
+}
+
+void EVSEController::onVehicleStartCharging() {
+    // Use chargeCurrent value instead maxMains to allow current override
+    evseCluster.setMasterNodeBalancedMax(chargeCurrent);
+
+    if (!evseCluster.isEnoughCurrentAvailable()) {
+        EVSELogger::warn("[EVSEController] Vehicle wants to charge but not enough power");
+        onNotEnoughPower();
         return;
     }
 
-    errorFlags &= ~ERROR_FLAG_LESS_6A;
-    errorFlags &= ~ERROR_FLAG_NO_SUN;
-
-    evseModbus.broadcastErrorFlagsToNodes(errorFlags);
+    openElectricCircuit();
+    // Rebalance chargeCurrent AFTERWARDS
+    evseCluster.adjustChargeCurrent();
 }
+
+void EVSEController::openElectricCircuit() {
+    // Do not open circuit if no power
+    if (chargeCurrent <= 0 || !isEnoughPower()) {
+        return;
+    }
+
+    // Do not open circuit if controller is not in the right state (ex: standby
+    // smart mode rebalance)
+    if (state == STATE_C_CHARGING || state == STATE_B_VEHICLE_DETECTED) {
+        setCurrent(chargeCurrent);
+    }
+}
+
+void EVSEController::onChargeCurrentChanged() {
+    if (chargeCurrent < (minEVCurrent * 10)) {
+        sprintf(sprintfStr, "[EVSEController] onChargeCurrentChanged (%d) triggering not enough power", chargeCurrent);
+        EVSELogger::warn(sprintfStr);
+        onNotEnoughPower();
+        return;
+    }
+
+    const uint16_t maxMainsCurrent = maxMains * 10;
+    if (chargeCurrent > maxMainsCurrent) {
+        sprintf(sprintfStr, "[EVSEController] chargeCurrent (%d) above maxMains (%d)", chargeCurrent, maxMainsCurrent);
+        EVSELogger::warn(sprintfStr);
+        chargeCurrent = maxMainsCurrent;
+    }
+
+    openElectricCircuit();
+}
+
+// Set Charge Current
+// Current in Amps * 10 (160 = 16A)
+void EVSEController::setCurrent(uint16_t current) {
+    // The “duty cycle” (the length of the pulse) determines the maximum current EVSE can supply to the vehicle
+    uint32_t dutyCycle;
+
+    if ((current >= 60) && (current <= 510)) {
+        dutyCycle = current / 0.6;
+        // calculate dutyCycle from current
+    } else if ((current > 510) && (current <= MAX_MAINS_HARD_LIMIT)) {
+        dutyCycle = (current / 2.5) + 640;
+    } else {
+        // invalid, use 6A
+        dutyCycle = 100;
+    }
+
+    // conversion to 1024 = 100%
+    dutyCycle = (dutyCycle * CONTROL_PILOT_DUTYCICLE_100) / 1000;
+    // update PWM signal
+    ledcWrite(CP_CHANNEL, dutyCycle);
+}
+
+void EVSEController::setChargeCurrent(uint16_t value) {
+    // hard limit 80A
+    if (value > MAX_MAINS_HARD_LIMIT) {
+        value = MAX_MAINS_HARD_LIMIT;
+    }
+
+    if (chargeCurrent != value) {
+        chargeCurrent = value;
+        onChargeCurrentChanged();
+    }
+};
 
 void EVSEController::setState(uint8_t NewState) {
     switch (NewState) {
         case STATE_B1_VEHICLE_DETECTED_NO_POWER:
-            // When entering State B1, wait at least 3 seconds before switching to another state.
-            if (!chargeDelaySeconds) {
+            // When entering State B1, wait at least 3 seconds before switching to
+            // another state.
+            if (chargeDelaySeconds == 0) {
                 chargeDelaySeconds = 3;
             }
             break;
@@ -242,46 +376,53 @@ void EVSEController::setState(uint8_t NewState) {
         case STATE_A_STANDBY:
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
-            // PWM off,  channel 0, duty cycle 100%
-            ledcWrite(CP_CHANNEL, 1024);
+            // PWM off, channel 0, duty cycle 100%
+            ledcWrite(CP_CHANNEL, CONTROL_PILOT_DUTYCICLE_100);
             // Alarm every 1ms, auto reload
             timerAlarmWrite(timerA, PWM_100, true);
+
             if (NewState == STATE_A_STANDBY) {
                 errorFlags &= ~ERROR_FLAG_NO_SUN;
                 errorFlags &= ~ERROR_FLAG_LESS_6A;
-                // Clear charge delay when disconnected
-                chargeDelaySeconds = 0;
-                evseModbus.resetNode(0);
+                evseModbus.evMeterResetKwhOnStandby();
             }
+            chargeDelaySeconds = 0;
             break;
 
         case STATE_B_VEHICLE_DETECTED:
+            evseCluster.setMasterNodeBalancedMax(cableMaxCapacity * 10);
+            evseCluster.setMasterNodeBalancedCurrent(chargeCurrent);
+
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
             // Enable Timer alarm, set to diode test (95%)
             timerAlarmWrite(timerA, PWM_95, false);
             // Enable PWM
-            setCurrent(chargeCurrent);
+            openElectricCircuit();
             break;
 
         case STATE_C_CHARGING:
+            evseModbus.evMeterResetKwhOnCharging();
             CONTACTOR1_ON;
             CONTACTOR2_ON;
             break;
 
         case STATE_C1_CHARGING_NO_POWER:
-            // PWM off,  channel 0, duty cycle 100%
-            ledcWrite(CP_CHANNEL, 1024);
+            // PWM off, channel 0, duty cycle 100%
+            ledcWrite(CP_CHANNEL, CONTROL_PILOT_DUTYCICLE_100);
             // Alarm every 1ms, auto reload. EV should detect and stop charging within 3 seconds
             timerAlarmWrite(timerA, PWM_100, true);
-            // Wait maximum 6 seconds (CHARGING_NO_POWER_WAIT_TIMEOUT_MILLIS), before forcing the contactor off
-            chargingNoPwmTimeoutMillis = millis();
-            chargeDelaySeconds = 15;
+            // Keep in State C1 for 15 seconds, so the charge cable can be removed
+            chargeDelaySeconds = STATE_C1_CHARGING_NO_POWER_DELAY_SECONDS;
+            break;
+
+        case STATE_MODBUS_COMM_C:
+            evseModbus.evMeterResetKwhOnCharging();
             break;
     }
 
     state = NewState;
-    evseModbus.setMasterNodeBalancedState(state);
+    evseCluster.setMasterNodeBalancedState(state);
 }
 
 // Sample the Temperature sensor
@@ -295,10 +436,11 @@ void EVSEController::sampleTemperatureSensor() {
     // voltage range is from 0-2200mV
     uint32_t voltage = esp_adc_cal_raw_to_voltage(sample, adc_chars_Temperature);
 
-    // The MCP9700A temperature sensor outputs 500mV at 0C, and has a 10mV/C change in output voltage.
-    // so 750mV is 25C, 400mV = -10C
+    // The MCP9700A temperature sensor outputs 500mV at 0C, and has a 10mV/C
+    // change in output voltage. so 750mV is 25C, 400mV = -10C
     temperature = (signed int)(voltage - 500) / 10;
-    // Serial.printf("\nTemp: %i C (%u mV) ", Temperature , voltage);
+    sprintf(sprintfStr, "[EVSEController] Temp: %i C (%u mV)", temperature, voltage);
+    EVSELogger::debug(sprintfStr);
 
     // Temperature between limit?
     if (temperature < (maxTemperature - TEMPERATURE_COOLDOWN_THRESHOLD)) {
@@ -315,7 +457,7 @@ void EVSEController::sampleTemperatureSensor() {
         errorFlags |= ERROR_FLAG_TEMP_HIGH;
         // ERROR, switch back to STATE_A_STANDBY
         setState(STATE_A_STANDBY);
-        evseModbus.resetBalancedStates();
+        evseCluster.resetBalancedStates();
     }
 }
 
@@ -334,17 +476,15 @@ void EVSEController::sampleControlPilotLine() {
         sample = ADCsamples[n];
         // convert adc reading to voltage
         voltage = esp_adc_cal_raw_to_voltage(sample, adc_chars_CP);
+        // store lowest and highest values
         if (voltage < min) {
-            // store lowest value
             min = voltage;
         }
 
         if (voltage > max) {
-            // store highest value
             max = voltage;
         }
     }
-    // Serial.printf("min:%u max:%u\n",Min ,Max);
 
     // test Min/Max against fixed levels
     if (min > 3000) {
@@ -371,309 +511,26 @@ void EVSEController::sampleControlPilotLine() {
     controlPilot = CONTROL_PILOT_NOK;
 }
 
-void EVSEController::statesWorkflowStandby() {
-    // Disconnected or no PWM, or forced to State A, but still connected to the EV
-    if (controlPilot == CONTROL_PILOT_12V) {
-        // If the RFID reader is set to EnableOne mode, and the Charging cable is disconnected
-        // We start a timer to re-lock the EVSE (and unlock the cable) after 60 seconds.
-        // evseRFID.startLockWait();
-
-        if (state != STATE_A_STANDBY) {
-            // reset state, incase we were stuck in STATE_MODBUS_COMM_B
-            setState(STATE_A_STANDBY);
-        }
-
-        // Clear chargeDelaySeconds when disconnected.
-        chargeDelaySeconds = 0;
-
-        evseModbus.evMeterResetKwhOnStandby();
-
-        return;
-    }
-
-    // switch to State B ?
-    if (controlPilot == CONTROL_PILOT_9V && errorFlags == ERROR_FLAG_NO_ERROR && chargeDelaySeconds == 0 && evseRFID.isRFIDAccessGranted() &&
-        state != STATE_MODBUS_COMM_B) {
-        // Allow to switch to state C directly if STATE_A_TO_C is set to CONTROL_PILOT_6V (see EVSE.h)
-        isDiodeOk = false;
-
-        // Sample Proximity Pin
-        sampleProximityPilot();
-        calcChargeCurrent();
-
-        // For LB nodes only: send command to Master, followed by Max Charge Current
-        if (evseModbus.amIWorkerNode()) {
-            // Node wants to switch to State B
-            setState(STATE_MODBUS_COMM_B);
-
-            // Load Balancing: Master or Disabled
-            return;
-        }
-
-        // Is there any power?
-        if (evseModbus.isCurrentAvailable()) {
-            evseModbus.setMasterNodeBalancedMax(cableMaxCapacity * 10);
-            // Set controlPilot duty cycle to ChargeCurrent (v2.15)
-            evseModbus.setMasterNodeBalancedCurrent(chargeCurrent);
-            // switch to State B
-            setState(STATE_B_VEHICLE_DETECTED);
-            // Turn off current if unused for 30 seconds
-            currentAvailableWaitMillis = millis();
-            return;
-        }
-
-        // Not enough power
-        onNotEnoughPower();
-    }
-}
-
-void EVSEController::statesWorkflowDetected() {
-    // Disconnected or no PWM
-    if (controlPilot == CONTROL_PILOT_12V) {
-        setState(STATE_A_STANDBY);
-        return;
-    }
-
-    if (controlPilot == CONTROL_PILOT_6V) {
-        if (isDiodeOk && (errorFlags == ERROR_FLAG_NO_ERROR) && (chargeDelaySeconds == 0)) {
-            evseModbus.evMeterResetKwhOnCharging();
-
-            // Load Balancing : Node
-            if (evseModbus.amIWorkerNode()) {
-                if (state != STATE_MODBUS_COMM_C) {
-                    // Send command to Master, followed by Charge Current
-                    setState(STATE_MODBUS_COMM_C);
-                }
-
-                // Load Balancing: Master or Disabled
-                return;
-            }
-
-            evseModbus.setMasterNodeBalancedMax(chargeCurrent);
-            if (evseModbus.isCurrentAvailable()) {
-                // For correct baseload calculation set current to zero
-                evseModbus.setMasterNodeBalancedCurrent(0);
-                // Calculate charge current for all connected EVSE's
-                evseModbus.calcBalancedCurrent(CALC_BALANCED_CURRENT_MODE_ALL_EVSES);
-                setState(STATE_C_CHARGING);
-
-                // Vehicle is charging, disable disconnect timeout
-                currentAvailableWaitMillis = 0;
-                isDiodeOk = false;
-
-                /*if (!evseMenu.currentMenuOption) {
-                    // Don't update the LCD if we are navigating the menu
-                    // GLCD();
-                }*/
-
-                return;
-            }
-
-            // Not enough power
-            onNotEnoughPower();
-        }
-
-        return;
-    }
-
-    // Current NOT in use after 30 seconds, change state to ACTIVATION_IN_PROGRESS and wait 3 more seconds
-    if (currentAvailableWaitMillis != 0 && (millis() - currentAvailableWaitMillis) >= CURRENTAVAILABLE_WAIT_TIMEOUT_MILLIS) {
-        currentAvailableWaitMillis = 0;
-        setState(STATE_DISCONNECT_IN_PROGRESS);
-        // Timer 3 seconds, in order to let car the process electric signal on the fly, before disconnecting
-        disconnectRequestMillis = millis();
-        // PWM off, channel 0, duty cycle 0%
-        // Control controlPilot static -12V
-        ledcWrite(CP_CHANNEL, 0);
-    }
-
-    if (controlPilot == CONTROL_PILOT_DIODE_CHECK_OK) {
-        // Diode found, OK
-        onDiodeOK();
-    }
-}
-
-void EVSEController::statesWorkflow() {
-    switch (state) {
-        case STATE_A_STANDBY:
-        case STATE_B1_VEHICLE_DETECTED_NO_POWER:
-        case STATE_MODBUS_COMM_B:
-            statesWorkflowStandby();
-            break;
-
-        case STATE_MODBUS_COMM_B_OK:
-            setState(STATE_B_VEHICLE_DETECTED);
-            // Turn off current if unused for 30 seconds
-            currentAvailableWaitMillis = millis();
-            break;
-
-        case STATE_B_VEHICLE_DETECTED:
-        case STATE_MODBUS_COMM_C:
-            statesWorkflowDetected();
-            break;
-
-        case STATE_C1_CHARGING_NO_POWER:
-            // Disconnected or no PWM
-            if (controlPilot == CONTROL_PILOT_12V) {
-                chargingNoPwmTimeoutMillis = 0;
-                setState(STATE_A_STANDBY);
-            } else if (controlPilot == CONTROL_PILOT_9V) {
-                chargingNoPwmTimeoutMillis = 0;
-                setState(STATE_B1_VEHICLE_DETECTED_NO_POWER);
-            } else {
-                // if the EV does not stop charging in 6 seconds, we will open the contactor.
-                if ((chargingNoPwmTimeoutMillis > 0) && ((millis() - chargingNoPwmTimeoutMillis) >= CHARGING_NO_POWER_WAIT_TIMEOUT_MILLIS)) {
-                    chargingNoPwmTimeoutMillis = 0;
-                    EVSELogger::info("State C1 Timeout!");
-                    setState(STATE_B1_VEHICLE_DETECTED_NO_POWER);
-                }
-            }
-            break;
-
-        case STATE_MODBUS_COMM_C_OK:
-            setState(STATE_C_CHARGING);
-            // Vehicle is charging, disable disconnect timeout
-            currentAvailableWaitMillis = 0;
-            isDiodeOk = 0;
-            break;
-
-        case STATE_C_CHARGING:
-            // Disconnected or no PWM
-            if (controlPilot == CONTROL_PILOT_12V) {
-                setState(STATE_A_STANDBY);
-            } else if (controlPilot == CONTROL_PILOT_9V) {
-                setState(STATE_B_VEHICLE_DETECTED);
-                isDiodeOk = 0;
-            }
-            break;
-
-        case STATE_DISCONNECT_IN_PROGRESS:
-            // Timer 3 seconds, in order to let car the process electric signal on the fly, before disconnecting
-            if (disconnectRequestMillis != 0 && (millis() - disconnectRequestMillis) >= DISCONNECT_WAIT_MILLIS) {
-                disconnectRequestMillis = 0;
-                setState(STATE_B_VEHICLE_DETECTED);
-            }
-            break;
-    }
-}
-
-void EVSEController::readEpromSettings() {
-    Preferences preferences;
-    if (preferences.begin(PREFS_CONTROLLER_NAMESPACE, true) != true) {
-        EVSELogger::error("Unable to open preferences for EVSEController");
-        return;
-    }
-
-    bool firstRun = true;
-    if (preferences.isKey(PREFS_RCMON_KEY)) {
-        firstRun = false;
-
-        RCmon = preferences.getUChar(PREFS_RCMON_KEY, RC_MON_DISABLED);
-        ICal = preferences.getUShort(PREFS_ICAL_KEY, ICAL_DEFAULT);
-        mode = preferences.getUChar(PREFS_MODE_KEY, MODE_NORMAL);
-        config = preferences.getUChar(PREFS_CONFIG_KEY, CONFIG_SOCKET);
-        externalSwitch = preferences.getUChar(PREFS_SWITCH_KEY, SWITCH_DISABLED);
-        maxCurrent = preferences.getUShort(PREFS_MAXCURRENT_KEY, MAX_CURRENT);
-        minCurrent = preferences.getUShort(PREFS_MINCURRENT_KEY, MIN_CURRENT);
-        maxMains = preferences.getUShort(PREFS_MAXMAINS_KEY, MAX_MAINS);
-        solarStartCurrent = preferences.getUShort(PREFS_STARTCURRENT_KEY, SOLAR_START_CURRENT);
-        solarStopTime = preferences.getUShort(PREFS_STOPTIME_KEY, SOLAR_STOP_TIME_MINUTES);
-        solarImportCurrent = preferences.getUShort(PREFS_IMPORTCURRENT_KEY, SOLAR_IMPORT_CURRENT);
-        maxTemperature = preferences.getChar(PREFS_MAXTEMP_KEY, DEFAULT_MAX_TEMPERATURE);
-    }
-    preferences.end();
-
-    if (firstRun) {
-        RCmon = RC_MON_DISABLED;
-        ICal = ICAL_DEFAULT;
-        mode = MODE_NORMAL;
-        config = CONFIG_SOCKET;
-        externalSwitch = SWITCH_DISABLED;
-        maxCurrent = MAX_CURRENT;
-        minCurrent = MIN_CURRENT;
-        maxMains = MAX_MAINS;
-        solarStartCurrent = SOLAR_START_CURRENT;
-        solarStopTime = SOLAR_STOP_TIME_MINUTES;
-        solarImportCurrent = SOLAR_IMPORT_CURRENT;
-        maxTemperature = DEFAULT_MAX_TEMPERATURE;
-        writeEpromSettings();
-    }
-
-    // We might need some sort of authentication in the future.
-    // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
-    // Unused for now.
-    /*if (preferences.begin("KeyStorage", true) == true) {
-        serialnr = preferences.getUInt("serialnr");
-        // 0x0101 (01 = SmartEVSE,  01 = hwver 01)
-        // uint16_t hwversion = preferences.getUShort("hwversion");
-        // String ec_private = preferences.getString("ec_private");
-        // String ec_public = preferences.getString("ec_public");
-        preferences.end();
-
-        // overwrite APhostname if serialnr is programmed
-        // SmartEVSE access point Name = SmartEVSE-xxxxx
-        //APhostname = "SmartEVSE-" + String(serialnr & 0xffff, 10);
-        // Serial.printf("hwversion %04x serialnr:%u \n",hwversion, serialnr);
-        // Serial.print(ec_public);
-    } else {
-        Serial.print("No KeyStorage found in nvs!\n");
-    }*/
-}
-
-void EVSEController::writeEpromSettings() {
-    Preferences preferences;
-    if (preferences.begin(PREFS_CONTROLLER_NAMESPACE, false) != true) {
-        EVSELogger::error("Unable to write preferences for EVSEController");
-        return;
-    }
-
-    preferences.putUChar(PREFS_RCMON_KEY, RCmon);
-    preferences.putUShort(PREFS_ICAL_KEY, ICal);
-    preferences.putUChar(PREFS_MODE_KEY, mode);
-    preferences.putUChar(PREFS_CONFIG_KEY, config);
-    preferences.putUChar(PREFS_SWITCH_KEY, externalSwitch);
-    preferences.putUShort(PREFS_MAXCURRENT_KEY, maxCurrent);
-    preferences.putUShort(PREFS_MINCURRENT_KEY, minCurrent);
-    preferences.putUShort(PREFS_MAXMAINS_KEY, maxMains);
-    preferences.putUShort(PREFS_STARTCURRENT_KEY, solarStartCurrent);
-    preferences.putUShort(PREFS_STOPTIME_KEY, solarStopTime);
-    preferences.putUShort(PREFS_IMPORTCURRENT_KEY, solarImportCurrent);
-    preferences.putChar(PREFS_MAXTEMP_KEY, maxTemperature);
-
-    preferences.end();
-}
-
 void EVSEController::calculateCalibration(uint16_t CT1) {
     // Calculate new Calibration value and set the Irms value
     ICal = ((unsigned long)CT1 * 10 + 5) * ICAL_DEFAULT / Iuncal;
     Irms[0] = CT1;
 }
 
-void EVSEController::setSolarStopTimer(uint16_t Timer) {
-    if (solarStopTimer == Timer) {
+void EVSEController::setSolarStopTimer(uint16_t timer) {
+    if (solarStopTimer == timer) {
         return;
     }
 
-    solarStopTimer = Timer;
-    evseModbus.broadcastSolarStopTimerToNodes(solarStopTimer);
-}
-
-void EVSEController::updateSettings() {
-    errorFlags = ERROR_FLAG_NO_ERROR;
-    chargeDelaySeconds = 0;
-    setSolarStopTimer(0);
-
-    writeEpromSettings();
-}
-
-void EVSEController::resetSettings() {
-    readEpromSettings();
+    solarStopTimer = timer;
+    evseCluster.setMasterSolarStopTimer(solarStopTimer);
 }
 
 // RCM = Residual Current Monitor
 // Clear RCM error bit, by pressing any button
 void EVSEController::resetRCMErrorFlag() {
-    // RCM was tripped, but RCM level is back to normal. Clear RCM error bit, by pressing any button
+    // RCM was tripped, but RCM level is back to normal. Clear RCM error bit, by
+    // pressing any button
     if (RCmon == RC_MON_ENABLED && (errorFlags & ERROR_FLAG_RCM_TRIPPED) && digitalRead(PIN_RCM_FAULT) == LOW) {
         errorFlags &= ~ERROR_FLAG_RCM_TRIPPED;
     }
@@ -702,8 +559,6 @@ void EVSEController::onExternalSwitchInputPulledLow() {
         case SWITCH_DISABLED:
             if (state == STATE_C_CHARGING) {
                 setState(STATE_C1_CHARGING_NO_POWER);
-                // Keep in State B for 15 seconds, so the Charge cable can be removed.
-                chargeDelaySeconds = 15;
             }
             break;
 
@@ -725,8 +580,6 @@ void EVSEController::onExternalSwitchInputPulledLow() {
             if (RB2Timer != 0 && ((millis() - RB2Timer) > SWITCH_SMARTSOLAR_BUTTON_LONGPRESSED_MILLIS)) {
                 if (state == STATE_C_CHARGING) {
                     setState(STATE_C1_CHARGING_NO_POWER);
-                    // Keep in State B for 15 seconds, so the Charge cable can be removed.
-                    chargeDelaySeconds = 15;
                 }
             }
             break;
@@ -738,7 +591,8 @@ void EVSEController::onExternalSwitchInputPulledLow() {
             break;
     }
 
-    // Reset RCM error when button is pressed. RCM was tripped, but RCM level is back to normal
+    // Reset RCM error when button is pressed. RCM was tripped, but RCM level is
+    // back to normal
     resetRCMErrorFlag();
 }
 
@@ -782,22 +636,27 @@ void EVSEController::sampleExternalSwitch() {
     externalSwitchReadsCount = 0;
     externalSwitchLastValue = digitalRead(PIN_SW_IN);
     if (externalSwitchLastValue == 0) {
+        EVSELogger::info("[EVSEController] sampleExternalSwitch triggered pulled low");
         onExternalSwitchInputPulledLow();
     } else {
+        EVSELogger::info("[EVSEController] sampleExternalSwitch triggered input released");
         onExternalSwitchInputReleased();
     }
 }
 
-void EVSEController::calcChargeCurrent() {
-    // Do not exceed cable max capacity
-    chargeCurrent = min(maxCurrent, cableMaxCapacity) * 10;
+void EVSEController::resetChargeCurrent() {
+    //  Do not exceed cable max capacity
+    uint16_t value = _min(maxMains, cableMaxCapacity) * 10;
+    setChargeCurrent(value);
 }
 
-// Sample the Proximity Pin, and determine the maximum current the cable can handle.
+// Sample the Proximity Pin, and determine the maximum current the cable can
+// handle.
 void EVSEController::sampleProximityPilot() {
-    // PP will be sample only for CONFIG_SOCKET mode, since PP cable is disconnect for CONFIG_FIXED_CABLE
+    // PP will be sample only for CONFIG_SOCKET mode, since PP cable is disconnect
+    // for CONFIG_FIXED_CABLE
     if (config == CONFIG_FIXED_CABLE) {
-        cableMaxCapacity = maxCurrent;
+        cableMaxCapacity = maxDeviceCurrent;
         return;
     }
 
@@ -806,7 +665,8 @@ void EVSEController::sampleProximityPilot() {
     RTC_EXIT_CRITICAL();
 
     uint32_t voltage = esp_adc_cal_raw_to_voltage(sample, adc_chars_PP);
-    // Serial.printf("PP pin: %u (%u mV)\n", sample, voltage);
+    sprintf(sprintfStr, "[EVSEController] PP pin: %u (%u mV)\n", sample, voltage);
+    EVSELogger::debug(sprintfStr);
 
     if ((voltage > 1200) && (voltage < 1400)) {
         // Max cable current = 16A	680R -> should be around 1.3V
@@ -826,8 +686,106 @@ void EVSEController::sampleProximityPilot() {
         return;
     }
 
-    // No resistor, Max cable current = 13A
-    cableMaxCapacity = MAX_CURRENT;
+    // No resistor, set capacity to device max
+    cableMaxCapacity = maxDeviceCurrent;
+}
+
+void EVSEController::updateSettings() {
+    errorFlags = ERROR_FLAG_NO_ERROR;
+    chargeDelaySeconds = 0;
+    setSolarStopTimer(0);
+
+    writeEpromSettings();
+}
+
+void EVSEController::resetSettings() {
+    readEpromSettings();
+}
+
+void EVSEController::readEpromSettings() {
+    Preferences preferences;
+    if (preferences.begin(PREFS_CONTROLLER_NAMESPACE, true) != true) {
+        EVSELogger::error("Unable to open preferences for EVSEController");
+        return;
+    }
+
+    bool firstRun = true;
+    if (preferences.isKey(PREFS_RCMON_KEY)) {
+        firstRun = false;
+
+        RCmon = preferences.getUChar(PREFS_RCMON_KEY, RC_MON_DISABLED);
+        ICal = preferences.getUShort(PREFS_ICAL_KEY, ICAL_DEFAULT);
+        mode = preferences.getUChar(PREFS_MODE_KEY, MODE_NORMAL);
+        config = preferences.getUChar(PREFS_CONFIG_KEY, CONFIG_SOCKET);
+        externalSwitch = preferences.getUChar(PREFS_SWITCH_KEY, SWITCH_DISABLED);
+        maxDeviceCurrent = preferences.getUShort(PREFS_MAXCURRENT_KEY, MAX_DEVICE_CURRENT);
+        minEVCurrent = preferences.getUShort(PREFS_MINCURRENT_KEY, MIN_EV_CURRENT);
+        maxMains = preferences.getUShort(PREFS_MAXMAINS_KEY, MAX_MAINS);
+        solarStartCurrent = preferences.getUShort(PREFS_STARTCURRENT_KEY, SOLAR_START_CURRENT);
+        solarStopTimeMinutes = preferences.getUShort(PREFS_STOPTIME_KEY, SOLAR_STOP_TIME_MINUTES);
+        solarImportCurrent = preferences.getUShort(PREFS_IMPORTCURRENT_KEY, SOLAR_IMPORT_CURRENT);
+        maxTemperature = preferences.getChar(PREFS_MAXTEMP_KEY, DEFAULT_MAX_TEMPERATURE);
+    }
+    preferences.end();
+
+    if (firstRun) {
+        RCmon = RC_MON_DISABLED;
+        ICal = ICAL_DEFAULT;
+        mode = MODE_NORMAL;
+        config = CONFIG_SOCKET;
+        externalSwitch = SWITCH_DISABLED;
+        maxDeviceCurrent = MAX_DEVICE_CURRENT;
+        minEVCurrent = MIN_EV_CURRENT;
+        maxMains = MAX_MAINS;
+        solarStartCurrent = SOLAR_START_CURRENT;
+        solarStopTimeMinutes = SOLAR_STOP_TIME_MINUTES;
+        solarImportCurrent = SOLAR_IMPORT_CURRENT;
+        maxTemperature = DEFAULT_MAX_TEMPERATURE;
+        writeEpromSettings();
+    }
+
+    // We might need some sort of authentication in the future.
+    // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
+    // Unused for now.
+    /*if (preferences.begin("KeyStorage", true) == true) {
+        serialnr = preferences.getUInt("serialnr");
+        // 0x0101 (01 = SmartEVSE,  01 = hwver 01)
+        // uint16_t hwversion = preferences.getUShort("hwversion");
+        // String ec_private = preferences.getString("ec_private");
+        // String ec_public = preferences.getString("ec_public");
+        preferences.end();
+
+        // overwrite APhostname if serialnr is programmed
+        // SmartEVSE access point Name = SmartEVSE-xxxxx
+        //APhostname = "SmartEVSE-" + String(serialnr & 0xffff, 10);
+        // EVSELogger.debug("hwversion %04x serialnr:%u \n",hwversion, serialnr);
+        // EVSELogger.debug(ec_public);
+    } else {
+        EVSELogger.error(("[EVSEController] No KeyStorage found in nvs!\n");
+    }*/
+}
+
+void EVSEController::writeEpromSettings() {
+    Preferences preferences;
+    if (preferences.begin(PREFS_CONTROLLER_NAMESPACE, false) != true) {
+        EVSELogger::error("Unable to write preferences for EVSEController");
+        return;
+    }
+
+    preferences.putUChar(PREFS_RCMON_KEY, RCmon);
+    preferences.putUShort(PREFS_ICAL_KEY, ICal);
+    preferences.putUChar(PREFS_MODE_KEY, mode);
+    preferences.putUChar(PREFS_CONFIG_KEY, config);
+    preferences.putUChar(PREFS_SWITCH_KEY, externalSwitch);
+    preferences.putUShort(PREFS_MAXCURRENT_KEY, maxDeviceCurrent);
+    preferences.putUShort(PREFS_MINCURRENT_KEY, minEVCurrent);
+    preferences.putUShort(PREFS_MAXMAINS_KEY, maxMains);
+    preferences.putUShort(PREFS_STARTCURRENT_KEY, solarStartCurrent);
+    preferences.putUShort(PREFS_STOPTIME_KEY, solarStopTimeMinutes);
+    preferences.putUShort(PREFS_IMPORTCURRENT_KEY, solarImportCurrent);
+    preferences.putChar(PREFS_MAXTEMP_KEY, maxTemperature);
+
+    preferences.end();
 }
 
 void EVSEController::setup() {
@@ -839,6 +797,14 @@ void EVSEController::setup() {
 
     pinMode(PIN_LCD_LED, OUTPUT);  // LCD backlight
     pinMode(PIN_LCD_RST, OUTPUT);  // LCD reset
+
+    // Fix screen goes blank if pins are not fully define before starting up the
+    // device < button
+    pinMode(PIN_IO0_B1, INPUT);
+    // o Select button + A0 LCD
+    pinMode(PIN_LCD_A0_B2, OUTPUT);
+    // > button + SDA/MOSI pin
+    pinMode(PIN_LCD_SDO_B3, OUTPUT);
 
     pinMode(PIN_LOCK_IN, INPUT);      // Locking Solenoid input
     pinMode(PIN_LEDR, OUTPUT);        // Red LED output
@@ -865,7 +831,7 @@ void EVSEController::setup() {
     Serial.begin(115200);
     while (!Serial)
         ;
-    Serial.print("\nSmartEVSE v3 powerup\n");
+    EVSELogger::info("[EVSEController] SmartEVSE powerup");
 
     // configure SPI connection to LCD
     // only the SPI_SCK and SPI_MOSI pins are used
@@ -885,41 +851,48 @@ void EVSEController::setup() {
     timerAlarmEnable(timerA);
 
     // Setup ADC on CP, PP and Temperature pin
-    adc1_config_width(ADC_WIDTH_BIT_10);                         // 10 bits ADC resolution is enough
-    adc1_config_channel_atten(ADC1_CHANNEL_3, ADC_ATTEN_DB_11);  // setup the CP pin input attenuation to 11db
-    adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_6);   // setup the PP pin input attenuation to 6db
-    adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_6);   // setup the Temperature input attenuation to 6db
+    adc1_config_width(ADC_WIDTH_BIT_10);  // 10 bits ADC resolution is enough
+    adc1_config_channel_atten(ADC1_CHANNEL_3,
+                              ADC_ATTEN_DB_11);  // setup the CP pin input attenuation to 11db
+    adc1_config_channel_atten(ADC1_CHANNEL_6,
+                              ADC_ATTEN_DB_6);  // setup the PP pin input attenuation to 6db
+    adc1_config_channel_atten(ADC1_CHANNEL_0,
+                              ADC_ATTEN_DB_6);  // setup the Temperature input attenuation to 6db
 
     // Characterize the ADC at particular attentuation for each channel
     adc_chars_CP = (esp_adc_cal_characteristics_t*)calloc(1, sizeof(esp_adc_cal_characteristics_t));
     adc_chars_PP = (esp_adc_cal_characteristics_t*)calloc(1, sizeof(esp_adc_cal_characteristics_t));
     adc_chars_Temperature = (esp_adc_cal_characteristics_t*)calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_10, 1100, adc_chars_CP);
+    esp_adc_cal_value_t val_type =
+        esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_10, 1100, adc_chars_CP);
     esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_6, ADC_WIDTH_BIT_10, 1100, adc_chars_PP);
     esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_6, ADC_WIDTH_BIT_10, 1100, adc_chars_Temperature);
 
     // Setup PWM on channel 0, 1000Hz, 10 bits resolution
-    ledcSetup(CP_CHANNEL, 1000, 10);  // channel 0  => Group: 0, Channel: 0, Timer: 0
+    ledcSetup(CP_CHANNEL, 1000, 10);  // channel 0 => Group: 0, Channel: 0, Timer: 0
     // setup the RGB led PWM channels
-    // as PWM channel 1 is used by the same timer as the CP timer (channel 0), we start with channel 2
+    // as PWM channel 1 is used by the same timer as the CP timer (channel 0), start with channel 2
     ledcSetup(RED_CHANNEL, 5000, 8);    // R channel 2, 5kHz, 8 bit
     ledcSetup(GREEN_CHANNEL, 5000, 8);  // G channel 3, 5kHz, 8 bit
     ledcSetup(BLUE_CHANNEL, 5000, 8);   // B channel 4, 5kHz, 8 bit
 
     // attach the channels to the GPIO to be controlled
     ledcAttachPin(PIN_CP_OUT, CP_CHANNEL);
-    // pinMode(PIN_CP_OUT, OUTPUT);                // Re-init the pin to output, required in order for attachInterrupt to work (2.0.2)
+    // pinMode(PIN_CP_OUT, OUTPUT);                // Re-init the pin to output,
+    // required in order for attachInterrupt to work (2.0.2)
     //  not required/working on master branch..
     //  see https://github.com/espressif/arduino-esp32/issues/6140
     ledcAttachPin(PIN_LEDR, RED_CHANNEL);
     ledcAttachPin(PIN_LEDG, GREEN_CHANNEL);
     ledcAttachPin(PIN_LEDB, BLUE_CHANNEL);
+    ledcAttachPin(PIN_LCD_LED, LCD_CHANNEL);
 
     // channel 0, duty cycle 100%
     ledcWrite(CP_CHANNEL, 1024);
     ledcWrite(RED_CHANNEL, 255);
     ledcWrite(GREEN_CHANNEL, 0);
     ledcWrite(BLUE_CHANNEL, 255);
+    ledcWrite(LCD_CHANNEL, 0);
 
     // Setup PIN interrupt on rising edge
     // the timer interrupt will be reset in the ISR.
@@ -929,25 +902,29 @@ void EVSEController::setup() {
     Serial1.begin(MODBUS_BAUDRATE, SERIAL_8N1, PIN_RS485_RX, PIN_RS485_TX);
 
     // Check type of calibration value used to characterize ADC
-    Serial.print("Checking eFuse Vref settings: ");
+    EVSELogger::debug("[EVSEController] Checking eFuse Vref settings: ");
     if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
-        Serial.print("OK\n");
+        EVSELogger::debug("[EVSEController] Checking eFuse Vref settings: OK");
     } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
-        Serial.print("Two Point\n");
+        EVSELogger::debug("[EVSEController] Checking eFuse Vref settings: Two Point");
     } else {
-        Serial.print("not programmed!!!\n");
+        EVSELogger::debug("[EVSEController] Checking eFuse Vref settings: not programmed!!!");
     }
 
     // Initialize SPIFFS
     if (!SPIFFS.begin(true)) {
-        Serial.print("SPIFFS failed! Already tried formatting. HALT\n");
+        EVSELogger::error("[EVSEController] SPIFFS failed! Already tried formatting. HALT");
         while (true) {
             delay(1);
         }
     }
-    Serial.printf("Total SPIFFS bytes: %u, Bytes used: %u\n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
+
+    sprintf(sprintfStr, "[EVSEController] Total SPIFFS bytes: %u, Bytes used: %u\n", SPIFFS.totalBytes(),
+            SPIFFS.usedBytes());
+    EVSELogger::debug(sprintfStr);
 
     readEpromSettings();
+    onStandbyReadyToCharge();
 }
 
 void EVSEController::loop() {
@@ -974,24 +951,27 @@ void EVSEController::loop() {
             solarStopTimerLastMillis = millis();
             if (--solarStopTimer == 0) {
                 errorFlags |= ERROR_FLAG_NO_SUN;
+                EVSELogger::debug("[EVSEController] Solar mode no sun. Stopping charging");
                 stopChargingOnError();
 
                 // reset all states
-                evseModbus.resetBalancedStates();
+                evseCluster.resetBalancedStates();
             }
         }
     }
 
     if (!isEnoughPower()) {
-        if (evseModbus.amIMasterOrDisabled() && evseModbus.isCurrentAvailable()) {
+        if (evseCluster.amIMasterOrLBDisabled() && evseCluster.isEnoughCurrentAvailable()) {
             onPowerBackOn();
         } else {
+            sprintf(sprintfStr, "[EVSEController] !isEnoughPower errorFlags=%u", errorFlags);
+            EVSELogger::info(sprintfStr);
+
             waitForEnoughPower();
         }
     }
 
-    // EVSEStates10ms
-    statesWorkflow();
+    evseWorkflow.loop();
 }
 
 EVSEController evseController;

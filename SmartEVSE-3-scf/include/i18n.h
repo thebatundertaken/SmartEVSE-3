@@ -1,5 +1,27 @@
+/*
+; Permission is hereby granted, free of charge, to any person obtaining a copy
+; of this software and associated documentation files (the "Software"), to deal
+; in the Software without restriction, including without limitation the rights
+; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+; copies of the Software, and to permit persons to whom the Software is
+; furnished to do so, subject to the following conditions:
+;
+; The above copyright notice and this permission notice shall be included in
+; all copies or substantial portions of the Software.
+;
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+; THE SOFTWARE.
+ */
+
 #ifndef __I18N_H
 #define __I18N_H
+
+#include <Arduino.h>
 
 // Text
 const char i18nStrFixed[] = "Fixed";
@@ -10,7 +32,8 @@ const char i18nStrSolar[] = "Solar";
 const char i18nStrSolenoid[] = "Solenoid";
 const char i18nStrMotor[] = "Motor";
 const char i18nStrDisabled[] = "Disabled";
-const char i18nStrLoadBl[9][9] = {"Disabled", "Master", "Node 1", "Node 2", "Node 3", "Node 4", "Node 5", "Node 6", "Node 7"};
+const char i18nStrLoadBl[9][9] = {"Disabled", "Master", "Node 1", "Node 2", "Node 3",
+                                  "Node 4",   "Node 5", "Node 6", "Node 7"};
 const char i18nStrSwitch[5][10] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S"};
 const char i18nStrGrid[2][10] = {"4Wire", "3Wire"};
 const char i18nStrEnabled[] = "Enabled";
@@ -21,18 +44,31 @@ const char i18nStrEmCustomFunction3[] = "3:Hold. Reg";
 const char i18nStrEmCustomFunction4[] = "4:Input. Reg";
 
 const char i18nStrMainsHomeEVSE[] = "Home+EVSE";
-const char i18nStrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
-const char i18nStrRFIDStatus[8][20] = {"Ready", "Card present", "Card stored", "Card deleted", "Card already stored", "Card not in storage", "Card storage full", "Invalid"};
-const char i18nStrMeter[9][20] = {"Disabled", "Sensorbox", "Phoenix Contact", "Finder", "Eastron", "ABB", "SolarEdge", "WAGO", "Custom"};
+const char i18nStrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne",
+                                       "Learn",    "Delete",    "DeleteAll"};
+const char i18nStrRFIDStatus[8][20] = {"Ready",
+                                       "Card present",
+                                       "Card stored",
+                                       "Card deleted",
+                                       "Card already stored",
+                                       "Card not in storage",
+                                       "Card storage full",
+                                       "Invalid"};
+const char i18nStrMeter[9][20] = {"Disabled", "Sensorbox", "Phoenix", "Finder", "Eastron",
+                                  "ABB",      "SolarEdge", "WAGO",    "Custom"};
 const char i18nStrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
 const char i18nStrLeds[2][10] = {"Disabled", "Enabled"};
 
-const char i18nStrStateName[11][10] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1"};
-const char i18nStrStateNameWeb[11][17] = {"Ready to Charge", "Connected to EV",  "Charging",        "D",
-                                          "Request State B", "State B OK",       "Request State C", "State C OK",
-                                          "Activate",        "Charging Stopped", "Stop Charging"};
+const char i18nStrStateName[11][10] = {
+    "A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1"};
+const char i18nStrStateNameWeb[11][17] = {
+    "Ready to Charge", "Connected to EV",  "Charging",        "D",
+    "Request State B", "State B OK",       "Request State C", "State C OK",
+    "Activate",        "Charging Stopped", "Stop Charging"};
 const char i18nStrErrorNameWeb[9][20] = {
-    "None", "No Power Available", "Communication Error", "Temperature High", "Unused", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
+    "None",       "No Power Available", "Communication Error", "Temperature High",
+    "Unused",     "RCM Tripped",        "Waiting for Solar",   "Test IO",
+    "Flash Error"};
 
 #define I18N_MENU_NOTINMENU "Not in menu"
 #define I18N_MENU_HOLD2SEC "Hold 2 sec"
@@ -40,8 +76,9 @@ const char i18nStrErrorNameWeb[9][20] = {
 
 #define I18N_MENU_CONFIG "Fixed Cable or Type 2 Socket"
 #define I18N_MENU_LOCK "Cable locking actuator type"
-#define I18N_MENU_MIN "MIN Charge Current the EV will accept (per phase)"
-#define I18N_MENU_MAX "MAX Charge Current for this EVSE (per phase)"
+#define I18N_MENU_MIN "MIN Charge Current the EV will accept"
+// #define I18N_MENU_MAX "MAX Charge Current for this EVSE (per phase)"
+#define I18N_MENU_MAX "MAX Charge Current EVSE will dispatch"
 #define I18N_MENU_LOADBL "Load Balancing mode for 2-8 SmartEVSEs"
 #define I18N_MENU_SW "Switch function control on pin SW"
 #define I18N_MENU_RCMON "Residual Current Monitor on pin RCM"
@@ -52,7 +89,7 @@ const char i18nStrErrorNameWeb[9][20] = {
 #define I18N_MENU_CIRCUIT "EVSE Circuit max Current"
 #define I18N_MENU_GRID "Grid type to which the Sensorbox is connected"
 #define I18N_MENU_CAL "Calibrate CT1 (CT2+3 will also change)"
-#define I18N_MENU_MAINS "Max MAINS Current (per phase)"
+#define I18N_MENU_MAINS "Max MAINS Current (usually contracted power)"
 #define I18N_MENU_START "Surplus energy start Current (sum of phases)"
 #define I18N_MENU_STOP "Stop solar charging at 6A after this time"
 #define I18N_MENU_IMPORT "Allow grid power when solar charging (sum of phase)"
@@ -142,6 +179,7 @@ const char i18nStrErrorNameWeb[9][20] = {
 #define I18N_POWERAMPS_FORMAT "%uA"
 #define I18N_ENERGYCHARGED_FORMAT "%2u.%1ukWh"
 #define I18N_CURRENTS_FORMAT "%dA"
+#define I18N_CURRENTS_FORMAT2 "%d.%uA"
 #define I18N_CALIBRATION_FORMAT "%u.%uA"
 #define I18N_TEMPERATURE_FORMAT "%i%cC"
 #define I18N_MENUNAVIGATIONPOSITION_FORMAT "%u/%u"
@@ -153,12 +191,12 @@ const char i18nStrErrorNameWeb[9][20] = {
 
 #define I18N_WIFI_APHOSTNAME_PREFIX "SmartEVSE-"
 
-const char* geti18nStrMeterText(uint8_t statusCode);
+const char *geti18nStrMeterText(uint8_t statusCode);
 
-const char* geti18nRfidStatusText(uint8_t code);
+const char *geti18nRfidStatusText(uint8_t code);
 
-const char* geti18nStateText(uint8_t stateCode);
+const char *geti18nStateText(uint8_t stateCode);
 
-const char* geti18nErrorText(uint8_t ErrorCode);
+const char *geti18nErrorText(uint8_t ErrorCode);
 
 #endif

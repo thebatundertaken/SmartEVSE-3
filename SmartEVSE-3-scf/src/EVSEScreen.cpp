@@ -1,17 +1,38 @@
+/*
+; Permission is hereby granted, free of charge, to any person obtaining a copy
+; of this software and associated documentation files (the "Software"), to deal
+; in the Software without restriction, including without limitation the rights
+; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+; copies of the Software, and to permit persons to whom the Software is
+; furnished to do so, subject to the following conditions:
+;
+; The above copyright notice and this permission notice shall be included in
+; all copies or substantial portions of the Software.
+;
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+; THE SOFTWARE.
+ */
+
+#include "EVSEScreen.h"
+
 #include <Arduino.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "EVSEMenu.h"
 #include "EVSEPin.h"
-#include "EVSEScreen.h"
 #include "glcd.h"
 #include "utils.h"
 
 #define LCD_BRIGHTNESS_MAX 255
 
 // Seconds delay for the LCD backlight to turn off (fading out effect)
-const uint16_t BACKLIGHT_ON_MILLIS = 30000;
+const uint16_t BACKLIGHT_ON_MILLIS = 15000;
 const uint8_t FADE_OUT_STEP = 10;
 
 void EVSEScreen::lightUp() {
@@ -42,9 +63,12 @@ void EVSEScreen::onUserActivity() {
     lightUp();
 
     // reset timer for HelpMenu text
-    ScrollTimer = millis();
+    ScrollTimerHelpMenu = millis();
     // reset position of scrolling text
     LCDpos = 0;
+
+    // Fast LCD refresh and redraw to avoid 1sg default refresh & redraw
+    redraw();
 }
 
 void EVSEScreen::setup() {
@@ -58,14 +82,15 @@ void EVSEScreen::setup() {
 
 void EVSEScreen::drawMenu() {
     // Show / scroll menu help text
-    if ((!evseMenu.subMenu) && (ScrollTimer + 5000 < millis())) {
+    if ((!evseMenu.subMenu) && ((millis() - ScrollTimerHelpMenu) >= DEFAULT_SCROLLTIMERHELPMENU_MILLIS)) {
         GLCDMenuItemHelp();
         return;
     }
 
+    // TODO SCF fix shouldRedrawMenu
     // Prevent redraw the very same menu option again and again
     if (!evseMenu.shouldRedrawMenu()) {
-        return;
+        // return;
     }
 
     if (evseMenu.currentMenuOption == MENU_ENTER) {
@@ -138,6 +163,7 @@ void EVSEScreen::redraw() {
 
     if (evseController.mode == MODE_NORMAL || !evseRFID.isRFIDAccessGranted()) {
         GLCDNormalMode();
+        return;
     }
 
     GLCDSmartSolarMode();

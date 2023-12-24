@@ -1,7 +1,4 @@
-#/*
-;    Project: Smart EVSE v3
-;
-;
+/*
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -23,6 +20,8 @@
 
 #ifndef __EVSECONTROLLER
 #define __EVSECONTROLLER
+
+#include <Arduino.h>
 
 #include "esp_adc_cal.h"
 
@@ -54,11 +53,19 @@
 #define TEMPERATURE_COOLDOWN_THRESHOLD 10
 #define TEMPERATURE_SAMPLE_PERIOD_MILLIS 1000
 
+// Disconnected or no power
 #define CONTROL_PILOT_12V 1
+// Got power on pilot wire
 #define CONTROL_PILOT_9V 2
+// Vehicle is charging
 #define CONTROL_PILOT_6V 3
 #define CONTROL_PILOT_DIODE_CHECK_OK 4
 #define CONTROL_PILOT_NOK 0
+
+// Duty cycle 0%
+#define CONTROL_PILOT_DUTYCICLE_0 0
+// Duty cycle 100%
+#define CONTROL_PILOT_DUTYCICLE_100 1024
 
 // EVSE mode settings
 #define MODE_NORMAL 0
@@ -68,34 +75,35 @@
 #define STATE_A_STANDBY 0           // A Vehicle not detected
 #define STATE_B_VEHICLE_DETECTED 1  // B Vehicle detected / not ready to accept energy
 #define STATE_C_CHARGING 2          // C Vehicle detected / ready to accept energy / ventilation not required
-// #define STATE_D_WITH_VENTILATION 3         // D Vehicle detected / ready to accept energy / ventilation required (not implemented)
-// #define STATE_E_NO_POWER 11                // E No power (shut off)
-// #define STATE_F_ERROR 12                   // F Error
+// #define STATE_D_WITH_VENTILATION 3         // D Vehicle detected / ready to
+// accept energy / ventilation required (not implemented) #define
+// STATE_E_NO_POWER 11                // E No power (shut off) #define
+// STATE_F_ERROR 12                   // F Error
 #define STATE_MODBUS_COMM_B 4                 // E State change request A->B (set by node)
 #define STATE_MODBUS_COMM_B_OK 5              // F State change A->B OK (set by master)
 #define STATE_MODBUS_COMM_C 6                 // G State change request B->C (set by node)
 #define STATE_MODBUS_COMM_C_OK 7              // H State change B->C OK (set by master)
 #define STATE_DISCONNECT_IN_PROGRESS 8        // I Activation mode in progress
 #define STATE_B1_VEHICLE_DETECTED_NO_POWER 9  // J Vehicle detected / no PWM signal
-#define STATE_C1_CHARGING_NO_POWER 10         // K Vehicle charging / no PWM signal (temp state when stopping charge from EVSE)
+#define STATE_C1_CHARGING_NO_POWER \
+    10  // K Vehicle charging / no PWM signal (temp state when stopping charge
+        // from EVSE)
 #define NOSTATE 255
-
-// Let car 3 seconds to process electric signal on the fly before disconnecting
-#define DISCONNECT_WAIT_MILLIS 3000
-// Turn off current if unused for 30 seconds
-#define CURRENTAVAILABLE_WAIT_TIMEOUT_MILLIS 30000
-// if the EV does not stop charging in 6 seconds, we will open the contactor.
-#define CHARGING_NO_POWER_WAIT_TIMEOUT_MILLIS 6000
 
 // Seconds to wait after overcurrent, before trying again
 #define DEFAULT_CHARGE_DELAY_SECONDS 60
+// Keep in State C1 for 15 seconds, so the charge cable can be removed
+#define STATE_C1_CHARGING_NO_POWER_DELAY_SECONDS 15
 
 // minimum Current the EV will accept
-#define MIN_CURRENT 6
-// max charging Current for the EV (A)
-#define MAX_CURRENT 13
-// max Current the Mains connection can supply
+#define MIN_EV_CURRENT 5
+// Max Charge current (A) allowed by the EVSE device
+#define MAX_DEVICE_CURRENT 13
+// max current the Mains connection can supply (usually contracted power) (A)
 #define MAX_MAINS 25
+
+// hard limit 80A (added 11-11-2017)
+#define MAX_MAINS_HARD_LIMIT 800
 
 // Start charging when surplus current on one phase exceeds 4A (Solar)
 #define SOLAR_START_CURRENT 4
@@ -104,8 +112,9 @@
 // Allow the use of grid power when solar charging (Amps)
 #define SOLAR_IMPORT_CURRENT 0
 
-// External Switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B / 4:Smart-Solar S)
-// 0= Charge on plugin, 1= (Push)Button on IO2 is used to Start/Stop charging.
+// External Switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B /
+// 4:Smart-Solar S) 0= Charge on plugin, 1= (Push)Button on IO2 is used to
+// Start/Stop charging.
 #define SWITCH_DISABLED 0
 #define SWITCH_ACCESS_BUTTON 1
 #define SWITCH_ACCESS_SWITCH 2
@@ -115,7 +124,6 @@
 // Smart-Solar Button or hold button for 1,5 second to STOP charging
 #define SWITCH_SMARTSOLAR_BUTTON_LONGPRESSED_MILLIS 1500
 
-// TODO: Will be placed in the appropriate position after the rtc module is finished.
 extern portMUX_TYPE rtc_spinlock;
 #define RTC_ENTER_CRITICAL() portENTER_CRITICAL(&rtc_spinlock)
 #define RTC_EXIT_CRITICAL() portEXIT_CRITICAL(&rtc_spinlock)
@@ -127,12 +135,9 @@ class EVSEController {
     void setup();
     void loop();
 
-    void setMode(uint8_t newMode);
-    void switchModeSolarSmart();
+    void switchMode(uint8_t newMode);
     void setState(uint8_t NewState);
     void setAccess(bool access);
-    void setCurrent(uint16_t current);
-    void calcChargeCurrent();
     bool isChargeDelayed() { return chargeDelaySeconds > 0; };
     bool isVehicleConnected();
     uint8_t getChargeDelaySeconds() { return chargeDelaySeconds; };
@@ -147,6 +152,18 @@ class EVSEController {
     void onCTCommunicationLost();
     void onNodeReceivedError(uint8_t newErrorFlags);
 
+    uint16_t getChargeCurrent() { return chargeCurrent; };
+    void setChargeCurrent(uint16_t value);
+
+    uint8_t getControlPilot() { return controlPilot; };
+
+    void onDiodeCheckOK();
+    void onNotEnoughPower();
+    void onStandbyReadyToCharge();
+    void onVehicleConnected();
+    void onVehicleStartCharging();
+    void onDisconnectInProgress();
+
     // Configuration (0:Socket / 1:Fixed Cable)
     uint8_t config = CONFIG_SOCKET;
     // EVSE mode (0:Normal / 1:Smart / 2:Solar)
@@ -159,26 +176,27 @@ class EVSEController {
     uint16_t ICal = ICAL_DEFAULT;
     // Uncalibrated CT1 measurement (resolution 10mA)
     uint16_t Iuncal = 0;
-    // Momentary current per Phase (23 = 2.3A) (resolution 100mA). Max 3 phases supported
+    // Momentary current per Phase (23 = 2.3A) (resolution 100mA). Max 3 phases
+    // supported
     int32_t Irms[3] = {0, 0, 0};
     uint16_t solarStopTimer = 0;
     // Temperature EVSE in deg C (-50 to +125)
     int8_t temperature = 0;
     int8_t maxTemperature = DEFAULT_MAX_TEMPERATURE;
-    // Calculated Charge Current (Amps *10)
-    uint16_t chargeCurrent;
-    // External switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B / 4:Smart-Solar S)
+    // External switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B /
+    // 4:Smart-Solar S)
     uint8_t externalSwitch = SWITCH_DISABLED;
-    // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
+    // Cable limit (A) (limited by the wire in the charge cable, set
+    // automatically, or manually if Config=Fixed Cable)
     uint16_t cableMaxCapacity;
-    // Max Charge current (A)
-    uint16_t maxCurrent = MAX_CURRENT;
+    // Max Charge current (A) allowed by the EVSE device
+    uint16_t maxDeviceCurrent = MAX_DEVICE_CURRENT;
     // Minimal current the EV is happy with (A)
-    uint16_t minCurrent = MIN_CURRENT;
-    // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
+    uint16_t minEVCurrent = MIN_EV_CURRENT;
+    // Max Mains Amps (usually contracted power) (A)
     uint16_t maxMains = MAX_MAINS;
     uint16_t solarStartCurrent = SOLAR_START_CURRENT;
-    uint16_t solarStopTime = SOLAR_STOP_TIME_MINUTES;
+    uint16_t solarStopTimeMinutes = SOLAR_STOP_TIME_MINUTES;
     uint16_t solarImportCurrent = SOLAR_IMPORT_CURRENT;
     uint8_t statusConfigChanged = 0;
 
@@ -196,35 +214,32 @@ class EVSEController {
     void sampleTemperatureSensor();
     void sampleExternalSwitch();
     void sampleRCMSensor();
-    void sampleProximityPilot();
     void sampleControlPilotLine();
+    void sampleProximityPilot();
     void onCPpulse();
     void onExternalSwitchInputPulledLow();
     void onExternalSwitchInputReleased();
-    void onDiodeOK();
-    void statesWorkflow();
-    void statesWorkflowStandby();
-    void statesWorkflowDetected();
     bool isEnoughPower();
-    void onNotEnoughPower();
     void waitForEnoughPower();
     void onPowerBackOn();
+    void onChargeCurrentChanged();
+    void openElectricCircuit();
+    void setCurrent(uint16_t current);
+    void resetChargeCurrent();
+    void cleanupNoPowerTimersFlags();
 
+    // Calculated Charge Current (Amps *10)
+    uint16_t chargeCurrent;
     uint8_t controlPilot = 0;
-    bool isDiodeOk = false;
     uint8_t externalSwitchReadsCount = 0;
     uint8_t externalSwitchLastValue = 1;
     unsigned long RB2Timer = 0;
     unsigned long temperatureLastSampleMillis = 0;
-    // Let car DISCONNECT_WAIT_MILLIS seconds to process electric signal on the fly before disconnecting
-    unsigned long disconnectRequestMillis = 0;
-    // Turn off current if unused for 30 seconds (CURRENTAVAILABLE_WAIT_TIMEOUT_MILLIS)
-    unsigned long currentAvailableWaitMillis = 0;
-    // Delays charging at least 60 seconds in case of not enough current available (DEFAULT_CHARGE_DELAY_SECONDS)
+    // Delays charging at least 60 seconds in case of not enough current available
+    // (DEFAULT_CHARGE_DELAY_SECONDS)
     uint8_t chargeDelaySeconds = 0;
     unsigned long chargeDelayLastMillis = 0;
     unsigned long solarStopTimerLastMillis = 0;
-    unsigned long chargingNoPwmTimeoutMillis = 0;
 
     // declared volatile, as they are used in a ISR
     volatile uint16_t ADCsamples[ADC_SAMPLES_SIZE];
@@ -235,6 +250,9 @@ class EVSEController {
     esp_adc_cal_characteristics_t* adc_chars_Temperature;
 
     hw_timer_t* timerA = NULL;
+    char sprintfStr[128];
+
+    void switchModeSolarSmart();
 };
 
 extern EVSEController evseController;

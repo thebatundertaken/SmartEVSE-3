@@ -1,7 +1,4 @@
-#/*
-;    Project: Smart EVSE v3
-;
-;
+/*
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
 ; in the Software without restriction, including without limitation the rights
@@ -24,6 +21,8 @@
 #ifndef __EVSEBUTTONS
 #define __EVSEBUTTONS
 
+#include <Arduino.h>
+
 #define BUTTON_O_MASK 0x5
 #define BUTTON_LEFT_MASK 0x6
 #define BUTTON_RIGHT_MASK 0x3
@@ -31,19 +30,19 @@
 #define BUTTON_NONE_MASK 0x7
 
 class EVSEButtons {
-   public:
-    EVSEButtons(){};
+ public:
+  EVSEButtons(){};
 
-    void setup();
-    void loop();
+  void setup();
+  void loop();
 
-   private:
-    void sampleButtons();
+ private:
+  void sampleButtons();
 
-    // Holds latest push Buttons state (LSB 3:0)
-    uint8_t buttonState = 0x0f;
-    // Holds previous push Buttons state (LSB 3:0)
-    uint8_t oldButtonState = 0x0f;
+  // Holds latest push Buttons state (LSB 3:0)
+  uint8_t buttonState = BUTTON_NONE_MASK;
+  // Holds previous push Buttons state (LSB 3:0)
+  uint8_t oldButtonState = BUTTON_NONE_MASK;
 };
 
 extern EVSEButtons evseButtons;
