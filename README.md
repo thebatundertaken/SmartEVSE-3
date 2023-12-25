@@ -43,10 +43,15 @@ $~$
 * Compile `spiffs.bin`: platformio run -t buildfs
 
 $~$
-## Flashing the device
+## Updating firmware on the device
+> [!IMPORTANT]
+> **You need to flash both files `firmware.bin` and `spiffs.bin` to fully update firmware**.
+
+File `firmware.bin` contains C++ compiled code and file `spiffs.bin` contains embeded webserver HTML content.
 
 > [!CAUTION]
-> YOU CANNOT FLASH THE DEVICE WITH ANOTHER FILENAME rather than `firmware.bin`!
+> YOU CANNOT FLASH THE DEVICE WITH ANOTHER FILENAME rather than `firmware.bin` and `spiffs.bin`!
+
 
 ### Option 1: WiFi flashing
 * Configure SmartEVSE WiFi
@@ -55,6 +60,7 @@ $~$
 * After OK, select `spiffs.bin`
 * If you get FAIL, check your wifi connection and try again
 * After OK, wait 10-30 seconds and your new firmware including the webserver should be online!
+* Repeat same steps with `spiffs.bin` archive
 
 
 $~$
@@ -62,11 +68,11 @@ $~$
 * InstallDriver for Virtual Port https://www.silabs.com/documents/public/software/CP210x_VCP_Windows.zip
 * Open `platformio.ini` file and replace COM4 port with your SmartEVSE device port (check via Windows device manager)
 * Upload via USB configured in platformio.ini: platformio run --target upload
-
+* Flash `spiffs.bin` archive (recommended via WiFi flashing)
 
 $~$
-### Embeded webserver HTML content
-* Update partition with `spiffs.bin` previously built 
+## Embeded webserver HTML content
+* It is packed inside `spiffs.bin` file previously built 
 
 
 $~$
