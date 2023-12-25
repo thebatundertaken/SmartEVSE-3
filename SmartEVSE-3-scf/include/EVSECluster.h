@@ -27,7 +27,7 @@
 #define LOAD_BALANCER_DISABLED 0
 #define LOAD_BALANCER_MASTER 1
 
-#define REBALANCE_SLOW_INCREASE_FACTOR 2
+#define REBALANCE_SLOW_INCREASE_FACTOR 4
 
 // Max current of the EVSE circuit breaker (A)
 #define MAX_CIRCUIT 16
@@ -97,7 +97,7 @@ class EVSECluster {
     uint16_t balancedCurrent[CLUSTER_NUM_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     char sprintfStr[255];
 
-    int16_t getHouseMeasuredCurrent();
+    int16_t getHouseMeasuredCurrent(bool rawValue);
     bool isEnoughCurrentAvailableForOneEVSE();
     int16_t availableCurrentWithSolar();
 

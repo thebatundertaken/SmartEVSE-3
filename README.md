@@ -6,7 +6,7 @@ Changes to original firmware v3.0.0
 - New web status page (UI design, Rest API and no webSockets)
 - New max EVSE temperature menu and settings
 - New RGB leds enabled/disabled menu and settings
-- Device dislay on Smart/Solar mode renders decimal amps for phases consumption
+- Device screen on Smart/Solar mode renders decimal amps for phases consumption
 - Fixed smart mode power rebalance on 3 phases grid
 - Improved timers and tasks
 - Special thanks to **serkri** for his work (https://github.com/serkri/SmartEVSE-3)

@@ -170,6 +170,18 @@ void EVSEController::sampleADC() {
     }
 }
 
+uint16_t EVSEController::getCableMaxCapacity() {
+    // CableMaxCapacity = 0 corner case
+    // No cable info (maybe CONFIG_SOCKET and no cable attached)
+    return cableMaxCapacity == 0 ? maxDeviceCurrent : cableMaxCapacity;
+};
+
+uint16_t EVSEController::getMaxCurrentAvailable() {
+    //  Maximum current this EVSE is allow to dispatch (limited by cable and maxmain)
+    // Call method getCableMaxCapacity to avoid cableMaxCapacity = 0 corner case
+    return _min(getCableMaxCapacity(), maxMains) * 10;
+};
+
 //  Tell EV to stop charging. When we are not charging switch to State B1
 void EVSEController::stopChargingOnError() {
     EVSELogger::debug("[EVSEController] Stopping charging due to charge error");
@@ -255,21 +267,11 @@ void EVSEController::onDisconnectInProgress() {
 }
 
 void EVSEController::onStandbyReadyToCharge() {
-    // No cable corner case
-    switch (config) {
-        case CONFIG_FIXED_CABLE:
-            if (cableMaxCapacity == 0) {
-                cableMaxCapacity = maxDeviceCurrent;
-            }
-            break;
-
-        case CONFIG_SOCKET:
-            if (cableMaxCapacity != maxDeviceCurrent) {
-                // Reset cableMaxCapacity after vehicle finished charging (cableMaxCapacity holds
-                // previous cable max capacity, but that cable is not gone)
-                cableMaxCapacity = maxDeviceCurrent;
-            }
-            break;
+    // Cable corner case: vehicle finish charging, owner remove cable from wallbox (EVSE is a socket)
+    if (config == CONFIG_SOCKET) {
+        // Reset cableMaxCapacity after vehicle finished charging (cableMaxCapacity holds
+        // previous cable max capacity, but that cable is now gone)
+        cableMaxCapacity = 0;
     }
 
     // Waiting for power corner case
@@ -319,11 +321,12 @@ void EVSEController::onChargeCurrentChanged() {
         return;
     }
 
-    const uint16_t maxMainsCurrent = maxMains * 10;
-    if (chargeCurrent > maxMainsCurrent) {
-        sprintf(sprintfStr, "[EVSEController] chargeCurrent (%d) above maxMains (%d)", chargeCurrent, maxMainsCurrent);
+    const uint16_t maxCurrentAvailable = getMaxCurrentAvailable();
+    if (chargeCurrent > maxCurrentAvailable) {
+        sprintf(sprintfStr, "[EVSEController] chargeCurrent (%d) above maxCurrentAvailable (%d)", chargeCurrent,
+                maxCurrentAvailable);
         EVSELogger::warn(sprintfStr);
-        chargeCurrent = maxMainsCurrent;
+        chargeCurrent = maxCurrentAvailable;
     }
 
     openElectricCircuit();
@@ -390,7 +393,7 @@ void EVSEController::setState(uint8_t NewState) {
             break;
 
         case STATE_B_VEHICLE_DETECTED:
-            evseCluster.setMasterNodeBalancedMax(cableMaxCapacity * 10);
+            evseCluster.setMasterNodeBalancedMax(getMaxCurrentAvailable());
             evseCluster.setMasterNodeBalancedCurrent(chargeCurrent);
 
             CONTACTOR1_OFF;
@@ -646,15 +649,13 @@ void EVSEController::sampleExternalSwitch() {
 
 void EVSEController::resetChargeCurrent() {
     //  Do not exceed cable max capacity
-    uint16_t value = _min(maxMains, cableMaxCapacity) * 10;
-    setChargeCurrent(value);
+    setChargeCurrent(getMaxCurrentAvailable());
 }
 
 // Sample the Proximity Pin, and determine the maximum current the cable can
 // handle.
 void EVSEController::sampleProximityPilot() {
-    // PP will be sample only for CONFIG_SOCKET mode, since PP cable is disconnect
-    // for CONFIG_FIXED_CABLE
+    // PP will be sample only for CONFIG_SOCKET mode, since PP wire is not in use for CONFIG_FIXED_CABLE
     if (config == CONFIG_FIXED_CABLE) {
         cableMaxCapacity = maxDeviceCurrent;
         return;

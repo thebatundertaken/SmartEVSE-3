@@ -150,8 +150,7 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["controller"]["Irms"]["L1"] = evseController.Irms[0];
     doc["controller"]["Irms"]["L2"] = evseController.Irms[1];
     doc["controller"]["Irms"]["L3"] = evseController.Irms[2];
-    doc["controller"]["cableMaxCapacity"] = evseController.cableMaxCapacity;
-    doc["controller"]["maxMains"] = evseController.maxMains;
+    doc["controller"]["cableMaxCapacity"] = evseController.getCableMaxCapacity();
     doc["controller"]["chargeDelaySeconds"] = evseController.getChargeDelaySeconds();
     doc["controller"]["chargeCurrent"] = evseController.getChargeCurrent();
     doc["controller"]["solarStopTimer"] = evseController.solarStopTimer;
@@ -175,6 +174,7 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["rfid"]["accessBit"] = evseRFID.rfidAccessBit == RFID_ACCESS_GRANTED ? true : false;
 
     doc["nerd"]["controller"]["CP"] = evseController.getControlPilot();
+    doc["nerd"]["maxCurrentAvailable"] = evseController.getMaxCurrentAvailable();
     doc["nerd"]["errorFlags"] = evseController.errorFlags;
     doc["nerd"]["chargeDelaySeconds"] = evseController.errorFlags;
     doc["nerd"]["logLevel"] = EVSELogger::LogLevel;

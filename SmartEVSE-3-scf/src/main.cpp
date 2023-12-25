@@ -96,7 +96,6 @@ void setup() {
 
 void loop() {
     // TODO SCF fix solar mode (search for ERROR_FLAG_NO_SUN)
-    // TODO SCF bug: turn A/C on => no power, turn off A/C vehicle not charking (delaySeconds?)
 
     // TODO SCF fix WIFI IPinfo slow (evseWifi.isNTPLocalTimeAvailable())
     delay(1000);

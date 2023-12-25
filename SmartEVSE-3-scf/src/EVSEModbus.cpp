@@ -1369,8 +1369,7 @@ uint8_t EVSEModbus::receiveCurrentMeasurement(uint8_t* buf, uint8_t Meter, signe
                         evseController.Iuncal = abs((var[x] / 10));  // Store uncalibrated CT1 measurement (10mA)
                     }
                     var[x] = var[x] * (signed int)evseController.ICal / ICAL_DEFAULT;
-                    // When MaxMains is set to >100A, it's assumed 200A:50ma CT's are
-                    // used.
+                    // When MaxMains is set to >100A, it's assumed 200A:50ma CT's are used.
                     if (evseController.maxMains > 100) {
                         // Multiply measured currents with 2
                         var[x] = var[x] * 2;

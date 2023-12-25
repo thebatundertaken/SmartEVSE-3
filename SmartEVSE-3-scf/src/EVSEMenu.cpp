@@ -226,8 +226,9 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
         case NODE_STATUS_CONFIG_CHANGED:
             return evseController.statusConfigChanged;
         // Status readonly
+        // TODO SCF check what this is for, who request it
         case NODE_STATUS_MAX:
-            return evseController.cableMaxCapacity;
+            return evseController.getCableMaxCapacity();
         case NODE_STATUS_TEMP:
             return (signed int)evseController.temperature + 273;
 

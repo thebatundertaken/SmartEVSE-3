@@ -96,7 +96,7 @@
 #define STATE_C1_CHARGING_NO_POWER_DELAY_SECONDS 15
 
 // minimum Current the EV will accept
-#define MIN_EV_CURRENT 5
+#define MIN_EV_CURRENT 6
 // Max Charge current (A) allowed by the EVSE device
 #define MAX_DEVICE_CURRENT 13
 // max current the Mains connection can supply (usually contracted power) (A)
@@ -164,6 +164,9 @@ class EVSEController {
     void onVehicleStartCharging();
     void onDisconnectInProgress();
 
+    uint16_t getCableMaxCapacity();
+    uint16_t getMaxCurrentAvailable();
+
     // Configuration (0:Socket / 1:Fixed Cable)
     uint8_t config = CONFIG_SOCKET;
     // EVSE mode (0:Normal / 1:Smart / 2:Solar)
@@ -186,9 +189,6 @@ class EVSEController {
     // External switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B /
     // 4:Smart-Solar S)
     uint8_t externalSwitch = SWITCH_DISABLED;
-    // Cable limit (A) (limited by the wire in the charge cable, set
-    // automatically, or manually if Config=Fixed Cable)
-    uint16_t cableMaxCapacity;
     // Max Charge current (A) allowed by the EVSE device
     uint16_t maxDeviceCurrent = MAX_DEVICE_CURRENT;
     // Minimal current the EV is happy with (A)
@@ -227,6 +227,9 @@ class EVSEController {
     void setCurrent(uint16_t current);
     void resetChargeCurrent();
     void cleanupNoPowerTimersFlags();
+
+    // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
+    uint16_t cableMaxCapacity = 0;
 
     // Calculated Charge Current (Amps *10)
     uint16_t chargeCurrent;
