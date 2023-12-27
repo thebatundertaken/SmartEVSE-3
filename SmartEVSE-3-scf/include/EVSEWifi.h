@@ -53,8 +53,8 @@ class EVSEWifi {
     void startwebServer();
     void stopwebServer();
     void startConfigPortal();
-    bool isNTPLocalTimeAvailable();
-    struct tm getNTPLocalTime();
+    // bool isNTPLocalTimeAvailable();
+    // struct tm getNTPLocalTime();
     void updateSettings();
     void resetSettings();
     bool isPortalReady();
@@ -75,7 +75,7 @@ class EVSEWifi {
    private:
     String apHostname;
     String apPassword;
-    struct tm timeinfo;
+    // struct tm timeinfo;
     IPAddress localIp;
     bool isBootLoader = true;
     char sprintfStr[255];

@@ -99,6 +99,5 @@ void setup() {
 }
 
 void loop() {
-    // TODO SCF fix WIFI IPinfo slow (evseWifi.isNTPLocalTimeAvailable())
     delay(1000);
 }

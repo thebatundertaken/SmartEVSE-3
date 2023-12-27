@@ -461,11 +461,11 @@ void GLCDWifiInfo() {
             else
             {
               sprintf(LCDStr, "--:--");
-            }*/
+            }
 
-        sprintf(LCDStr, "--:--");
         GLCD_write_buf_str(127, 0, LCDStr, GLCD_ALIGN_RIGHT);
         GLCD_sendbuf(0, 1);
+        */
     } else {
         GLCD_write_buf_str(0, 0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
         GLCD_sendbuf(0, 1);

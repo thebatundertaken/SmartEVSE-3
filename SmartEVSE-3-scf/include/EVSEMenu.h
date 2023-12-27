@@ -86,7 +86,7 @@
 // struct, then defines must be changed, EVSEMenu::buildMenuItems() and EVSEModbus::mapModbusRegister2MenuItemID
 const struct {
     char Key[8];
-    char LCD[13];
+    char LCD[12];
     char Desc[52];
     uint16_t Min;
     uint16_t Max;
@@ -125,16 +125,17 @@ const struct {
     {"GRID", "GRID", I18N_MENU_GRID, 0, 1, GRID_3WIRE},
     // Sensorbox CT measurement calibration. Valid range is 0.3 - 2.0 times
     // measured value
-    {"CAL", "CAL", I18N_MENU_CAL, (unsigned int)(ICAL_DEFAULT * 0.3), (unsigned int)(ICAL_DEFAULT * 2.0), ICAL_DEFAULT},
+    {"CAL", "SSRBOX CAL", I18N_MENU_CAL, (unsigned int)(ICAL_DEFAULT * 0.3), (unsigned int)(ICAL_DEFAULT * 2.0),
+     ICAL_DEFAULT},
     // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
     // (Mode:Smart/Solar)
     {"MAINS", "MAINS MAX", I18N_MENU_MAINS, 10, 200, MAX_MAINS},
     // Start Surplus Current (A) in Solar mode
-    {"START", "SOLAR START", I18N_MENU_START, 0, 48, SOLAR_START_CURRENT},
+    {"START", "SOL START", I18N_MENU_START, 0, 48, SOLAR_START_CURRENT},
     // Stop time (min)
-    {"STOP", "SOLAR STOP", I18N_MENU_STOP, 0, 60, SOLAR_STOP_TIME_MINUTES},
+    {"STOP", "SOL STOP", I18N_MENU_STOP, 0, 60, SOLAR_STOP_TIME_MINUTES},
     // Import Current from Grid (A) in Solar mode
-    {"IMPORT", "SOLAR IMPORT", I18N_MENU_IMPORT, 0, 20, SOLAR_IMPORT_CURRENT},
+    {"IMPORT", "SOL IMPORT", I18N_MENU_IMPORT, 0, 20, SOLAR_IMPORT_CURRENT},
 
     // Type of Mains electric meter (0: Disabled / Constants EM_*)
     {"MAINEM", "MAINS METER", I18N_MENU_MAINEM, 1, MM_CUSTOM, MM_SENSORBOX},

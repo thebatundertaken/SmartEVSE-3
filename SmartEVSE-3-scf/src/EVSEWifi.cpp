@@ -382,10 +382,10 @@ const char* EVSEWifi::getApPassword() {
     return apPassword.c_str();
 }
 
-bool EVSEWifi::isNTPLocalTimeAvailable() {
+/*bool EVSEWifi::isNTPLocalTimeAvailable() {
     // retrieve time from NTP server
     return getLocalTime(&timeinfo, 1000U);
-}
+}*/
 
 bool EVSEWifi::isPortalReady() {
     return wifiMode == WIFI_MODE_START_PORTAL && WiFi.getMode() == WIFI_AP_STA;
@@ -400,9 +400,9 @@ uint8_t EVSEWifi::getPortalCountdownSeconds() {
     return (int)((startPortalTimer - now) / 1000);
 }
 
-struct tm EVSEWifi::getNTPLocalTime() {
+/*struct tm EVSEWifi::getNTPLocalTime() {
     return timeinfo;
-}
+}*/
 
 // read Mac, and reverse to ID
 uint32_t EVSEWifi::getMacId() {
