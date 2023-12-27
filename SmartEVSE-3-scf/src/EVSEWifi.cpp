@@ -153,7 +153,7 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["controller"]["cableMaxCapacity"] = evseController.getCableMaxCapacity();
     doc["controller"]["chargeDelaySeconds"] = evseController.getChargeDelaySeconds();
     doc["controller"]["chargeCurrent"] = evseController.getChargeCurrent();
-    doc["controller"]["solarStopTimer"] = evseController.solarStopTimer;
+    doc["controller"]["solarStopTimeMinutes"] = evseController.solarStopTimeMinutes;
     doc["controller"]["solarStartCurrent"] = evseController.solarStartCurrent;
     doc["controller"]["solarImportCurrent"] = evseController.solarImportCurrent;
 

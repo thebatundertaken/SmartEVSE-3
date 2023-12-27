@@ -236,14 +236,13 @@
           }
           if (data.controller.solarStopTimer > 0) {
             $('#solarstoptimer').text(data.controller.solarStopTimer + " seconds");
-            $('#solarstoptimer2').text(data.controller.solarStopTimer + " seconds");
             $('#solarstoptimer_box').show();
           }
           else {
-            $('#solarstoptimer2').text("Disabled");
             $('#solarstoptimer_box').hide();
           }
 
+          $('#solarstoptimeminutes').text(data.controller.solarStopTimeMinutes + " min");
           $('#solarstartcurrent').text(data.controller.solarStartCurrent + "A");
           $('#solarimportcurrent').text(data.controller.solarImportCurrent + "A");
 
@@ -664,7 +663,7 @@
                           <i class="bi bi-stopwatch"></i> Solar stop timer:
                         </div>
                         <div class="col">
-                          <div class="h5 mb-0 text-muted text-end" id="solarstoptimer2"></div>
+                          <div class="h5 mb-0 text-muted text-end" id="solarstoptimeminutes"></div>
                         </div>
                       </div>
 
