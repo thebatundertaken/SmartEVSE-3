@@ -114,16 +114,14 @@ void goto_xy(unsigned char x, unsigned char y) {
 }
 
 void glcd_clrln(unsigned char ln, unsigned char data) {
-    unsigned char i;
     goto_xy(0, ln);
-    for (i = 0; i < 128; i++) {
+    for (unsigned char i = 0; i < 128; i++) {
         st7565_data(data);  // put data on data port
     }
 }
 
 void glcd_clear() {
-    unsigned char i;
-    for (i = 0; i < 8; i++) {
+    for (unsigned char i = 0; i < 8; i++) {
         glcd_clrln(i, 0);
     }
 }
@@ -149,14 +147,17 @@ void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
 void GLCD_font_condense(unsigned char c, unsigned char* start, unsigned char* end, unsigned char space) {
     if (c >= '0' && c <= '9')
         return;
+
     if (c == ' ' && space)
         return;
+
     if (font[c][0] == 0) {
         if (font[c][1] == 0)
             *start = 2;
         else
             *start = 1;
     }
+
     if (font[c][4] == 0)
         *end = 4;
 }
@@ -176,7 +177,6 @@ unsigned char GLCD_text_length(const char* str) {
     return length - 1;
 }
 
-#ifdef GLCD_HIRES_FONT
 unsigned char GLCD_text_length2(const char* str) {
     unsigned char i = 0, length = 0;
 
@@ -187,7 +187,6 @@ unsigned char GLCD_text_length2(const char* str) {
 
     return length - 2;
 }
-#endif
 
 /**
  * Write character to buffer
@@ -210,16 +209,19 @@ void GLCD_write_buf(unsigned int c, unsigned char Options) {
 
     if (Options) {
         shift = Options & 0b00000111;
-        if (Options & GLCD_MERGE)
+        if (Options & GLCD_MERGE) {
             merge = true;
+        }
     }
 
     do {
         f = font[c][i];
-        if (shift)
+        if (shift) {
             f <<= shift;
-        if (merge)
+        }
+        if (merge) {
             f |= GLCDbuf[x];
+        }
         GLCDbuf[x] = f;
         x++;
     } while (++i < m);
@@ -228,7 +230,6 @@ void GLCD_write_buf(unsigned int c, unsigned char Options) {
 // Write one double height character to the GLCD buffer
 // special characters '.' and ' ' will use reduced width in the buffer
 void GLCD_write_buf2(unsigned int c) {
-#ifdef GLCD_HIRES_FONT
     unsigned char i = 1;
 
     while ((i < (font2[c][0] * 2)) && (GLCDx < 128)) {
@@ -237,40 +238,7 @@ void GLCD_write_buf2(unsigned int c) {
         i += 2;
         GLCDx++;
     }
-#else
-    unsigned char i = 0, m = 5, ch, z1;
 
-    GLCD_font_condense(c, &i, &m, 0);
-
-    while ((i < m) && (GLCDx < 127)) {
-        z1 = 0;
-        ch = font[c][i];
-        if (ch & 0x01u)
-            z1 |= 0x3u;
-        if (ch & 0x02u)
-            z1 |= 0xcu;
-        if (ch & 0x04u)
-            z1 |= 0x30u;
-        if (ch & 0x08u)
-            z1 |= 0xc0u;
-        GLCDbuf[GLCDx] = z1;
-        GLCDbuf[GLCDx + 1] = z1;
-        z1 = 0;
-        ch = ch >> 4;
-        if (ch & 0x01u)
-            z1 |= 0x3u;
-        if (ch & 0x02u)
-            z1 |= 0xcu;
-        if (ch & 0x04u)
-            z1 |= 0x30u;
-        if (ch & 0x08u)
-            z1 |= 0xc0u;
-        GLCDbuf[GLCDx + 128] = z1;
-        GLCDbuf[GLCDx + 129] = z1;
-        i++;
-        GLCDx += 2;
-    };
-#endif
     GLCDx += 2;
 }
 
@@ -306,15 +274,11 @@ void GLCD_write_buf_str(unsigned char x, unsigned char y, const char* str, unsig
 void GLCD_write_buf_str2(const char* str, unsigned char Options) {
     unsigned char i = 0;
 
-#ifdef GLCD_HIRES_FONT
-    if (Options == GLCD_ALIGN_CENTER)
+    if (Options == GLCD_ALIGN_CENTER) {
         GLCDx = 64 - GLCD_text_length2(str) / 2;
-#else
-    if (Options == GLCD_ALIGN_CENTER)
-        GLCDx = 64 - GLCD_text_length(str);
-#endif
-    else
+    } else {
         GLCDx = 2;
+    }
 
     while (str[i]) {
         GLCD_write_buf2(str[i++]);
@@ -528,14 +492,17 @@ void GLCDRemoveLineBetweenHouseAndCar() {
 }
 
 void GLCDAnimateMainsEnergyFlow() {
-    if (evseCluster.Isum < 0) {
-        // animate the flow of Mains energy on LCD
+    const int16_t irmsSum = evseController.getMainsMeasuredCurrent(true);
+
+    if (irmsSum < 0) {
+        // negative => solar surplus, animate from house to grid (-<-<-<-)
         energy_mains -= 3;
         if (energy_mains < 20) {
             // Only in Mode: Smart or Solar
             energy_mains = 44;
         }
     } else {
+        // positive => grid power consumption, animate from grid to house (->->->-)
         energy_mains += 3;
         if (energy_mains > 44) {
             energy_mains = 20;
@@ -545,8 +512,8 @@ void GLCDAnimateMainsEnergyFlow() {
     GLCDx = energy_mains;
     GLCDy = 3;
 
-    // Show energy flow 'blob' between Grid and House if current flow is >= 0.3A
-    if (abs(evseCluster.Isum) > 3) {
+    // Do not render energy flow 'blob' for small current flows (<= 0.3A)
+    if (abs(irmsSum) > 3) {
         GLCD_write_buf(0x0A, 0);
     }
 }
@@ -570,7 +537,7 @@ void GLCDAnimateEVEnergyFlow() {
             sprintfl(LCDStr, I18N_POWERMEASURED_FORMAT_LONG, evseModbus.powerMeasured, 3, 0);
         }
     } else {
-        // sprintfl(LCDStr, I18N_POWERAMPS_FORMAT, evseModbus.balancedCurrent[0], 1,
+        // sprintfl(LCDStr, I18N_POWERAMPS_FORMAT, evseModbus.balancedChargeCurrent[0], 1,
         // 0);
         sprintfl(LCDStr, I18N_POWERAMPS_FORMAT, evseController.getChargeCurrent(), 1, 0);
     }
@@ -599,8 +566,8 @@ void circleChargingMessage() {
             break;
 
         case 4:
-            // sprintf(LCDStr, I18N_STATE_CHARGING2, evseModbus.balancedCurrent[0] /
-            // 10, evseModbus.balancedCurrent[0] % 10);
+            // sprintf(LCDStr, I18N_STATE_CHARGING2, evseModbus.balancedChargeCurrent[0] /
+            // 10, evseModbus.balancedChargeCurrent[0] % 10);
             sprintf(LCDStr, I18N_STATE_CHARGING2, evseController.getChargeCurrent() / 10,
                     evseController.getChargeCurrent() % 10);
             GLCD_print_buf2(5, LCDStr);
@@ -625,7 +592,7 @@ void GLCDSmartSolarMode() {
         GLCDRemoveClockFromBuffer();
     } else {
         // MODE_SOLAR
-        if (evseController.solarStopTimer) {
+        if (evseController.solarStopTimer > 0) {
             // display remaining time before charging is stopped
             unsigned int seconds = evseController.solarStopTimer;
             sprintf(LCDStr, I18N_SOLARSTOPTIMER_FORMAT, (int)(seconds / 60), (seconds % 60));
@@ -663,17 +630,14 @@ void GLCDSmartSolarMode() {
         // Sum symbol
         GLCD_write_buf(0x0B, 0);
 
-        sprintfl(LCDStr, I18N_CURRENTS_FORMAT, evseCluster.Isum, 1, 0);
-        // GLCD_write_buf_str(46, 2, LCDStr, GLCD_ALIGN_RIGHT);
+        // Display total solar surplus (absolute value)
+        sprintf(LCDStr, I18N_CURRENTS_FORMAT_SOLAR, abs(evseController.getMainsMeasuredCurrent(true)));
         GLCD_write_buf_str(48, 2, LCDStr, GLCD_ALIGN_RIGHT);
     } else {
-        // Displayed only in Smart and Solar modes
         // Display L1, L2 and L3 currents on LCD
         for (unsigned char x = 0; x < 3; x++) {
-            sprintf(LCDStr, I18N_CURRENTS_FORMAT2, (int)(evseController.Irms[x] / 10),
+            sprintf(LCDStr, I18N_CURRENTS_FORMAT_SMART, (int)(evseController.Irms[x] / 10),
                     (unsigned int)abs(evseController.Irms[x]) % 10);
-            // sprintfl(LCDStr, I18N_CURRENTS_FORMAT, evseController.Irms[x], 1, 1);
-            // GLCD_write_buf_str(46, x, LCDStr, GLCD_ALIGN_RIGHT);
             GLCD_write_buf_str(48, x, LCDStr, GLCD_ALIGN_RIGHT);
         }
     }
@@ -720,8 +684,8 @@ void GLCDNormalMode() {
 
     if (evseController.state == STATE_C_CHARGING) {
         GLCD_print_buf2(2, (const char*)I18N_STATE_CHARGING);
-        // sprintf(LCDStr, I18N_STATE_CHARGING2, evseModbus.balancedCurrent[0] / 10,
-        // evseModbus.balancedCurrent[0] % 10);
+        // sprintf(LCDStr, I18N_STATE_CHARGING2, evseModbus.balancedChargeCurrent[0] / 10,
+        // evseModbus.balancedChargeCurrent[0] % 10);
         sprintf(LCDStr, I18N_STATE_CHARGING2, evseController.getChargeCurrent() / 10,
                 evseController.getChargeCurrent() % 10);
         GLCD_print_buf2(4, LCDStr);

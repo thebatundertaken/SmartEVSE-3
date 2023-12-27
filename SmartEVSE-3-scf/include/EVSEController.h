@@ -51,7 +51,7 @@
 // Degrees
 #define DEFAULT_MAX_TEMPERATURE 65
 #define TEMPERATURE_COOLDOWN_THRESHOLD 10
-#define TEMPERATURE_SAMPLE_PERIOD_MILLIS 1000
+#define TEMPERATURE_SAMPLE_PERIOD_MILLIS 5000
 
 // Disconnected or no power
 #define CONTROL_PILOT_12V 1
@@ -159,6 +159,8 @@ class EVSEController {
 
     void onDiodeCheckOK();
     void onNotEnoughPower();
+    void onSolarLowPower();
+    void onSolarChargingEnoughPower();
     void onStandbyReadyToCharge();
     void onVehicleConnected();
     void onVehicleStartCharging();
@@ -166,6 +168,8 @@ class EVSEController {
 
     uint16_t getCableMaxCapacity();
     uint16_t getMaxCurrentAvailable();
+
+    int16_t getMainsMeasuredCurrent(bool allowSolarSurplus);
 
     // Configuration (0:Socket / 1:Fixed Cable)
     uint8_t config = CONFIG_SOCKET;
@@ -179,8 +183,7 @@ class EVSEController {
     uint16_t ICal = ICAL_DEFAULT;
     // Uncalibrated CT1 measurement (resolution 10mA)
     uint16_t Iuncal = 0;
-    // Momentary current per Phase (23 = 2.3A) (resolution 100mA). Max 3 phases
-    // supported
+    // Momentary current per Phase (23 = 2.3A) (resolution 100mA). Max 3 phases supported
     int32_t Irms[3] = {0, 0, 0};
     uint16_t solarStopTimer = 0;
     // Temperature EVSE in deg C (-50 to +125)
@@ -222,6 +225,7 @@ class EVSEController {
     bool isEnoughPower();
     void waitForEnoughPower();
     void onPowerBackOn();
+    void onSolarStopTimer();
     void onChargeCurrentChanged();
     void openElectricCircuit();
     void setCurrent(uint16_t current);

@@ -36,9 +36,6 @@ class EVSECluster {
    public:
     EVSECluster(){};
 
-    // Sum of all measured Phases (Amps *10) (can be negative)
-    int16_t Isum;
-
     uint8_t getLoadBl() { return LoadBl; };
     void setLoadBl(uint8_t value) { LoadBl = value; };
 
@@ -65,7 +62,7 @@ class EVSECluster {
 
     void onCTDataReceived();
 
-    bool isEnoughCurrentAvailable();
+    bool isEnoughCurrentAvailableForAnotherEVSE();
     void adjustChargeCurrent();
 
     uint16_t getOverrideCurrent() { return overrideCurrent; };
@@ -94,15 +91,15 @@ class EVSECluster {
     // Max Amps value per EVSE
     uint16_t balancedMax[CLUSTER_NUM_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     // Load Balance variables, Amps value per EVSE
-    uint16_t balancedCurrent[CLUSTER_NUM_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
+    uint16_t balancedChargeCurrent[CLUSTER_NUM_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     char sprintfStr[255];
 
-    int16_t getHouseMeasuredCurrent(bool rawValue);
     bool isEnoughCurrentAvailableForOneEVSE();
-    int16_t availableCurrentWithSolar();
+    int16_t calcNewChargeCurrentWithSolar(int16_t maxCurrentAvailable);
+    int16_t calcNewChargeCurrentWithSmart(int16_t maxCurrentAvailable);
 
-    void calcBalancedChargeCurrent();
-    void calcBalancedChargeCurrentCluster(int16_t adjustedCurrent);
+    void recalcBalancedChargeCurrent();
+    void recalcBalancedChargeCurrentCluster(int16_t adjustedCurrent);
     int8_t getNumEVSEScharging();
 
     void readEpromSettings();

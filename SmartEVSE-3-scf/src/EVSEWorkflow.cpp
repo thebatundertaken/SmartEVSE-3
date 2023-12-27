@@ -55,7 +55,7 @@ void EVSEWorkflow::workflowStandby() {
                 break;
             }
 
-            if (!evseCluster.isEnoughCurrentAvailable()) {
+            if (!evseCluster.isEnoughCurrentAvailableForAnotherEVSE()) {
                 EVSELogger::warn("[EVSEWorkflow] Vehicle just connected but not enough power");
                 evseController.onNotEnoughPower();
             }

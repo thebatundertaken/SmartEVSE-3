@@ -52,7 +52,7 @@ void EVSECluster::setMasterNodeBalancedCurrent(uint16_t current) {
         return;
     }
 
-    balancedCurrent[0] = current;
+    balancedChargeCurrent[0] = current;
 }
 
 void EVSECluster::setMasterNodeControllerMode(uint8_t mode) {
@@ -96,7 +96,7 @@ bool EVSECluster::isLoadBalancerDisabled() {
     return LoadBl == LOAD_BALANCER_DISABLED;
 }
 
-bool EVSECluster::isEnoughCurrentAvailable() {
+bool EVSECluster::isEnoughCurrentAvailableForAnotherEVSE() {
     // Is there at least 6A(configurable MinCurrent) available for a EVSE?
     if (isLoadBalancerDisabled()) {
         return isEnoughCurrentAvailableForOneEVSE();
@@ -121,7 +121,7 @@ bool EVSECluster::isEnoughCurrentAvailable() {
         }
     }
 
-    const int16_t measuredCurrent = getHouseMeasuredCurrent(false);
+    const int16_t measuredCurrent = evseController.getMainsMeasuredCurrent(false);
     int16_t futureLoad =
         _max(measuredCurrent - clusterCurrent, 0) + (numActiveEVSE * (evseController.minEVCurrent * 10));
 
@@ -129,13 +129,12 @@ bool EVSECluster::isEnoughCurrentAvailable() {
 }
 
 bool EVSECluster::isEnoughCurrentAvailableForOneEVSE() {
-    // TODO SCF fix global Isum
     if (evseController.mode == MODE_SOLAR) {
-        return Isum < (evseController.solarStartCurrent * -10);
+        // Solar surplus (negative value) must exceed 4A (configurable), otherwise ERROR_FLAG_NO_SUN
+        return evseController.getMainsMeasuredCurrent(true) < (evseController.solarStartCurrent * -10);
     }
 
-    // Using _max due to solar surplus negative values
-    const int16_t measuredCurrent = getHouseMeasuredCurrent(false);
+    const int16_t measuredCurrent = evseController.getMainsMeasuredCurrent(false);
 
     // There should be at least MIN_EV_CURRENT (default 6A) available
     if (measuredCurrent <= (evseController.getMaxCurrentAvailable() - (evseController.minEVCurrent * 10))) {
@@ -143,7 +142,7 @@ bool EVSECluster::isEnoughCurrentAvailableForOneEVSE() {
     }
 
     sprintf(sprintfStr, "[EVSECluster] Not enough power for 1 EVSE. measuredCurrent=%d; maxMains=%d; minEVCurrent=%d",
-            getHouseMeasuredCurrent(true), evseController.maxMains, evseController.minEVCurrent);
+            evseController.getMainsMeasuredCurrent(true), evseController.maxMains, evseController.minEVCurrent);
     EVSELogger::debug(sprintfStr);
 
     return false;
@@ -154,7 +153,7 @@ void EVSECluster::resetBalancedStates() {
         // Yes, disable old active Node states
         balancedState[n] = STATE_A_STANDBY;
         // reset ChargeCurrent to 0
-        balancedCurrent[n] = 0;
+        balancedChargeCurrent[n] = 0;
     }
 }
 
@@ -173,95 +172,58 @@ void EVSECluster::setWorkerNodeMasterBalancedCurrent(uint16_t current) {
         return;
     }
 
-    balancedCurrent[0] = current;
-    evseController.setChargeCurrent(balancedCurrent[0]);
+    balancedChargeCurrent[0] = current;
+    evseController.setChargeCurrent(balancedChargeCurrent[0]);
 }
 
 /**
  * Master checks node status requests, and responds with new state
- * Master -> Node
- *
  * @param uint8_t NodeAdr (1-7)
  */
 void EVSECluster::processAllNodeStates(uint8_t nodeNr) {
     uint16_t values[2];
-    bool write = false;
+    bool propagateChangesToNodes = false;
 
     values[0] = balancedState[nodeNr];
 
-    bool current = isEnoughCurrentAvailable();
-    // Yes enough current
-    if (current) {
+    if (isEnoughCurrentAvailableForAnotherEVSE()) {
         if (balancedError[nodeNr] & (ERROR_FLAG_LESS_6A | ERROR_FLAG_NO_SUN)) {
-            // Clear Error flags
             balancedError[nodeNr] &= ~(ERROR_FLAG_LESS_6A | ERROR_FLAG_NO_SUN);
-            write = true;
+            propagateChangesToNodes = true;
         }
-    }
 
-    // Check EVSE for request to charge states
-    switch (balancedState[nodeNr]) {
-        case STATE_A_STANDBY:
-            break;
-
-            // Request to charge A->B
-        case STATE_MODBUS_COMM_B:
-            // check if we have enough current
-            if (current) {
+        switch (balancedState[nodeNr]) {
+            case STATE_MODBUS_COMM_B:
+                // Request to charge A->B
                 // Mark Node EVSE as active (State B)
                 balancedState[nodeNr] = STATE_B_VEHICLE_DETECTED;
                 // Initially set current to lowest setting
-                balancedCurrent[nodeNr] = evseController.minEVCurrent * 10;
+                balancedChargeCurrent[nodeNr] = evseController.minEVCurrent * 10;
                 values[0] = STATE_MODBUS_COMM_B_OK;
-                write = true;
-            } else {
-                // We do not have enough current to start charging
-                // Make sure the Node does not start charging by setting current to 0
-                balancedCurrent[nodeNr] = 0;
-                // Error flags cleared?
-                if ((balancedError[nodeNr] & (ERROR_FLAG_LESS_6A | ERROR_FLAG_NO_SUN)) == 0) {
-                    if (evseController.mode == MODE_SOLAR) {
-                        // Solar mode: No Solar Power available
-                        balancedError[nodeNr] |= ERROR_FLAG_NO_SUN;
-                    } else {
-                        // Normal or Smart Mode: Not enough current available
-                        balancedError[nodeNr] |= ERROR_FLAG_LESS_6A;
-                    }
-                    write = true;
-                }
-            }
-            break;
+                propagateChangesToNodes = true;
+                break;
 
-            // request to charge B->C
-        case STATE_MODBUS_COMM_C:
-            balancedCurrent[nodeNr] = 0;
-            // For correct baseload calculation set current to zero check if we have
-            // enough current
-            if (current) {
-                // Mark Node EVSE as Charging (State C)
+            case STATE_MODBUS_COMM_C:
+                // request to charge B->C. Mark Node EVSE as Charging (State C)
                 balancedState[nodeNr] = STATE_C_CHARGING;
-                // Calculate charge current for all connected EVSE's
-                calcBalancedChargeCurrent();
+                // For correct baseload calculation set current to zero check if we have enough current
+                balancedChargeCurrent[nodeNr] = 0;
+                recalcBalancedChargeCurrent();
                 values[0] = STATE_MODBUS_COMM_C_OK;
-                write = true;
-            } else {
-                // We do not have enough current to start charging
-                // Error flags cleared?
-                if ((balancedError[nodeNr] & (ERROR_FLAG_LESS_6A | ERROR_FLAG_NO_SUN)) == 0) {
-                    if (evseController.mode == MODE_SOLAR) {
-                        // Solar mode: No Solar Power available
-                        balancedError[nodeNr] |= ERROR_FLAG_NO_SUN;
-                    } else {
-                        // Normal or Smart Mode: Not enough current available
-                        balancedError[nodeNr] |= ERROR_FLAG_LESS_6A;
-                    }
-                    write = true;
-                }
-            }
-            break;
+                propagateChangesToNodes = true;
+                break;
+        }
+    } else {
+        // We do not have enough current to start charging
+        // Make sure the Node does not start charging by setting current to 0
+        balancedChargeCurrent[nodeNr] = 0;
+        if ((balancedError[nodeNr] & (ERROR_FLAG_LESS_6A | ERROR_FLAG_NO_SUN)) == 0) {
+            balancedError[nodeNr] |= (evseController.mode == MODE_SOLAR) ? ERROR_FLAG_NO_SUN : ERROR_FLAG_LESS_6A;
+            propagateChangesToNodes = true;
+        }
     }
 
-    if (write) {
+    if (propagateChangesToNodes) {
         // Write State and Error to Node
         values[1] = balancedError[nodeNr];
         evseModbus.sendNewStatusToNode(nodeNr + 1, values);
@@ -273,7 +235,7 @@ int16_t EVSECluster::getClusterCurrent() {
     int16_t clusterCurrent = 0;
     for (uint8_t n = 0; n < CLUSTER_NUM_EVSES; n++) {
         if (balancedState[n] == STATE_C_CHARGING || balancedState[n] == STATE_DISCONNECT_IN_PROGRESS) {
-            clusterCurrent += balancedCurrent[n];
+            clusterCurrent += balancedChargeCurrent[n];
         }
     }
 
@@ -291,8 +253,8 @@ int8_t EVSECluster::getNumEVSEScharging() {
     return numEVSEScharging;
 }
 
-// Calculates balancedCurrent PWM current for each EVSE
-void EVSECluster::calcBalancedChargeCurrent() {
+// Calculates balancedChargeCurrent PWM current for each EVSE
+void EVSECluster::recalcBalancedChargeCurrent() {
     // Max current (Amps *10) available for all EVSE's (can be negative)
     int16_t maxCurrentAvailable = evseController.getMaxCurrentAvailable();
     // Override current (received from Modbus master)
@@ -304,89 +266,38 @@ void EVSECluster::calcBalancedChargeCurrent() {
             evseController.minEVCurrent);
     EVSELogger::debug(sprintfStr);
 
-    int16_t measuredCurrent, clusterCurrent, baseload, difference, numEVSEScharging, chargeCurrent, newChargeCurrent;
+    int16_t newChargeCurrent = 0;
     switch (evseController.mode) {
         case MODE_SMART:
-            // Store in variable to avoid race conditions
-            chargeCurrent = evseController.getChargeCurrent();
-            // Total power demand from the house (including charging EVSEs)
-            // It can be negative due to solar panels surplus
-            measuredCurrent = getHouseMeasuredCurrent(false);
-            // Total power used by EVSEs cluster. In memory value, might not match real value even using evMeter
-            clusterCurrent = getClusterCurrent();
-            // Base load (house only, EXCLUDING charging EVSEs)
-            // Using _max(X, 0) to avoid negative values due to solar panels surplus
-            baseload = measuredCurrent - clusterCurrent;
-
-            if (baseload < 0) {
-                // clusterCurrent mismatch because clusterCurrent is an in-memory value not the real power
-                // consumption reading. It usually happens when a vehicle start charging (it takes 5-10
-                // seconds for the vehicle to charge at full load)
-                sprintf(sprintfStr,
-                        "[EVSECluster] clusterCurrent mismatch! Vehicle has just started charging?? "
-                        "baseload=%d; clusterCurrent=%d",
-                        baseload, clusterCurrent);
-                EVSELogger::info(sprintfStr);
-
-                // Recalc baseload using minEVCurrent value as reference, because a charging vehicle will
-                // consume a very minimum of minEVCurrent
-                numEVSEScharging = _max(getNumEVSEScharging(), 1);
-                baseload = measuredCurrent - _max(clusterCurrent, evseController.minEVCurrent * 10 * numEVSEScharging);
-                // Using _max(X, 0) to avoid negative values due to solar panels surplus
-                baseload = _max(baseload, 0);
-            }
-
-            // Using _max(X, 0) because overrideCurrent, new menu configuration, etc... might lead to negative values
-            newChargeCurrent = _max(maxCurrentAvailable - baseload, 0);
-            difference = newChargeCurrent - chargeCurrent;
-
-            // difference > 0: Spare power, slowly increase current by 1/4th of difference
-            // difference < 0: Exceeded power, immediately decrease current to match maximum available
-            // diference == 0: Perfectly balanced
-            if (difference > 0) {
-                // Fix: use ceil to avoid small difference value increases 0 result (ex: diff=1 increase (1/4 => 0))
-                newChargeCurrent = chargeCurrent + ceil((float)difference / REBALANCE_SLOW_INCREASE_FACTOR);
-            }
-
-            sprintf(sprintfStr,
-                    "[EVSECluster] newChargeCurrent=%d; chargeCurrent=%d; maxCurrentAvailable=%d; measuredCurrent=%d; "
-                    "clusterCurrent=%d; baseload=%d; difference=%d",
-                    newChargeCurrent, evseController.getChargeCurrent(), maxCurrentAvailable,
-                    getHouseMeasuredCurrent(true), clusterCurrent, baseload, difference);
-            memcpy(DEBUG_LAST_CHARGE_REBALANCE_CALC, sprintfStr, sizeof(sprintfStr));
-            EVSELogger::debug(sprintfStr);
-
+            newChargeCurrent = calcNewChargeCurrentWithSmart(maxCurrentAvailable);
             break;
 
         case MODE_SOLAR:
-            newChargeCurrent = availableCurrentWithSolar();
+            newChargeCurrent = calcNewChargeCurrentWithSolar(maxCurrentAvailable);
             break;
 
-        case MODE_NORMAL:
+        default:  // case MODE_NORMAL:
             newChargeCurrent = isLoadBalancerMaster() ? (maxCircuit * 10) : maxCurrentAvailable;
             break;
     }
 
     if (isLoadBalancerDisabled()) {
-        sprintf(sprintfStr, "[EVSECluster] Standalone EVSE value=%d", newChargeCurrent);
+        sprintf(sprintfStr, "[EVSECluster] recalcBalancedChargeCurrent::StandaloneEVSE newChargeCurrent=%d",
+                newChargeCurrent);
         EVSELogger::debug(sprintfStr);
 
         resetBalancedStates();
         balancedMax[0] = evseController.getChargeCurrent();
-        balancedCurrent[0] = newChargeCurrent;
-        return;
+        balancedChargeCurrent[0] = newChargeCurrent;
+    } else {
+        recalcBalancedChargeCurrentCluster(newChargeCurrent);
     }
-
-    sprintf(sprintfStr, "[EVSECluster] Cluster (LoadBl=%d) EVSE value=%d\n", LoadBl, newChargeCurrent);
-    EVSELogger::info(sprintfStr);
-    calcBalancedChargeCurrentCluster(newChargeCurrent);
 }
 
-void EVSECluster::calcBalancedChargeCurrentCluster(int16_t adjustedCurrent) {
+// TODO not tested cluster of EVSEs use at your own risk
+void EVSECluster::recalcBalancedChargeCurrentCluster(int16_t newChargeCurrent) {
     // Do not exceed maxCircuit
-    if ((adjustedCurrent > (getMaxCircuit() * 10))) {
-        adjustedCurrent = getMaxCircuit() * 10;
-    }
+    int16_t adjustedCurrent = _min(getMaxCircuit() * 10, newChargeCurrent);
 
     if (isLoadBalancerMaster()) {
         balancedMax[0] = evseController.getChargeCurrent();
@@ -400,13 +311,13 @@ void EVSECluster::calcBalancedChargeCurrentCluster(int16_t adjustedCurrent) {
             // Calculate total Max Amps for all active EVSEs
             activeMax += balancedMax[i];
             // Calculate total of all set charge currents
-            totalCurrent += balancedCurrent[i];
+            totalCurrent += balancedChargeCurrent[i];
         }
     }
 
-    const int16_t measuredCurrent = getHouseMeasuredCurrent(false);
+    const int16_t measuredCurrent = evseController.getMainsMeasuredCurrent(false);
     if ((adjustedCurrent < (numEVSEScharging * (evseController.minEVCurrent * 10))) ||
-        (evseController.mode == MODE_SOLAR && Isum > 10 &&
+        (evseController.mode == MODE_SOLAR && evseController.getMainsMeasuredCurrent(true) > 10 &&
          (measuredCurrent > evseController.getMaxCurrentAvailable()))) {
         EVSELogger::info("[EVSECluster] Not enough power for EVSE cluster");
         evseController.onNotEnoughPower();
@@ -429,13 +340,13 @@ void EVSECluster::calcBalancedChargeCurrentCluster(int16_t adjustedCurrent) {
         if ((balancedState[n] == STATE_C_CHARGING || balancedState[n] == STATE_DISCONNECT_IN_PROGRESS) &&
             (!currentSet[n]) && (averageCurrent >= balancedMax[n])) {
             // Set current to Maximum allowed for this EVSE
-            balancedCurrent[n] = balancedMax[n];
+            balancedChargeCurrent[n] = balancedMax[n];
             // mark this EVSE as set.
             currentSet[n] = 1;
             // decrease counter of active EVSE's
             numEVSEScharging--;
             // Update total current to new (lower) value
-            clusterCurrent -= balancedCurrent[n];
+            clusterCurrent -= balancedChargeCurrent[n];
             // check all EVSE's again
             n = 0;
         } else {
@@ -454,90 +365,121 @@ void EVSECluster::calcBalancedChargeCurrentCluster(int16_t adjustedCurrent) {
             if ((balancedState[n] == STATE_C_CHARGING || balancedState[n] == STATE_DISCONNECT_IN_PROGRESS) &&
                 (!currentSet[n])) {
                 // Set current to Average
-                balancedCurrent[n] = clusterCurrent / numEVSEScharging;
+                balancedChargeCurrent[n] = clusterCurrent / numEVSEScharging;
                 // mark this EVSE as set.
                 currentSet[n] = 1;
                 // decrease counter of active EVSE's
                 numEVSEScharging--;
                 // Update total current to new (lower) value
-                clusterCurrent -= balancedCurrent[n];
+                clusterCurrent -= balancedChargeCurrent[n];
             }
         } while (++n < CLUSTER_NUM_EVSES && numEVSEScharging);
     }
 }
 
-int16_t EVSECluster::availableCurrentWithSolar() {
-    // Allow Import of power from the grid when solar charging
-    int16_t sumImport = Isum - (10 * evseController.solarImportCurrent);
-    int16_t balancedCurrent = 0;
+int16_t EVSECluster::calcNewChargeCurrentWithSmart(int16_t maxCurrentAvailable) {
+    // Total power demand from the house (including charging EVSEs)
+    int16_t measuredCurrent = evseController.getMainsMeasuredCurrent(false);
+    // Total power used by EVSEs cluster. In memory value, might not match real value even using evMeter
+    int16_t clusterCurrent = getClusterCurrent();
+    // Base load (house only, EXCLUDING charging EVSEs)
+    // Using _max(X, 0) to avoid negative values due to solar panels surplus
+    int16_t baseload = measuredCurrent - clusterCurrent;
 
-    if (sumImport < 0) {
-        // negative, we have surplus (solar) power available
-        // more then 1A available, increase balancedCurrent charge current with
-        // 0.5A
-        if (sumImport < -10) {
-            balancedCurrent = balancedCurrent + 5;
-        } else {
-            // less then 1A available, increase with 0.1A
-            balancedCurrent = balancedCurrent + 1;
-        }
-    } else {
-        // positive, we use more power than generated
-        if (sumImport > 20) {
-            // we use atleast 2A more then available, decrease balancedCurrent
-            // charge current.
-            balancedCurrent = balancedCurrent - (sumImport / 2);
-        } else if (sumImport > 10) {
-            // we use 1A more then available, decrease with 0.5A
-            balancedCurrent = balancedCurrent - 5;
-        } else if (sumImport > 3) {
-            // we still use > 0.3A more then available, decrease with 0.1A
-            // if we use <= 0.3A we do nothing
-            balancedCurrent = balancedCurrent - 1;
-        }
+    if (baseload < 0) {
+        // clusterCurrent mismatch because clusterCurrent is an in-memory value not the real power
+        // consumption reading. It usually happens when a vehicle start charging (it takes 5-10
+        // seconds for the vehicle to charge at full load)
+        sprintf(sprintfStr,
+                "[EVSECluster] clusterCurrent mismatch! Vehicle has just started charging?? "
+                "baseload=%d; clusterCurrent=%d",
+                baseload, clusterCurrent);
+        EVSELogger::info(sprintfStr);
+
+        // Recalc baseload using minEVCurrent value as reference, because a charging vehicle will
+        // consume a very minimum of minEVCurrent
+        baseload =
+            measuredCurrent - _max(clusterCurrent, evseController.minEVCurrent * 10 * _max(getNumEVSEScharging(), 1));
+        // Using _max(X, 0) to avoid negative values due to solar panels surplus
+        baseload = _max(baseload, 0);
     }
 
-    int numEVSEScharging = getNumEVSEScharging();
-    bool lowCurrent = false;
+    // Using _max(X, 0) because overrideCurrent, new menu configuration, etc... might lead to negative values
+    int16_t newChargeCurrent = _max(maxCurrentAvailable - baseload, 0);
+    // Store in variable to avoid race conditions
+    int16_t chargeCurrent = evseController.getChargeCurrent();
+    int16_t difference = newChargeCurrent - chargeCurrent;
 
-    // If balancedCurrent is below MinCurrent or negative, make sure it's set to MinCurrent
-    if ((balancedCurrent < (numEVSEScharging * evseController.minEVCurrent * 10)) || (balancedCurrent < 0)) {
-        lowCurrent = true;
-        balancedCurrent = numEVSEScharging * evseController.minEVCurrent * 10;
+    // difference > 0: Spare power, slowly increase current by 1/4th of difference
+    // difference < 0: Exceeded power, immediately decrease current to match maximum available
+    // diference == 0: Perfectly balanced
+    if (difference > 0) {
+        // Fix: use ceil to avoid small difference value increases 0 result (ex: diff=1 increase (1/4 => 0))
+        newChargeCurrent = chargeCurrent + ceil((float)difference / REBALANCE_SLOW_INCREASE_FACTOR);
     }
 
-    if (lowCurrent) {
-        // Check to see if we have to continue charging on solar power alone
-        if ((numEVSEScharging > 0) && (sumImport > 10)) {
-            if (evseController.solarStopTimer == 0 && evseController.solarStopTimeMinutes != 0) {
-                // Convert minutes into seconds
-                evseController.setSolarStopTimer(evseController.solarStopTimeMinutes * 60);
-            }
-        }
-    } else {
-        if (evseController.solarStopTimer != 0) {
-            evseController.setSolarStopTimer(0);
-        }
-    }
+    sprintf(sprintfStr,
+            "[EVSECluster] SMART newChargeCurrent=%d; chargeCurrent=%d; maxCurrentAvailable=%d; measuredCurrent=%d; "
+            "clusterCurrent=%d; baseload=%d; difference=%d",
+            newChargeCurrent, evseController.getChargeCurrent(), maxCurrentAvailable,
+            evseController.getMainsMeasuredCurrent(true), clusterCurrent, baseload, difference);
+    memcpy(DEBUG_LAST_CHARGE_REBALANCE_CALC, sprintfStr, sizeof(sprintfStr));
+    EVSELogger::debug(sprintfStr);
 
-    return balancedCurrent;
+    return newChargeCurrent;
 }
 
-int16_t EVSECluster::getHouseMeasuredCurrent(bool rawValue) {
-    // SCF fix: imeasured holds sum all Irms of all channels instead of
-    // imeasured holds highest Irms of all channels
-    // SCF fix: imeasured holds sum all Irms of all channels instead of max
-    // Max of all Phases (Amps *10, 23 = 2.3A) of mains power
-    int16_t imeasured = 0;
+int16_t EVSECluster::calcNewChargeCurrentWithSolar(int16_t maxCurrentAvailable) {
+    // Allow Import of power from the grid when solar charging
+    int16_t measuredCurrent = evseController.getMainsMeasuredCurrent(true);
+    int16_t diffSurplusImport = measuredCurrent - (evseController.solarImportCurrent * 10);
+    int16_t increment = 0;
 
-    for (uint8_t x = 0; x < 3; x++) {
-        /*if (evseController.Irms[x] > imeasured)
-            imeasured = evseController.Irms[x];*/
-        imeasured += evseController.Irms[x];
+    if (diffSurplusImport < 0) {
+        // negative, we have solar surplus power available
+        // more then 1A available, increase balancedChargeCurrent charge current with 0.5A, otherwise increase with 0.1A
+        increment += (diffSurplusImport < -10) ? 5 : 1;
+    } else {
+        // positive (importing power from grid), we use more power than generated
+        if (diffSurplusImport > 20) {
+            // we use at least 2A more then available, decrease 50%
+            increment -= (diffSurplusImport / 2);
+        } else if (diffSurplusImport > 10) {
+            // we use 1A more then available, decrease with 0.5A
+            increment -= 5;
+        } else if (diffSurplusImport > 3) {
+            // we still use > 0.3A more then available, decrease with 0.1A
+            increment -= 1;
+        } else {
+            // if we use <= 0.3A we do nothing
+        }
     }
 
-    // Solar surplus might create negative results, only intesting in some cases
-    return rawValue ? imeasured : _max(imeasured, 0);
+    int16_t newChargeCurrent = evseController.getChargeCurrent() + increment;
+    bool lowCurrent = (increment < 0) || (newChargeCurrent < (evseController.minEVCurrent * 10));
+
+    // Make sure newChargeCurrent is at least MIN_EV and do not exceed maxCurrentAvailable
+    newChargeCurrent = _max(newChargeCurrent, (evseController.minEVCurrent * 10));
+    newChargeCurrent = _min(newChargeCurrent, maxCurrentAvailable);
+
+    if (lowCurrent) {
+        // Check to see if we have to continue charging on solar power or stop (importing more than 1A)
+        if (diffSurplusImport > 10) {
+            evseController.onSolarLowPower();
+        }
+    } else {
+        evseController.onSolarChargingEnoughPower();
+    }
+
+    sprintf(sprintfStr,
+            "[EVSECluster] SOLAR newChargeCurrent=%d; chargeCurrent=%d; maxCurrentAvailable=%d; measuredCurrent=%d; "
+            "diffSurplusImport=%d; increment=%d",
+            newChargeCurrent, evseController.getChargeCurrent(), maxCurrentAvailable, measuredCurrent,
+            diffSurplusImport, increment);
+    memcpy(DEBUG_LAST_CHARGE_REBALANCE_CALC, sprintfStr, sizeof(sprintfStr));
+    EVSELogger::debug(sprintfStr);
+
+    return newChargeCurrent;
 }
 
 void EVSECluster::onCTDataReceived() {
@@ -547,7 +489,7 @@ void EVSECluster::onCTDataReceived() {
 void EVSECluster::adjustChargeCurrent() {
     if (!(evseController.errorFlags & ERROR_FLAG_CT_NOCOMM)) {
         // Calculate dynamic charge current for connected EVSE's
-        calcBalancedChargeCurrent();
+        recalcBalancedChargeCurrent();
     }
 
     if (isLoadBalancerMaster()) {
@@ -557,11 +499,11 @@ void EVSECluster::adjustChargeCurrent() {
             resetBalancedStates();
             evseModbus.broadcastErrorFlagsToWorkerNodes(evseController.errorFlags);
         } else {
-            evseModbus.broadcastMasterBalancedCurrent(balancedCurrent);
+            evseModbus.broadcastMasterBalancedCurrent(balancedChargeCurrent);
         }
     }
 
-    evseController.setChargeCurrent(balancedCurrent[0]);
+    evseController.setChargeCurrent(balancedChargeCurrent[0]);
 }
 
 void EVSECluster::readEpromSettings() {

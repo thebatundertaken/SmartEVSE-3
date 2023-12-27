@@ -122,16 +122,16 @@
 // EVSE status
 #define NODE_STATUS_STATE 64           // 0x0000: State
 #define NODE_STATUS_ERROR 65           // 0x0001: Error
-#define NODE_STATUS_CURRENT 66         // 0x0002: Charging current (A * 10)
+#define NODE_STATUS_CHARGECURRENT 66   // 0x0002: Charging current (A * 10)
 #define NODE_STATUS_MODE 67            // 0x0003: EVSE Mode
 #define NODE_STATUS_SOLAR_TIMER 68     // 0x0004: Solar Timer
-#define NODE_STATUS_ACCESS 69          // 0x0005: Access bit
+#define NODE_STATUS_ACCESSBIT 69       // 0x0005: Access bit
 #define NODE_STATUS_CONFIG_CHANGED 70  // 0x0006: Configuration changed
-#define NODE_STATUS_MAX 71             // 0x0007: Maximum charging current (RO)
-#define NODE_STATUS_PHASE_COUNT 72     // 0x0008: Number of used phases (RO) (ToDo)
-#define NODE_STATUS_REAL_CURRENT 73    // 0x0009: Real charging current (RO) (ToDo)
-#define NODE_STATUS_TEMP 74            // 0x000A: Temperature (RO)
-// #define STATUS_SERIAL 75         // 0x000B: Serial number (RO)
+#define NODE_STATUS_CABLEMAX 71        // 0x0007: Maximum charging current (ReadOnly)
+#define NODE_STATUS_PHASE_COUNT 72     // 0x0008: Number of used phases (ReadOnly) (not implemented)
+#define NODE_STATUS_REAL_CURRENT 73    // 0x0009: Real charging current (ReadOnly) (not implemented)
+#define NODE_STATUS_TEMP 74            // 0x000A: Temperature (ReadOnly)
+// #define STATUS_SERIAL 75         // 0x000B: Serial number (ReadOnly)
 
 // SW set to 0, set to output (driven low)
 #define ONEWIRE_LOW                   \
@@ -240,7 +240,7 @@ class EVSEModbus {
     void broadcastErrorFlagsToWorkerNodes(uint16_t flags);
     void broadcastSolarStopTimerToNodes(uint16_t value);
     void broadcastControllerModeToNodes(uint16_t newMode);
-    void broadcastMasterBalancedCurrent(uint16_t balancedCurrent[]);
+    void broadcastMasterBalancedCurrent(uint16_t balancedChargeCurrent[]);
     void sendNewStatusToNode(uint8_t nodeNr, uint16_t values[]);
 
     void updateSettings();
@@ -263,7 +263,7 @@ class EVSEModbus {
     uint8_t evMeterAddress = EV_METER_ADDRESS;
 
     uint8_t grid = GRID_3WIRE;
-    uint8_t mainsMeter = MM_SENSORBOX;
+    uint8_t mainsMeter = MAINS_METER_DISABLED;
     uint8_t mainsMeterAddress = MAINS_METER_ADDRESS;
     // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1:
     // Home+EVSE / 2: Home)

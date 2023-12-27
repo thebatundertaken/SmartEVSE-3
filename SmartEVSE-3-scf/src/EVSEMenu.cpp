@@ -38,7 +38,7 @@
 
 void EVSEMenu::buildMenuItems() {
     // MENU_XXX defines referes to menuEntries array position, if order changed in
-    // struct, then defines must be changed and EVSEMenu::buildMenuItems() too
+    // struct, then defines must be changed, EVSEMenu::buildMenuItems() and EVSEModbus::mapModbusRegister2MenuItemID
 
     uint8_t m = 0;
 
@@ -48,31 +48,21 @@ void EVSEMenu::buildMenuItems() {
     }
 
     MenuItems[m++] = MENU_MODE;
-    // ? Solar mode and Load Balancing Disabled/Master?
-    if (evseController.mode == MODE_SOLAR && evseCluster.amIMasterOrLBDisabled()) {
-        MenuItems[m++] = MENU_START;
-        MenuItems[m++] = MENU_STOP;
-        MenuItems[m++] = MENU_IMPORT;
-    }
 
-    MenuItems[m++] = MENU_LOADBL;
     // ? Mode Smart/Solar and Load Balancing Disabled/Master?
     if (evseController.mode != MODE_NORMAL && evseCluster.amIMasterOrLBDisabled()) {
-        MenuItems[m++] = MENU_MAINS;
-    }
-    // ? Mode Smart/Solar or Load Balancer Master?
-    if (evseController.mode != MODE_NORMAL && evseCluster.amIMasterOrLBDisabled()) {
-        MenuItems[m++] = MENU_MIN;
+        MenuItems[m++] = MENU_MIN_EV;
+        MenuItems[m++] = MENU_MAX_MAINS;
     }
 
-    if (evseCluster.isLoadBalancerMaster()) {
-        MenuItems[m++] = MENU_CIRCUIT;
-    }
+    MenuItems[m++] = MENU_MAX_CURRENT;
 
-    MenuItems[m++] = MENU_MAX;
-    MenuItems[m++] = MENU_SWITCH;
-    MenuItems[m++] = MENU_RCMON;
-    MenuItems[m++] = MENU_RFIDREADER;
+    // ? Solar mode and Load Balancing Disabled/Master?
+    if (evseController.mode == MODE_SOLAR && evseCluster.amIMasterOrLBDisabled()) {
+        MenuItems[m++] = MENU_SOLAR_START;
+        MenuItems[m++] = MENU_SOLAR_STOP_TIME_MINUTES;
+        MenuItems[m++] = MENU_IMPORT;
+    }
 
     // ? Smart or Solar mode?
     if (evseController.mode != MODE_NORMAL) {
@@ -126,6 +116,15 @@ void EVSEMenu::buildMenuItems() {
         }
     }
 
+    MenuItems[m++] = MENU_LOADBL;
+    if (evseCluster.isLoadBalancerMaster()) {
+        MenuItems[m++] = MENU_CIRCUIT;
+    }
+
+    MenuItems[m++] = MENU_SWITCH;
+    MenuItems[m++] = MENU_RCMON;
+    MenuItems[m++] = MENU_RFIDREADER;
+
     MenuItems[m++] = MENU_MAX_TEMPERATURE;
     MenuItems[m++] = MENU_LEDS;
     MenuItems[m++] = MENU_WIFI;
@@ -141,19 +140,19 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
         case MENU_MODE:
         case NODE_STATUS_MODE:
             return evseController.mode;
-        case MENU_START:
+        case MENU_SOLAR_START:
             return evseController.solarStartCurrent;
-        case MENU_STOP:
+        case MENU_SOLAR_STOP_TIME_MINUTES:
             return evseController.solarStopTimeMinutes;
         case MENU_IMPORT:
             return evseController.solarImportCurrent;
         case MENU_LOADBL:
             return evseCluster.getLoadBl();
-        case MENU_MAINS:
+        case MENU_MAX_MAINS:
             return evseController.maxMains;
-        case MENU_MIN:
+        case MENU_MIN_EV:
             return evseController.minEVCurrent;
-        case MENU_MAX:
+        case MENU_MAX_CURRENT:
             return evseController.maxDeviceCurrent;
         case MENU_CIRCUIT:
             return evseCluster.getMaxCircuit();
@@ -217,17 +216,16 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseController.state;
         case NODE_STATUS_ERROR:
             return evseController.errorFlags;
-        case NODE_STATUS_CURRENT:
+        case NODE_STATUS_CHARGECURRENT:
             return evseController.getChargeCurrent();
         case NODE_STATUS_SOLAR_TIMER:
             return evseController.solarStopTimer;
-        case NODE_STATUS_ACCESS:
+        case NODE_STATUS_ACCESSBIT:
             return evseRFID.rfidAccessBit;
         case NODE_STATUS_CONFIG_CHANGED:
             return evseController.statusConfigChanged;
         // Status readonly
-        // TODO SCF check what this is for, who request it
-        case NODE_STATUS_MAX:
+        case NODE_STATUS_CABLEMAX:
             return evseController.getCableMaxCapacity();
         case NODE_STATUS_TEMP:
             return (signed int)evseController.temperature + 273;
@@ -262,10 +260,10 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
         case MENU_MODE:
             evseController.mode = val;
             break;
-        case MENU_START:
+        case MENU_SOLAR_START:
             evseController.solarStartCurrent = val;
             break;
-        case MENU_STOP:
+        case MENU_SOLAR_STOP_TIME_MINUTES:
             evseController.solarStopTimeMinutes = val;
             break;
         case MENU_IMPORT:
@@ -275,13 +273,13 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             evseModbus.configureModbusMode(val);
             evseCluster.setLoadBl(val);
             break;
-        case MENU_MAINS:
+        case MENU_MAX_MAINS:
             evseController.maxMains = val;
             break;
-        case MENU_MIN:
+        case MENU_MIN_EV:
             evseController.minEVCurrent = val;
             break;
-        case MENU_MAX:
+        case MENU_MAX_CURRENT:
             evseController.maxDeviceCurrent = val;
             break;
         case MENU_CIRCUIT:
@@ -377,7 +375,7 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             evseController.onNodeReceivedError(val);
             break;
 
-        case NODE_STATUS_CURRENT:
+        case NODE_STATUS_CHARGECURRENT:
             evseCluster.setOverrideCurrent(val);
             break;
 
@@ -385,7 +383,7 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             evseController.setSolarStopTimer(val);
             break;
 
-        case NODE_STATUS_ACCESS:
+        case NODE_STATUS_ACCESSBIT:
             if (val == 0 || val == 1) {
                 evseController.setAccess(val);
             }
@@ -419,11 +417,11 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
 
             return i18nStrNormal;
 
-        case MENU_START:
+        case MENU_SOLAR_START:
             sprintf(Str, I18N_MENUSTART_FORMAT, value);
             return Str;
 
-        case MENU_STOP:
+        case MENU_SOLAR_STOP_TIME_MINUTES:
             if (value) {
                 sprintf(Str, I18N_MENUSTOP_FORMAT, value);
                 return Str;
@@ -434,9 +432,9 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
                 return "Node 0";
             else*/
             return i18nStrLoadBl[evseCluster.getLoadBl()];
-        case MENU_MAINS:
-        case MENU_MIN:
-        case MENU_MAX:
+        case MENU_MAX_MAINS:
+        case MENU_MIN_EV:
+        case MENU_MAX_CURRENT:
         case MENU_CIRCUIT:
         case MENU_IMPORT:
             sprintf(Str, I18N_MENUIMPORT_FORMAT, value);
@@ -533,9 +531,6 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
     }
 }
 
-/**
- * Counts nr of menu options currently available
- */
 uint8_t EVSEMenu::getPosInMenu() {
     for (uint8_t i = 0; i < menuItemsCount; i++) {
         if (MenuItems[i] == currentMenuOption)

@@ -236,11 +236,16 @@
           }
           if (data.controller.solarStopTimer > 0) {
             $('#solarstoptimer').text(data.controller.solarStopTimer + " seconds");
+            $('#solarstoptimer2').text(data.controller.solarStopTimer + " seconds");
             $('#solarstoptimer_box').show();
           }
           else {
+            $('#solarstoptimer2').text("Disabled");
             $('#solarstoptimer_box').hide();
           }
+
+          $('#solarstartcurrent').text(data.controller.solarStartCurrent + "A");
+          $('#solarimportcurrent').text(data.controller.solarImportCurrent + "A");
 
           for (let x = 0; x < 4; x++) {
             if (x == data.nerd.logLevel) {
@@ -327,6 +332,13 @@
             $('#evmeter_power').text(data.modbus.powerMeasured.toFixed(1) + " kW");
             $('#evmeter_total_kwh').text(data.modbus.evMeterEnergy.toFixed(1) + " kWh");
             $('#evmeter_charged_kwh').text(data.modbus.energyCharged.toFixed(1) + " kWh");
+          }
+
+          <!-- MODE_SOLAR -->
+          if (data.controller.mode == "2") {
+            $('#solarmode_box').show();
+          } else {
+            $('#solarmode_box').hide();
           }
         } catch (error) {
           console.log(error);
@@ -439,7 +451,7 @@
 
                       <div class="row g-0 align-items-center" id="chargedelayseconds_box" style="display: none">
                         <div class="col-auto mb-0 h5 mb-0 me-3 pb-2">
-                          <i class="bi bi-clock"></i> Charge delay:
+                          <i class="bi bi-stopwatch"></i> Charge delay:
                         </div>
                         <div class="col">
                           <div class="h5 mb-0 pb-2 me-3 text-muted" id="chargedelayseconds"></div>
@@ -447,7 +459,7 @@
                       </div>
                       <div class="row g-0 align-items-center" id="solarstoptimer_box" style="display: none">
                         <div class="col-auto mb-0 h5 mb-0 me-3 pb-2">
-                          <i class="bi bi-clock"></i> Solar stop timer:
+                          <i class="bi bi-stopwatch"></i> Solar stop timer:
                         </div>
                         <div class="col">
                           <div class="h5 mb-0 pb-2 me-3 text-muted" id="solarstoptimer"></div>
@@ -586,7 +598,7 @@
                       <h6 class="fw-bold text-uppercase mb-1">EV Meter</h6>
                       <div class="row g-0 align-items-center">
                         <div class="col-auto h5 mb-0 me-3">
-                          <i class="bi bi-speedometer2"></i> Type:
+                          <i class="bi bi-ev-front"></i> Type:
                         </div>
                         <div class="col">
                           <div class="h5 mb-0 text-muted text-end" id="evmeter_description">
@@ -625,7 +637,45 @@
             </div>
 
 
-            <div class="col-xl-3 col-md-6 mb-4" id="with_evmeter">
+            <div class="col-xl-3 col-md-6 mb-4" id="solarmode_box" style="display: none">
+              <div class="card shadow h-100 py-0 bg-body-tertiary">
+                <div class="card-body">
+                  <div class="row g-0 align-items-center">
+                    <div class="col">
+                      <h6 class="fw-bold text-uppercase mb-1">Solar mode</h6>
+                      <div class="row g-0 align-items-center">
+                        <div class="col-auto h5 mb-0 me-3">
+                          <i class="bi bi-sunrise"></i> Start current:
+                        </div>
+                        <div class="col">
+                          <div class="h5 mb-0 text-muted text-end" id="solarstartcurrent"></div>
+                        </div>
+                      </div>
+                      <div class="row g-0 align-items-center">
+                        <div class="col-auto h5 mb-0 me-3">
+                          <i class="bi bi-lightning-charge"></i> Import current:
+                        </div>
+                        <div class="col">
+                          <div class="h5 mb-0 text-muted text-end" id="solarimportcurrent"></div>
+                        </div>
+                      </div>
+                      <div class="row g-0 align-items-center">
+                        <div class="col-auto h5 mb-0 me-3">
+                          <i class="bi bi-stopwatch"></i> Solar stop timer:
+                        </div>
+                        <div class="col">
+                          <div class="h5 mb-0 text-muted text-end" id="solarstoptimer2"></div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+            <div class="col-xl-3 col-md-6 mb-4">
               <div class="card shadow h-100 py-0 bg-body-tertiary">
                 <div class="card-body">
                   <div class="row g-0 align-items-center">

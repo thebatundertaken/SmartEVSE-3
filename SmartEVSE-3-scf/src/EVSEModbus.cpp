@@ -106,8 +106,8 @@ void EVSEModbus::broadcastControllerModeToNodes(uint16_t newMode) {
 }
 
 // Broadcast momentary currents to all Node EVSE's
-void EVSEModbus::broadcastMasterBalancedCurrent(uint16_t balancedCurrent[]) {
-    ModbusWriteMultipleRequest(BROADCAST_ADR, MODBUS_REG_BALANCECURRENTS, balancedCurrent, NR_EVSES);
+void EVSEModbus::broadcastMasterBalancedCurrent(uint16_t balancedChargeCurrent[]) {
+    ModbusWriteMultipleRequest(BROADCAST_ADR, MODBUS_REG_BALANCECURRENTS, balancedChargeCurrent, NR_EVSES);
 }
 
 void EVSEModbus::sendNewStatusToNode(uint8_t nodeNr, uint16_t values[]) {
@@ -202,8 +202,7 @@ void EVSEModbus::modbusMainsMeterResponseHandler(ModbusMessage msg) {
 
     ModbusDecode((uint8_t*)msg.data(), msg.size());
 
-    // process only Responses, as otherwise MB.Data is unitialized, and it will
-    // throw an exception
+    // process only Responses, as otherwise MB.Data is unitialized, and it will throw an exception
     if (MB.Register == EMConfig[mainsMeter].IRegister && MB.Type == MODBUS_RESPONSE) {
         // Serial.print("Mains Meter Response\n");
         x = receiveCurrentMeasurement(MB.Data, mainsMeter, CM);
@@ -216,8 +215,6 @@ void EVSEModbus::modbusMainsMeterResponseHandler(ModbusMessage msg) {
             lastCTResponseMillis = millis();
         }
 
-        // Calculate Isum (for nodes and master)
-        evseCluster.Isum = 0;
         for (x = 0; x < 3; x++) {
             // Calculate difference of Mains and PV electric meter
             if (pvMeter != PV_METER_DISABLED) {
@@ -227,8 +224,6 @@ void EVSEModbus::modbusMainsMeterResponseHandler(ModbusMessage msg) {
 
             // reduce resolution of Irms to 100mA
             evseController.Irms[x] = (signed int)(CM[x] / 100);
-            // Isum has a resolution of 100mA
-            evseCluster.Isum += evseController.Irms[x];
         }
     }
 }
@@ -260,8 +255,7 @@ ModbusMessage EVSEModbus::modbusNodeRequestHandler(ModbusMessage request) {
                 response.add(MB.Address, MB.Function, (uint8_t)(MB.RegisterCount * 2));
 
                 for (i = 0; i < MB.RegisterCount; i++) {
-                    // TODO refactor: i don't like calling menu in modbus (to get, set and
-                    // broadcast changes to nodes)
+                    // TODO refactor: i don't like calling menu in modbus (to get, set and broadcast changes to nodes)
                     values[i] = evseMenu.getMenuItemValue(ItemID + i);
                     response.add(values[i]);
                 }
@@ -614,22 +608,21 @@ void EVSEModbus::modbusWorkflow() {
 uint8_t EVSEModbus::mapModbusRegister2MenuItemID() {
     uint16_t RegisterStart, ItemStart, Count;
 
-    // Register 0x00*: Status
+    // EVSEMenu.h Register 0x00*: Status
     if (MB.Register >= MODBUS_EVSE_STATUS_START &&
         MB.Register < (MODBUS_EVSE_STATUS_START + MODBUS_EVSE_STATUS_COUNT)) {
         RegisterStart = MODBUS_EVSE_STATUS_START;
         ItemStart = NODE_STATUS_STATE;
         Count = MODBUS_EVSE_STATUS_COUNT;
 
-        // Register 0x01*: Node specific configuration
+        // EVSEMenu.h Register 0x01*: Node specific configuration
     } else if (MB.Register >= MODBUS_EVSE_CONFIG_START &&
                MB.Register < (MODBUS_EVSE_CONFIG_START + MODBUS_EVSE_CONFIG_COUNT)) {
         RegisterStart = MODBUS_EVSE_CONFIG_START;
         ItemStart = MENU_CONFIG;
         Count = MODBUS_EVSE_CONFIG_COUNT;
 
-        // Register 0x02*: System configuration (same on all SmartEVSE in a
-        // LoadBalancing setup)
+        // EVSEMenu.h Register 0x02*: System configuration (same on all SmartEVSE in a LoadBalancing setup)
     } else if (MB.Register >= MODBUS_SYS_CONFIG_START &&
                MB.Register < (MODBUS_SYS_CONFIG_START + MODBUS_SYS_CONFIG_COUNT)) {
         RegisterStart = MODBUS_SYS_CONFIG_START;
@@ -663,7 +656,7 @@ void EVSEModbus::readEpromSettings() {
         pvMeterAddress = preferences.getUChar(PREFS_PVMADDRESS_KEY, PV_METER_ADDRESS);
         grid = preferences.getUChar(PREFS_GRID_KEY, GRID_3WIRE);
         mainsMeterAddress = preferences.getUChar(PREFS_MAINSMETERADDRESS_KEY, MAINS_METER_ADDRESS);
-        mainsMeter = preferences.getUChar(PREFS_MAINSMETER_KEY, MM_SENSORBOX);
+        mainsMeter = preferences.getUChar(PREFS_MAINSMETER_KEY, MAINS_METER_DISABLED);
         mainsMeterMeasure = preferences.getUChar(PREFS_MAINSMETERMEASURE_KEY, MAINS_METER_MEASURE);
 
         EMConfig[MM_CUSTOM].Endianness = preferences.getUChar("EMEndianness", EMCUSTOM_ENDIANESS);
@@ -687,7 +680,7 @@ void EVSEModbus::readEpromSettings() {
         pvMeterAddress = PV_METER_ADDRESS;
         grid = GRID_3WIRE;
         mainsMeterAddress = MAINS_METER_ADDRESS;
-        mainsMeter = MM_SENSORBOX;
+        mainsMeter = MAINS_METER_DISABLED;
         mainsMeterMeasure = MAINS_METER_MEASURE;
 
         EMConfig[MM_CUSTOM].Endianness = EMCUSTOM_ENDIANESS;

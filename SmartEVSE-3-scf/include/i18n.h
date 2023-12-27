@@ -44,8 +44,7 @@ const char i18nStrEmCustomFunction3[] = "3:Hold. Reg";
 const char i18nStrEmCustomFunction4[] = "4:Input. Reg";
 
 const char i18nStrMainsHomeEVSE[] = "Home+EVSE";
-const char i18nStrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne",
-                                       "Learn",    "Delete",    "DeleteAll"};
+const char i18nStrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
 const char i18nStrRFIDStatus[8][20] = {"Ready",
                                        "Card present",
                                        "Card stored",
@@ -59,16 +58,14 @@ const char i18nStrMeter[9][20] = {"Disabled", "Sensorbox", "Phoenix", "Finder", 
 const char i18nStrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
 const char i18nStrLeds[2][10] = {"Disabled", "Enabled"};
 
-const char i18nStrStateName[11][10] = {
-    "A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1"};
-const char i18nStrStateNameWeb[11][17] = {
-    "Ready to Charge", "Connected to EV",  "Charging",        "D",
-    "Request State B", "State B OK",       "Request State C", "State C OK",
-    "Activate",        "Charging Stopped", "Stop Charging"};
-const char i18nStrErrorNameWeb[9][20] = {
-    "None",       "No Power Available", "Communication Error", "Temperature High",
-    "Unused",     "RCM Tripped",        "Waiting for Solar",   "Test IO",
-    "Flash Error"};
+const char i18nStrStateName[11][10] = {"A",      "B",         "C",        "D",  "COMM_B", "COMM_B_OK",
+                                       "COMM_C", "COMM_C_OK", "Activate", "B1", "C1"};
+const char i18nStrStateNameWeb[11][17] = {"Ready to Charge", "Connected to EV",  "Charging",        "D",
+                                          "Request State B", "State B OK",       "Request State C", "State C OK",
+                                          "Activate",        "Charging Stopped", "Stop Charging"};
+const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Communication Error", "Temperature High",
+                                         "Unused",     "RCM Tripped",      "Waiting for Solar",   "Test IO",
+                                         "Flash Error"};
 
 #define I18N_MENU_NOTINMENU "Not in menu"
 #define I18N_MENU_HOLD2SEC "Hold 2 sec"
@@ -90,9 +87,9 @@ const char i18nStrErrorNameWeb[9][20] = {
 #define I18N_MENU_GRID "Grid type to which the Sensorbox is connected"
 #define I18N_MENU_CAL "Calibrate CT1 (CT2+3 will also change)"
 #define I18N_MENU_MAINS "Max MAINS Current (usually contracted power)"
-#define I18N_MENU_START "Surplus energy start Current (sum of phases)"
+#define I18N_MENU_START "Surplus energy start Current"
 #define I18N_MENU_STOP "Stop solar charging at 6A after this time"
-#define I18N_MENU_IMPORT "Allow grid power when solar charging (sum of phase)"
+#define I18N_MENU_IMPORT "Grid import when solar charging"
 #define I18N_MENU_MAINEM "Type of mains electric meter"
 #define I18N_MENU_MAINAD "Address of mains electric meter"
 #define I18N_MENU_MAINM "Mains electric meter scope (What does it measure?)"
@@ -178,8 +175,9 @@ const char i18nStrErrorNameWeb[9][20] = {
 #define I18N_POWERMEASURED_FORMAT_LONG "%ukW"
 #define I18N_POWERAMPS_FORMAT "%uA"
 #define I18N_ENERGYCHARGED_FORMAT "%2u.%1ukWh"
-#define I18N_CURRENTS_FORMAT "%dA"
-#define I18N_CURRENTS_FORMAT2 "%d.%uA"
+// #define I18N_CURRENTS_FORMAT "%dA"
+#define I18N_CURRENTS_FORMAT_SOLAR "%dA"
+#define I18N_CURRENTS_FORMAT_SMART "%d.%uA"
 #define I18N_CALIBRATION_FORMAT "%u.%uA"
 #define I18N_TEMPERATURE_FORMAT "%i%cC"
 #define I18N_MENUNAVIGATIONPOSITION_FORMAT "%u/%u"
@@ -191,12 +189,12 @@ const char i18nStrErrorNameWeb[9][20] = {
 
 #define I18N_WIFI_APHOSTNAME_PREFIX "SmartEVSE-"
 
-const char *geti18nStrMeterText(uint8_t statusCode);
+const char* geti18nStrMeterText(uint8_t statusCode);
 
-const char *geti18nRfidStatusText(uint8_t code);
+const char* geti18nRfidStatusText(uint8_t code);
 
-const char *geti18nStateText(uint8_t stateCode);
+const char* geti18nStateText(uint8_t stateCode);
 
-const char *geti18nErrorText(uint8_t ErrorCode);
+const char* geti18nErrorText(uint8_t ErrorCode);
 
 #endif

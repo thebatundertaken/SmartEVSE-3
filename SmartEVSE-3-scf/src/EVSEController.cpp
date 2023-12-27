@@ -182,6 +182,17 @@ uint16_t EVSEController::getMaxCurrentAvailable() {
     return _min(getCableMaxCapacity(), maxMains) * 10;
 };
 
+int16_t EVSEController::getMainsMeasuredCurrent(bool allowSolarSurplus) {
+    int16_t imeasured = 0;
+
+    for (uint8_t x = 0; x < 3; x++) {
+        imeasured += Irms[x];
+    }
+
+    // Solar surplus might create negative results, only intesting for MODE_SOLAR and/or debugging
+    return allowSolarSurplus ? imeasured : _max(imeasured, 0);
+}
+
 //  Tell EV to stop charging. When we are not charging switch to State B1
 void EVSEController::stopChargingOnError() {
     EVSELogger::debug("[EVSEController] Stopping charging due to charge error");
@@ -253,12 +264,35 @@ void EVSEController::onNotEnoughPower() {
     errorFlags |= (mode == MODE_SOLAR) ? ERROR_FLAG_NO_SUN : ERROR_FLAG_LESS_6A;
 }
 
+// MODE_SOLAR low current
+void EVSEController::onSolarLowPower() {
+    if (solarStopTimer == 0 && solarStopTimeMinutes != 0) {
+        // Convert minutes into seconds
+        setSolarStopTimer(solarStopTimeMinutes * 60);
+    }
+}
+
+void EVSEController::onSolarChargingEnoughPower() {
+    if (solarStopTimer != 0) {
+        setSolarStopTimer(0);
+    }
+}
+
 void EVSEController::onPowerBackOn() {
     errorFlags &= ~ERROR_FLAG_LESS_6A;
     errorFlags &= ~ERROR_FLAG_NO_SUN;
     cleanupNoPowerTimersFlags();
 
     evseCluster.setMasterNodeErrorflags(errorFlags);
+}
+
+void EVSEController::onSolarStopTimer() {
+    errorFlags |= ERROR_FLAG_NO_SUN;
+    EVSELogger::debug("[EVSEController] Solar mode no sun. Stopping charging");
+    stopChargingOnError();
+
+    // reset all states
+    evseCluster.resetBalancedStates();
 }
 
 void EVSEController::onDisconnectInProgress() {
@@ -289,7 +323,7 @@ void EVSEController::onVehicleStartCharging() {
     // Use chargeCurrent value instead maxMains to allow current override
     evseCluster.setMasterNodeBalancedMax(chargeCurrent);
 
-    if (!evseCluster.isEnoughCurrentAvailable()) {
+    if (!evseCluster.isEnoughCurrentAvailableForAnotherEVSE()) {
         EVSELogger::warn("[EVSEController] Vehicle wants to charge but not enough power");
         onNotEnoughPower();
         return;
@@ -385,8 +419,7 @@ void EVSEController::setState(uint8_t NewState) {
             timerAlarmWrite(timerA, PWM_100, true);
 
             if (NewState == STATE_A_STANDBY) {
-                errorFlags &= ~ERROR_FLAG_NO_SUN;
-                errorFlags &= ~ERROR_FLAG_LESS_6A;
+                cleanupNoPowerTimersFlags();
                 evseModbus.evMeterResetKwhOnStandby();
             }
             chargeDelaySeconds = 0;
@@ -951,23 +984,15 @@ void EVSEController::loop() {
         if ((millis() - solarStopTimerLastMillis) >= 1000) {
             solarStopTimerLastMillis = millis();
             if (--solarStopTimer == 0) {
-                errorFlags |= ERROR_FLAG_NO_SUN;
-                EVSELogger::debug("[EVSEController] Solar mode no sun. Stopping charging");
-                stopChargingOnError();
-
-                // reset all states
-                evseCluster.resetBalancedStates();
+                onSolarStopTimer();
             }
         }
     }
 
     if (!isEnoughPower()) {
-        if (evseCluster.amIMasterOrLBDisabled() && evseCluster.isEnoughCurrentAvailable()) {
+        if (evseCluster.amIMasterOrLBDisabled() && evseCluster.isEnoughCurrentAvailableForAnotherEVSE()) {
             onPowerBackOn();
         } else {
-            sprintf(sprintfStr, "[EVSEController] !isEnoughPower errorFlags=%u", errorFlags);
-            EVSELogger::info(sprintfStr);
-
             waitForEnoughPower();
         }
     }

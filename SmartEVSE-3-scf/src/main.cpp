@@ -36,6 +36,7 @@
 #include "EVSEWifi.h"
 
 uint8_t screenRedraw = 1;
+uint8_t sampleButtons = 1;
 
 void onTimer10ms(void* parameter) {
     while (1) {
@@ -44,7 +45,10 @@ void onTimer10ms(void* parameter) {
         // As the buttons are shared with the SPI lines going to the LCD,
         // we have to make sure that this does not interfere by write actions to the
         // LCD. Therefore updating the LCD is also done in this task.
-        evseButtons.loop();
+        if (--sampleButtons == 0) {
+            evseButtons.loop();
+            sampleButtons = 3;
+        }
 
         if (--screenRedraw == 0) {
             evseScreen.redraw();
@@ -95,8 +99,6 @@ void setup() {
 }
 
 void loop() {
-    // TODO SCF fix solar mode (search for ERROR_FLAG_NO_SUN)
-
     // TODO SCF fix WIFI IPinfo slow (evseWifi.isNTPLocalTimeAvailable())
     delay(1000);
 }
