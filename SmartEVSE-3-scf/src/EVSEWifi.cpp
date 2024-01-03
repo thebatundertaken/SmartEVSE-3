@@ -156,6 +156,7 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["controller"]["solarStopTimeMinutes"] = evseController.solarStopTimeMinutes;
     doc["controller"]["solarStartCurrent"] = evseController.solarStartCurrent;
     doc["controller"]["solarImportCurrent"] = evseController.solarImportCurrent;
+    doc["controller"]["solarStopTimer"] = evseController.solarStopTimer;
 
     doc["modbus"]["mainsMeterText"] = geti18nStrMeterText(evseModbus.mainsMeter);
     doc["modbus"]["evMeterText"] = geti18nStrMeterText(evseModbus.evMeter);

@@ -605,8 +605,7 @@ void GLCDSmartSolarMode() {
 
     GLCDAnimateMainsEnergyFlow();
 
-    // If we have a EV kWh meter configured, Show total charged energy in kWh on
-    // LCD.
+    // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD
     if (evseModbus.evMeter != EV_METER_DISABLED) {
         sprintfl(LCDStr, I18N_ENERGYCHARGED_FORMAT, evseModbus.energyCharged, 3, 1);
         GLCD_write_buf_str(89, 1, LCDStr, GLCD_ALIGN_LEFT);
@@ -626,19 +625,20 @@ void GLCDSmartSolarMode() {
     // Show Sum of currents when solar charging.
     if (LCDToggle && evseController.mode == MODE_SOLAR) {
         GLCDx = 41;
-        GLCDy = 1;
+        GLCDy = 0;
         // Sum symbol
         GLCD_write_buf(0x0B, 0);
 
         // Display total solar surplus (absolute value)
-        sprintf(LCDStr, I18N_CURRENTS_FORMAT_SOLAR, abs(evseController.getMainsMeasuredCurrent(true)));
-        GLCD_write_buf_str(48, 2, LCDStr, GLCD_ALIGN_RIGHT);
+        int16_t imeasured = abs(evseController.getMainsMeasuredCurrent(true));
+        sprintf(LCDStr, I18N_CURRENTS_FORMAT_SOLAR, imeasured / 10, imeasured % 10);
+        GLCD_write_buf_str(48, 1, LCDStr, GLCD_ALIGN_RIGHT);
     } else {
         // Display L1, L2 and L3 currents on LCD
-        for (unsigned char x = 0; x < 3; x++) {
-            sprintf(LCDStr, I18N_CURRENTS_FORMAT_SMART, (int)(evseController.Irms[x] / 10),
-                    (unsigned int)abs(evseController.Irms[x]) % 10);
-            GLCD_write_buf_str(48, x, LCDStr, GLCD_ALIGN_RIGHT);
+        for (unsigned char phase = 0; phase < 3; phase++) {
+            sprintf(LCDStr, I18N_CURRENTS_FORMAT_SMART, (int)(evseController.Irms[phase] / 10),
+                    (unsigned int)abs(evseController.Irms[phase]) % 10);
+            GLCD_write_buf_str(48, phase, LCDStr, GLCD_ALIGN_RIGHT);
         }
     }
     GLCD_sendbuf(0, 4);

@@ -36,31 +36,27 @@
 #include "EVSEWifi.h"
 
 uint8_t screenRedraw = 1;
-uint8_t sampleButtons = 1;
 
-void onTimer10ms(void* parameter) {
+void onTimer15ms(void* parameter) {
     while (1) {
         evseController.loop();
-
-        // As the buttons are shared with the SPI lines going to the LCD,
-        // we have to make sure that this does not interfere by write actions to the
-        // LCD. Therefore updating the LCD is also done in this task.
-        if (--sampleButtons == 0) {
-            evseButtons.loop();
-            sampleButtons = 3;
-        }
-
-        if (--screenRedraw == 0) {
-            evseScreen.redraw();
-            screenRedraw = 100;
-        }
-
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        vTaskDelay(15 / portTICK_PERIOD_MS);
     }
 }
 
 void onTimer100ms(void* parameter) {
     while (1) {
+        // As the buttons are shared with the SPI lines going to the LCD,
+        // we have to make sure that this does not interfere by write actions to the LCD
+        // Therefore updating the LCD is also done in this task
+        evseButtons.loop();
+
+        // Redraw LCD screen every 1 sec
+        if (--screenRedraw == 0) {
+            evseScreen.redraw();
+            screenRedraw = 10;
+        }
+
         evseModbus.loop();
         if (evseLockActuator.isLockEnabled()) {
             evseLockActuator.loop();
@@ -79,7 +75,7 @@ void onTimer100ms(void* parameter) {
 }
 
 void createTasks() {
-    xTaskCreate(onTimer10ms, "onTimer10ms", 10000, NULL, 15, NULL);
+    xTaskCreate(onTimer15ms, "onTimer15ms", 10000, NULL, 15, NULL);
     xTaskCreate(onTimer100ms, "onTimer100ms", 10000, NULL, 10, NULL);
 }
 

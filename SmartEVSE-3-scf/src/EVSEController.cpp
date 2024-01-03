@@ -214,13 +214,20 @@ void EVSEController::stopChargingOnError() {
     evseCluster.setMasterNodeBalancedState(state);
 }
 
+void EVSEController::activateChargeDelay() {
+    //  Set Chargedelay when no PV meter and/or MODE_NORMAL
+    if ((mode == MODE_NORMAL || evseModbus.mainsMeter == MAINS_METER_DISABLED) && chargeDelaySeconds == 0) {
+        chargeDelaySeconds = DEFAULT_CHARGE_DELAY_SECONDS;
+    }
+}
+
 void EVSEController::onNodeReceivedError(uint8_t newErrorFlags) {
     errorFlags = newErrorFlags;
 
     if (errorFlags) {
         EVSELogger::info("[EVSEController] Node received error. Stopping charging");
         stopChargingOnError();
-        chargeDelaySeconds = DEFAULT_CHARGE_DELAY_SECONDS;
+        activateChargeDelay();
     }
 }
 
@@ -250,8 +257,7 @@ void EVSEController::onCTCommunicationLost() {
 void EVSEController::waitForEnoughPower() {
     EVSELogger::info("[EVSEController] Waiting for enough power. Stopping charging");
     stopChargingOnError();
-    // Set Chargedelay
-    chargeDelaySeconds = DEFAULT_CHARGE_DELAY_SECONDS;
+    activateChargeDelay();
 }
 
 bool EVSEController::isEnoughPower() {
@@ -266,6 +272,11 @@ void EVSEController::onNotEnoughPower() {
 
 // MODE_SOLAR low current
 void EVSEController::onSolarLowPower() {
+    if (state == STATE_A_STANDBY || solarStopTimeMinutes == 0) {
+        onSolarStopTimer();
+        return;
+    }
+
     if (solarStopTimer == 0 && solarStopTimeMinutes != 0) {
         // Convert minutes into seconds
         setSolarStopTimer(solarStopTimeMinutes * 60);

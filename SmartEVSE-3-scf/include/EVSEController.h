@@ -231,6 +231,7 @@ class EVSEController {
     void setCurrent(uint16_t current);
     void resetChargeCurrent();
     void cleanupNoPowerTimersFlags();
+    void activateChargeDelay();
 
     // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
     uint16_t cableMaxCapacity = 0;

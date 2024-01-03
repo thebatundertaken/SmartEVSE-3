@@ -176,7 +176,7 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_POWERAMPS_FORMAT "%uA"
 #define I18N_ENERGYCHARGED_FORMAT "%2u.%1ukWh"
 // #define I18N_CURRENTS_FORMAT "%dA"
-#define I18N_CURRENTS_FORMAT_SOLAR "%dA"
+#define I18N_CURRENTS_FORMAT_SOLAR "%d.%uA"
 #define I18N_CURRENTS_FORMAT_SMART "%d.%uA"
 #define I18N_CALIBRATION_FORMAT "%u.%uA"
 #define I18N_TEMPERATURE_FORMAT "%i%cC"
