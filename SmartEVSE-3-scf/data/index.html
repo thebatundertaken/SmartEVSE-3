@@ -175,6 +175,14 @@
   <script>
     let endpoint = "/settings";
     let initiated = false;
+    let lastReceivedCTSeconds = null;
+    let intervalHandler = null;
+
+    function updateLastReceivedCT() {
+      if (lastReceivedCTSeconds != null) {
+        $('#p1_data_received').text(lastReceivedCTSeconds == -1 ? "--" : relativeTime(Math.round(lastReceivedCTSeconds / 1000)));
+      }
+    }
 
     function relativeTime(seconds) {
       let output = "";
@@ -315,11 +323,12 @@
             $('#mainsmeter_phase_3').text((data.controller.Irms.L3 / 10).toFixed(1) + "A");
 
             if (data.modbus.lastCTResponseMillis > 0) {
-              new Intl.RelativeTimeFormat('en', { style: 'narrow' });
-              $('#p1_data_received').text(data.modbus.lastCTResponseMillis == -1 ? "--" : relativeTime(Math.round(data.modbus.lastCTResponseMillis / 1000)));
-              $('[id=with_p1_api_data]').show();
-            } else {
-              //$('[id=with_p1_api_data]').hide();
+              lastReceivedCTSeconds = data.modbus.lastCTResponseMillis;
+              if (intervalHandler == null) {
+                updateLastReceivedCT();
+                $('[id=with_p1_api_data]').show();
+                intervalHandler = setInterval(updateLastReceivedCT, 1000);
+              }
             }
           }
 
@@ -365,8 +374,11 @@
       }
     }
 
-    function updateMaxDeviceCurrent(value) {
-      $.post("/settings?maxDeviceCurrent=" + value);
+    function modifyMainsMax() {
+      let value = prompt("Enter new Mains MAX value (5 - 80)");
+      if (value != null && parseInt(value) >= 5 && parseInt(value) <= 80) {
+        $.post("/settings?maxmains=" + parseInt(value));
+      }
     }
 
     function reboot() {
@@ -774,18 +786,6 @@
                             class="btn btn-outline-secondary me-2 mb-2" type="button">ERROR</button>
                         </div>
                       </div>
-                      <!--
-                      <div class="row g-0 align-items-center mb-3">
-                        <div class="col-auto h5 mb-0 me-3">
-                          <i class="bi bi-lightning-charge"></i>
-                          <label for="max_amps" class="form-label">Max current:</label>
-                          <span id="max_amps_placeholder"></span>A
-                          <input type="range" class="form-range" id="max_amps" min="" max="" value="" step="1"
-                            oninput="$('#max_amps_placeholder').html($(this).val())"
-                            onchange="updateMaxDeviceCurrent($(this).val())">
-                        </div>
-                      </div>
-                      -->
                       <div class="row g-0 align-items-center mb-3">
                         <div class="col-auto h5 mb-0 me-3">
                           <i class="bi bi-braces"></i> Actions:
@@ -797,6 +797,9 @@
                             Data</button>
                           <button onclick="resetFlags()" class="btn btn-outline-secondary me-2 mb-2" type="button">Clear
                             errors</button>
+                          <button onclick="modifyMainsMax()" class="btn btn-outline-secondary me-2 mb-2"
+                            type="button">Modify Mains Max
+                          </button>
                           <button onclick="update()" class="btn btn-outline-secondary me-2 mb-2" type="button">Update
                             firmware</button>
                           <button onclick="reboot()" class="btn btn-outline-secondary me-2 mb-2"

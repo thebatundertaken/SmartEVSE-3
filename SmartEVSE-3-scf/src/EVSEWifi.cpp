@@ -231,15 +231,16 @@ void EVSEWifi::postSettings(AsyncWebServerRequest* request) {
         evseController.errorFlags = ERROR_FLAG_NO_ERROR;
         doc["mode"] = "OK";
     }
-    /*
-      if (request->hasParam("maxDeviceCurrent")) {
-        int maxDeviceCurrent = request->getParam("maxDeviceCurrent")->value().toInt();
-        if (maxDeviceCurrent >= evseController.maxDeviceCurrent && maxDeviceCurrent <=
-      evseController.cableMaxCapacity) { evseController.maxDeviceCurrent = maxDeviceCurrent;
-      updateSettings = true; doc["mode"] = "OK"; } else { doc["mode"] = "ERROR: Value not allowed!";
+    if (request->hasParam("maxmains")) {
+        int maxMainsVal = request->getParam("maxmains")->value().toInt();
+        if (maxMainsVal >= evseController.minEVCurrent && maxMainsVal <= evseController.maxDeviceCurrent) {
+            evseController.maxMains = maxMainsVal;
+            updateSettings = true;
+            doc["mode"] = "OK";
+        } else {
+            doc["mode"] = "ERROR: Value not allowed!";
         }
-      }
-    */
+    }
     if (updateSettings) {
         evseController.updateSettings();
     }
