@@ -32,6 +32,7 @@
 #include "EVSEModbus.h"
 #include "EVSEPin.h"
 #include "EVSERFID.h"
+#include "EVSEWifi.h"
 #include "EVSEWorkflow.h"
 #include "driver/adc.h"
 #include "driver/uart.h"
@@ -410,6 +411,41 @@ void EVSEController::setChargeCurrent(uint16_t value) {
         onChargeCurrentChanged();
     }
 };
+
+void EVSEController::disableOperatingHours() {
+    switchOnTime = 0;
+    switchOffTime = 0;
+}
+
+bool EVSEController::isOperatingHoursEnabled() {
+    return switchOnTime != switchOffTime;
+}
+
+bool EVSEController::isChargingInOperatingHours() {
+    if (!isOperatingHoursEnabled()) {
+        return true;
+    }
+
+    uint16_t localTime = evseWifi.getNTPLocalTime();
+    if (localTime == 0) {
+        return false;
+    }
+
+    if (switchOnTime < switchOffTime) {
+        return localTime >= switchOnTime && localTime < switchOffTime;
+    }
+
+    return (localTime >= switchOnTime) || localTime < switchOffTime;
+}
+
+void EVSEController::setOperatingHours(uint16_t onTime, uint16_t offTime) {
+    if (onTime >= 0 && onTime <= 2359 && offTime >= 0 && offTime <= 2359 && onTime != offTime) {
+        switchOnTime = onTime;
+        switchOffTime = offTime;
+    } else {
+        disableOperatingHours();
+    }
+}
 
 void EVSEController::setState(uint8_t NewState) {
     switch (NewState) {

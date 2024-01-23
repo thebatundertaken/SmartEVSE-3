@@ -8,6 +8,7 @@ Changes to original firmware v3.0.0
 - New RGB leds enabled/disabled menu and settings
 - Device screen on Smart/Solar mode renders decimal amps for phases consumption
 - Fixed smart mode power rebalance on 3 phases grid
+- Added scheduled charging with switch on and off time (operating hours)
 - Improved timers and tasks
 - Special thanks to **serkri** for his work (https://github.com/serkri/SmartEVSE-3)
 

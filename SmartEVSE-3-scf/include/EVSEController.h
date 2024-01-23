@@ -166,6 +166,13 @@ class EVSEController {
     void onVehicleStartCharging();
     void onDisconnectInProgress();
 
+    void disableOperatingHours();
+    bool isOperatingHoursEnabled();
+    bool isChargingInOperatingHours();
+    uint16_t getOperatingHoursOnTime() { return switchOnTime; };
+    uint16_t getOperatingHoursOffTime() { return switchOffTime; };
+    void setOperatingHours(uint16_t onTime, uint16_t offTime);
+
     uint16_t getCableMaxCapacity();
     uint16_t getMaxCurrentAvailable();
 
@@ -248,6 +255,10 @@ class EVSEController {
     uint8_t chargeDelaySeconds = 0;
     unsigned long chargeDelayLastMillis = 0;
     unsigned long solarStopTimerLastMillis = 0;
+
+    // Operating hours
+    uint16_t switchOnTime = 0;
+    uint16_t switchOffTime = 0;
 
     // declared volatile, as they are used in a ISR
     volatile uint16_t ADCsamples[ADC_SAMPLES_SIZE];

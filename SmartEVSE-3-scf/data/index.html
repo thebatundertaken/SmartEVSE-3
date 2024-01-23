@@ -208,6 +208,16 @@
       return output;
     }
 
+    function formatTime(timeInt) {
+      if (timeInt < 0) {
+        return "--:--";
+      }
+
+      let strTime = timeInt.toString().padStart(4, "0");
+      return strTime.slice(0, 2) + ":" + strTime.slice(2);
+    }
+
+
     function loadData() {
       $.ajax({
         url: endpoint
@@ -298,6 +308,10 @@
           }
 
           $('#cable_max').text(data.controller.cableMaxCapacity.toFixed(0) + "A");
+
+          $('#localtime').text(formatTime(data.controller.time == 0 ? -1 : data.controller.time));
+          $('#switch_on_time').text(formatTime(data.controller.switchOnTime));
+          $('#switch_off_time').text(formatTime(data.controller.switchOffTime));
           /*$('#max_amps').prop("min", data.controller.minEVCurrent.toFixed(0));
           $('#max_amps').prop("max", data.controller.cableMaxCapacity == 0 ? data.controller.maxDeviceCurrent.toFixed(0) : data.controller.cableMaxCapacity.toFixed(0));
           $('#max_amps').val(data.controller.maxDeviceCurrent.toFixed(0));
@@ -379,6 +393,22 @@
       if (value != null && parseInt(value) >= 5 && parseInt(value) <= 80) {
         $.post("/settings?maxmains=" + parseInt(value));
       }
+    }
+
+    function disableOperatingHours() {
+      $.post("/settings?disableOperatingHours=y");
+    }
+
+    function enableOperatingHours() {
+      let switchOnTime = prompt("Enter switch on time (0 - 2359)");
+      if (switchOnTime == null) {
+        return;
+      }
+      let switchOffTime = prompt("Enter switch on time (0 - 2359)");
+      if (switchOffTime == null) {
+        return;
+      }
+      $.post("/settings?enableOperatingHours=y&switchon=" + parseInt(switchOnTime) + "&switchoff=" + parseInt(switchOffTime));
     }
 
     function reboot() {
@@ -786,6 +816,44 @@
                             class="btn btn-outline-secondary me-2 mb-2" type="button">ERROR</button>
                         </div>
                       </div>
+
+                      <div class="row g-0 align-items-center mb-3">
+                        <div class="col-auto h5 mb-0 me-3">
+                          <i class="bi bi-alarm"></i> Operating hours:
+                        </div>
+                      </div>
+                      <div class="row g-0 align-items-center mb-3">
+                        <div class="row g-0 mb-2 align-items-center">
+                          <div class="col-auto h5 mb-0 me-1">
+                            Local time:
+                          </div>
+                          <div class="col-auto">
+                            <div class="h5 mb-0 text-muted" id="localtime">--:--</div>
+                          </div>
+
+                          <div class="col-auto h5 mb-0 ms-3 me-1">
+                            Switch on time:
+                          </div>
+                          <div class="col-auto">
+                            <div class="h5 mb-0 text-muted" id="switch_on_time">--:--</div>
+                          </div>
+                          <div class="col-auto h5 mb-0 ms-3 me-1">
+                            Switch off time:
+                          </div>
+                          <div class="col-auto">
+                            <div class="h5 mb-0 text-muted" id="switch_off_time">--:--</div>
+                          </div>
+                        </div>
+                        <div class="row g-0 align-items-center mb-3">
+                          <div class="col">
+                            <button onclick="disableOperatingHours()" class="btn btn-outline-secondary me-2 mb-2"
+                              type="button">Disable operating hours</button>
+                            <button onclick="enableOperatingHours()" class="btn btn-outline-secondary me-2 mb-2"
+                              type="button">Enable operating hours</button>
+                          </div>
+                        </div>
+                      </div>
+
                       <div class="row g-0 align-items-center mb-3">
                         <div class="col-auto h5 mb-0 me-3">
                           <i class="bi bi-braces"></i> Actions:

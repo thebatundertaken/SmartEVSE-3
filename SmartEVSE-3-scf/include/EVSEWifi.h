@@ -53,8 +53,7 @@ class EVSEWifi {
     void startwebServer();
     void stopwebServer();
     void startConfigPortal();
-    // bool isNTPLocalTimeAvailable();
-    // struct tm getNTPLocalTime();
+    uint16_t getNTPLocalTime();
     void updateSettings();
     void resetSettings();
     bool isPortalReady();
@@ -75,7 +74,6 @@ class EVSEWifi {
    private:
     String apHostname;
     String apPassword;
-    // struct tm timeinfo;
     IPAddress localIp;
     bool isBootLoader = true;
     char sprintfStr[255];
@@ -84,6 +82,8 @@ class EVSEWifi {
     AsyncWebServer* webServer;
     // AsyncWebSocket *asyncWebSocket;
     unsigned long startPortalTimer = 0;
+    unsigned long ntpLocalTimeSync = 0;
+    uint16_t lastTimeinfo = 0;
 
     void readEpromSettings();
     void writeEpromSettings();

@@ -31,6 +31,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "EVSECluster.h"
 #include "EVSEController.h"
@@ -88,7 +89,6 @@ void EVSEWifi::wifiSetup() {
     //  WiFi.onEvent(onWifiStop, SYSTEM_EVENT_AP_STOP);
 
     configTzTime(TZ_INFO, NTP_SERVER);
-    // if(!getLocalTime(&timeinfo)) EVSELogger::info("Failed to obtain time");
 }
 
 /*void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info)
@@ -157,6 +157,14 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["controller"]["solarStartCurrent"] = evseController.solarStartCurrent;
     doc["controller"]["solarImportCurrent"] = evseController.solarImportCurrent;
     doc["controller"]["solarStopTimer"] = evseController.solarStopTimer;
+    doc["controller"]["time"] = evseWifi.getNTPLocalTime();
+    if (evseController.isOperatingHoursEnabled()) {
+        doc["controller"]["switchOnTime"] = evseController.getOperatingHoursOnTime();
+        doc["controller"]["switchOffTime"] = evseController.getOperatingHoursOffTime();
+    } else {
+        doc["controller"]["switchOnTime"] = -1;
+        doc["controller"]["switchOffTime"] = -1;
+    }
 
     doc["modbus"]["mainsMeterText"] = geti18nStrMeterText(evseModbus.mainsMeter);
     doc["modbus"]["evMeterText"] = geti18nStrMeterText(evseModbus.evMeter);
@@ -241,6 +249,23 @@ void EVSEWifi::postSettings(AsyncWebServerRequest* request) {
             doc["mode"] = "ERROR: Value not allowed!";
         }
     }
+
+    if (request->hasParam("disableOperatingHours")) {
+        evseController.disableOperatingHours();
+        doc["mode"] = "OK";
+    }
+
+    if (request->hasParam("enableOperatingHours")) {
+        int onTime = request->getParam("switchon")->value().toInt();
+        int offTime = request->getParam("switchoff")->value().toInt();
+        if (onTime >= 0 && onTime <= 2359 && offTime >= 0 && offTime <= 2359 && onTime != offTime) {
+            evseController.setOperatingHours(onTime, offTime);
+            doc["mode"] = "OK";
+        } else {
+            doc["mode"] = "ERROR: Value not allowed!";
+        }
+    }
+
     if (updateSettings) {
         evseController.updateSettings();
     }
@@ -384,11 +409,6 @@ const char* EVSEWifi::getApPassword() {
     return apPassword.c_str();
 }
 
-/*bool EVSEWifi::isNTPLocalTimeAvailable() {
-    // retrieve time from NTP server
-    return getLocalTime(&timeinfo, 1000U);
-}*/
-
 bool EVSEWifi::isPortalReady() {
     return wifiMode == WIFI_MODE_START_PORTAL && WiFi.getMode() == WIFI_AP_STA;
 }
@@ -402,9 +422,28 @@ uint8_t EVSEWifi::getPortalCountdownSeconds() {
     return (int)((startPortalTimer - now) / 1000);
 }
 
-/*struct tm EVSEWifi::getNTPLocalTime() {
-    return timeinfo;
-}*/
+uint16_t EVSEWifi::getNTPLocalTime() {
+    // Cache local time for 30 seconds
+    if (ntpLocalTimeSync != 0 && ((millis() - ntpLocalTimeSync) <= 30000)) {
+        return lastTimeinfo;
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+        return 0;
+    }
+
+    // retrieve time from NTP server
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo, 1000U)) {
+        EVSELogger::error("[EVSEWiFi] Failed to obtain local time");
+        return 0;
+    }
+
+    ntpLocalTimeSync = millis();
+    lastTimeinfo = (timeinfo.tm_hour * 100) + timeinfo.tm_min;
+
+    return lastTimeinfo;
+}
 
 // read Mac, and reverse to ID
 uint32_t EVSEWifi::getMacId() {

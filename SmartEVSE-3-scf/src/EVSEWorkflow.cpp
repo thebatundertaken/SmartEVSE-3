@@ -93,7 +93,8 @@ void EVSEWorkflow::workflowVehicleDetected() {
 
         case CONTROL_PILOT_6V:
             // Vehicle wants to charge
-            if (!isDiodeOk || evseController.errorFlags || evseController.isChargeDelayed()) {
+            if (!isDiodeOk || evseController.errorFlags || evseController.isChargeDelayed() ||
+                !evseController.isChargingInOperatingHours()) {
                 break;
             }
 
@@ -123,7 +124,8 @@ void EVSEWorkflow::workflowVehicleDetected() {
 void EVSEWorkflow::workflowCharging() {
     switch (evseController.getControlPilot()) {
         case CONTROL_PILOT_6V:
-            // Vehicle is consuming power. Checking it's within specs
+            // Vehicle is consuming power
+            // Adjust charge current
             chargeCurrent = evseController.getChargeCurrent();
             if (chargeCurrent != prevChargeCurrent) {
                 sprintf(sprintfStr, "[EVSEWorkflow] [C] Detected chargeCurrent rebalance from %u to %u",
@@ -131,6 +133,12 @@ void EVSEWorkflow::workflowCharging() {
                 EVSELogger::debug(sprintfStr);
 
                 prevChargeCurrent = chargeCurrent;
+            }
+
+            // Check operating hours
+            if (!evseController.isChargingInOperatingHours()) {
+                EVSELogger::info("[EVSEWorkflow] [C] Outside operating hours, stopping charging");
+                evseController.setState(STATE_DISCONNECT_IN_PROGRESS);
             }
 
             break;
