@@ -83,6 +83,7 @@ void EVSEWorkflow::workflowVehicleDetected() {
         case CONTROL_PILOT_12V:
             // Disconnected or no PWM
             evseController.setState(STATE_A_STANDBY);
+            EVSELogger::debug("[EVSEWorkflow] CONTROL_PILOT_12V");
             break;
 
         case CONTROL_PILOT_DIODE_CHECK_OK:
@@ -115,6 +116,10 @@ void EVSEWorkflow::workflowVehicleDetected() {
             prevChargeCurrent = evseController.getChargeCurrent();
 
             evseController.setState(STATE_C_CHARGING);
+            break;
+
+        case CONTROL_PILOT_9V:
+            // Nothing to do
             break;
     }
 
@@ -202,17 +207,18 @@ void EVSEWorkflow::workflowDisconnecting() {
 }
 
 void EVSEWorkflow::loop() {
-    stateChanged = prevstate != evseController.state;
+    controllerState = evseController.state;
+    stateChanged = prevstate != controllerState;
     if (stateChanged) {
         // On transition, reset isDiodeOk
         isDiodeOk = false;
 
         sprintf(sprintfStr, "[EVSEWorkflow] Transitioning to state (%c) [code %u]", (evseController.state + 65),
-                evseController.state);
+                controllerState);
         EVSELogger::info(sprintfStr);
     }
 
-    switch (evseController.state) {
+    switch (controllerState) {
         case STATE_A_STANDBY:
         case STATE_B1_VEHICLE_DETECTED_NO_POWER:
         case STATE_MODBUS_COMM_B:
@@ -280,7 +286,7 @@ void EVSEWorkflow::loop() {
             break;
     }
 
-    prevstate = evseController.state;
+    prevstate = controllerState;
 }
 
 EVSEWorkflow evseWorkflow;

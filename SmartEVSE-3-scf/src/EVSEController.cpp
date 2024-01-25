@@ -166,6 +166,7 @@ void EVSEController::sampleADC() {
     RTC_EXIT_CRITICAL();
 
     ADCsamples[adcSamplesIterator++] = adcsample;
+
     if (adcSamplesIterator == ADC_SAMPLES_SIZE) {
         adcSamplesIterator = 0;
     }
@@ -544,6 +545,12 @@ void EVSEController::sampleTemperatureSensor() {
     }
 }
 
+// The CP (control pilot) output is a fixed 1khz square-wave (+6..9v / -12v).
+// It's pulse width varies between 10% and 96% indicating 6A-80A charging current.
+// to detect state changes we should measure the CP signal while it's at ~5% (so 50uS after the positive pulse started)
+// we use an i/o interrupt at the CP pin output, and a one shot timer interrupt to start the ADC conversion.
+// would be nice if there was an easier way...
+
 // Determine the state of the Pilot signal
 void EVSEController::sampleControlPilotLine() {
     uint32_t sample;
@@ -567,6 +574,17 @@ void EVSEController::sampleControlPilotLine() {
         if (voltage > max) {
             max = voltage;
         }
+    }
+
+    if (prevMin != min) {
+        prevMin = min;
+        sprintf(sprintfStr, "[EVSEController] CP min changed from %u to %u", prevMin, min);
+        EVSELogger::debug(sprintfStr);
+    }
+    if (prevMax != max) {
+        prevMax = max;
+        sprintf(sprintfStr, "[EVSEController] CP max changed from %u to %u", prevMax, max);
+        EVSELogger::debug(sprintfStr);
     }
 
     // test Min/Max against fixed levels
