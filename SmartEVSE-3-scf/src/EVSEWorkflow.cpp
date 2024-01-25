@@ -90,9 +90,16 @@ void EVSEWorkflow::workflowVehicleDetected() {
             EVSELogger::info("[EVSEWorkflow] Diode found, OK");
             isDiodeOk = true;
             evseController.onDiodeCheckOK();
+
+            // FIX: disable timeout even if vehicle is not charging, due to Tesla scheduled charging (vehicle is connect
+            // BUT not charging, to avoid infinite loop from state detected -> disconnecting -> detected)
+            currentAvailableWaitMillis = 0;
+
             break;
 
         case CONTROL_PILOT_6V:
+            EVSELogger::info("[EVSEWorkflow] CONTROL_PILOT_6V");
+
             // Vehicle wants to charge
             if (!isDiodeOk || evseController.errorFlags || evseController.isChargeDelayed() ||
                 !evseController.isChargingInOperatingHours()) {
@@ -120,6 +127,7 @@ void EVSEWorkflow::workflowVehicleDetected() {
 
         case CONTROL_PILOT_9V:
             // Nothing to do
+            EVSELogger::debug("[EVSEWorkflow] CONTROL_PILOT_9V");
             break;
     }
 
