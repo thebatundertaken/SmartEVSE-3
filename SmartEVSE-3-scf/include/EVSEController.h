@@ -260,6 +260,9 @@ class EVSEController {
     uint16_t switchOnTime = 0;
     uint16_t switchOffTime = 0;
 
+    uint32_t prevMin = 0;
+    uint32_t prevMax = 0;
+
     // declared volatile, as they are used in a ISR
     volatile uint16_t ADCsamples[ADC_SAMPLES_SIZE];
     volatile uint16_t adcsample = 0;

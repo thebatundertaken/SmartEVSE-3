@@ -39,6 +39,7 @@ class EVSEWorkflow {
     void loop();
 
    private:
+    uint8_t controllerState;
     uint8_t prevstate = STATE_A_STANDBY;
     uint16_t chargeCurrent = 0;
     uint16_t prevChargeCurrent = 0;
