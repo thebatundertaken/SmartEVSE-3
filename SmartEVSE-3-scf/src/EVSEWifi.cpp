@@ -230,7 +230,8 @@ void EVSEWifi::postSettings(AsyncWebServerRequest* request) {
 
     if (request->hasParam("loglevel")) {
         String value = request->getParam("loglevel")->value();
-        uint8_t logLevel = _max((uint8_t)value.toInt(), LOG_LEVEL_ERROR);
+        uint8_t logLevel = _max((uint8_t)value.toInt(), LOG_LEVEL_DEBUG);
+        logLevel = _min(logLevel, LOG_LEVEL_ERROR);
         EVSELogger::LogLevel = logLevel;
         doc["mode"] = "OK";
     }
@@ -307,7 +308,9 @@ void EVSEWifi::startwebServer() {
 
     webServer->serveStatic("/", SPIFFS, "/");
     webServer->onNotFound([](AsyncWebServerRequest* request) { request->send(404); });
-    // webServer->addHandler(asyncWebSocket);
+
+    EVSELogger::enableWebserialLog(webServer);
+
     webServer->begin();
 
     EVSELogger::info("[EVSEWiFi] HTTP server started");

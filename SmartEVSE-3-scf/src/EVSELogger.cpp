@@ -21,27 +21,55 @@
 #include "EVSELogger.h"
 
 #include <Arduino.h>
+#include "WebSerial.h"
 
 uint8_t EVSELogger::LogLevel = LOG_LEVEL_WARN;
+bool EVSELogger::webloggerEnabled = false;
 
 void EVSELogger::error(const String& s) {
     Serial.println(s);
+    if (webloggerEnabled) {
+        WebSerial.println(s);
+    }
 }
 
 void EVSELogger::warn(const String& s) {
     if (EVSELogger::LogLevel <= LOG_LEVEL_WARN) {
         Serial.println(s);
+        if (webloggerEnabled) {
+            WebSerial.println(s);
+        }
     }
 }
 
 void EVSELogger::info(const String& s) {
     if (EVSELogger::LogLevel <= LOG_LEVEL_INFO) {
         Serial.println(s);
+        if (webloggerEnabled) {
+            WebSerial.println(s);
+        }
     }
 }
 
 void EVSELogger::debug(const String& s) {
     if (EVSELogger::LogLevel <= LOG_LEVEL_DEBUG) {
         Serial.println(s);
+        if (webloggerEnabled) {
+            WebSerial.println(s);
+        }
+    }
+}
+
+void EVSELogger::enableWebserialLog(AsyncWebServer* server) {
+    if (!webloggerEnabled) {
+        webloggerEnabled = true;
+        WebSerial.begin(server);
+    }
+}
+
+void EVSELogger::disableWebserialLog() {
+    if (webloggerEnabled) {
+        webloggerEnabled = false;
+        // WebSerial.end();
     }
 }

@@ -27,6 +27,7 @@
 #define LOG_LEVEL_ERROR 3
 
 #include <Arduino.h>
+#include <ESPAsyncWebServer.h>
 
 class EVSELogger {
    public:
@@ -36,6 +37,11 @@ class EVSELogger {
     static void warn(const String& s);
     static void info(const String& s);
     static void debug(const String& s);
+    static void enableWebserialLog(AsyncWebServer* server);
+    static void disableWebserialLog();
+
+   private:
+    static bool webloggerEnabled;
 };
 
 #endif

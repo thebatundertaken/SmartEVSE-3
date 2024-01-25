@@ -425,6 +425,10 @@
       window.location.href = "/settings";
     }
 
+    function webSerial() {
+      window.location.href = "/webserial";
+    }
+
     $(document).ready(loadData);
   </script>
 </head>
@@ -863,6 +867,8 @@
                         <div class="col">
                           <button onclick="rawData()" class="btn btn-outline-secondary me-2 mb-2" type="button">Raw
                             Data</button>
+                          <button onclick="webSerial()" class="btn btn-outline-secondary me-2 mb-2"
+                            type="button">Console</button>
                           <button onclick="resetFlags()" class="btn btn-outline-secondary me-2 mb-2" type="button">Clear
                             errors</button>
                           <button onclick="modifyMainsMax()" class="btn btn-outline-secondary me-2 mb-2"
