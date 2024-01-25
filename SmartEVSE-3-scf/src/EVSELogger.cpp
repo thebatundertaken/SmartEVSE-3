@@ -29,19 +29,19 @@ void EVSELogger::error(const String& s) {
 }
 
 void EVSELogger::warn(const String& s) {
-    if (EVSELogger::LogLevel >= LOG_LEVEL_WARN) {
+    if (EVSELogger::LogLevel <= LOG_LEVEL_WARN) {
         Serial.println(s);
     }
 }
 
 void EVSELogger::info(const String& s) {
-    if (EVSELogger::LogLevel >= LOG_LEVEL_INFO) {
+    if (EVSELogger::LogLevel <= LOG_LEVEL_INFO) {
         Serial.println(s);
     }
 }
 
 void EVSELogger::debug(const String& s) {
-    if (EVSELogger::LogLevel >= LOG_LEVEL_DEBUG) {
+    if (EVSELogger::LogLevel <= LOG_LEVEL_DEBUG) {
         Serial.println(s);
     }
 }
