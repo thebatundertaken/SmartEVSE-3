@@ -452,20 +452,16 @@ void GLCDWifiInfo() {
         sprintf(LCDStr, "%u.%u.%u.%u", localIp[0], localIp[1], localIp[2], localIp[3]);
         GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
 
-        /*    // Display local time
-            if (evseWifi.isNTPLocalTimeAvailable())
-            {
-              struct tm timeinfo = evseWifi.getNTPLocalTime();
-              sprintf(LCDStr, "%02u:%02u", timeinfo.tm_hour, timeinfo.tm_min);
-            }
-            else
-            {
-              sprintf(LCDStr, "--:--");
-            }
+        // Display local time
+        uint16_t localTime = evseWifi.getNTPLocalTime();
+        if (localTime != 0) {
+            sprintf(LCDStr, "%02u:%02u", localTime / 100u, localTime % 100);
+        } else {
+            sprintf(LCDStr, "--:--");
+        }
 
         GLCD_write_buf_str(127, 0, LCDStr, GLCD_ALIGN_RIGHT);
         GLCD_sendbuf(0, 1);
-        */
     } else {
         GLCD_write_buf_str(0, 0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
         GLCD_sendbuf(0, 1);
