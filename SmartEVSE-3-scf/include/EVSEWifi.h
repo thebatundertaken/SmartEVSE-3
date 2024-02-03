@@ -70,6 +70,8 @@ class EVSEWifi {
     static void getSettings(AsyncWebServerRequest* request);
     static void postSettings(AsyncWebServerRequest* request);
     static void postReboot(AsyncWebServerRequest* request);
+    static void forceCharge(AsyncWebServerRequest* request);
+    static void forceDisconnect(AsyncWebServerRequest* request);
 
    private:
     String apHostname;

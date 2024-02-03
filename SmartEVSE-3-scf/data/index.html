@@ -418,15 +418,27 @@
     }
 
     function update() {
-      window.location.href = "/update";
+      window.open("/update", "_blank");
     }
 
     function rawData() {
-      window.location.href = "/settings";
+      window.open("/settings", "_blank");
     }
 
     function webSerial() {
-      window.location.href = "/webserial";
+      window.open("/webserial", "_blank");
+    }
+
+    function forceCharge() {
+      if (confirm("Do you want to force start charging?")) {
+        window.open("/forcecharge", "_blank");
+      }
+    }
+
+    function forceDisconnect() {
+      if (confirm("Do you want to force disconnect and stop charging?")) {
+        window.open("/forcedisconnect", "_blank");
+      }
     }
 
     $(document).ready(loadData);
@@ -876,6 +888,10 @@
                           </button>
                           <button onclick="update()" class="btn btn-outline-secondary me-2 mb-2" type="button">Update
                             firmware</button>
+                          <button onclick="forceCharge()" class="btn btn-outline-secondary me-2 mb-2"
+                            type="button">Force Charge</button>
+                          <button onclick="forceDisconnect()" class="btn btn-outline-secondary me-2 mb-2"
+                            type="button">Force Disconnect</button>
                           <button onclick="reboot()" class="btn btn-outline-secondary me-2 mb-2"
                             type="button">Reboot</button>
                         </div>

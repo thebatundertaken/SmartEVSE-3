@@ -355,7 +355,8 @@ void EVSEController::openElectricCircuit() {
 
     // Do not open circuit if controller is not in the right state (ex: standby
     // smart mode rebalance)
-    if (state == STATE_C_CHARGING || state == STATE_B_VEHICLE_DETECTED) {
+    if (state == STATE_C_CHARGING || state == STATE_C1_CHARGING_NO_POWER || state == STATE_B_VEHICLE_DETECTED ||
+        state == STATE_B1_VEHICLE_DETECTED_NO_POWER) {
         setCurrent(chargeCurrent);
     }
 }
@@ -385,13 +386,22 @@ void EVSEController::setCurrent(uint16_t current) {
     // The “duty cycle” (the length of the pulse) determines the maximum current EVSE can supply to the vehicle
     uint32_t dutyCycle;
 
+    /*Duty cycle < 3 %  	No charging allowed
+    3 % ≤ duty cycle ≤ 7 % 	Force high-level communication protocol according to ISO 15118 or DIN 70121
+    7 % < duty cycle< 8 % 	No charging allowed
+    8 % ≤ duty cycle< 10 % 	Max. current consumption for AC charging is 6 A
+    10 % ≤ duty cycle ≤ 85 % 	Available current = duty cycle * 0.6 A
+    85 % < duty cycle ≤ 96 % 	Available current = (duty cycle - 64) * 2.5 A
+    96 % < duty cycle ≤ 97 % 	Max. current consumption for AC charging is 80 A
+    Duty cycle > 97 % 	No charging allowed*/
+
     if ((current >= 60) && (current <= 510)) {
         dutyCycle = current / 0.6;
         // calculate dutyCycle from current
     } else if ((current > 510) && (current <= MAX_MAINS_HARD_LIMIT)) {
         dutyCycle = (current / 2.5) + 640;
     } else {
-        // invalid, use 6A
+        // invalid, use 6A (100 * 0.6 = 60 -> 6A)
         dutyCycle = 100;
     }
 
@@ -562,7 +572,7 @@ void EVSEController::sampleControlPilotLine() {
     // if ( (StateTimer + 100) > millis() ) return CONTROL_PILOT_WAIT;
 
     // calculate Min/Max of last 25 CP measurements
-    for (uint8_t n = 0; n < 25; n++) {
+    for (uint8_t n = 0; n < ADC_SAMPLES_SIZE; n++) {
         sample = ADCsamples[n];
         // convert adc reading to voltage
         voltage = esp_adc_cal_raw_to_voltage(sample, adc_chars_CP);
@@ -586,6 +596,15 @@ void EVSEController::sampleControlPilotLine() {
         sprintf(sprintfStr, "[EVSEController] CP max changed from %u to %u", prevMax, max);
         EVSELogger::debug(sprintfStr);
     }
+
+    /*
+    +12 V 	State A 	No EV connected to the EVSE
+    +9 V 	State B 	EV connected to the EVSE, but not ready for charging
+    +6 V 	State C 	Connected and ready for charging, ventilation is not required
+    +3 V 	State D 	Connected, ready for charging and ventilation is required
+    +0 V 	State E 	Electrical short to earth on the controller of the EVSE, no power supply
+    -12 V 	State F 	EVSE is unavailable
+    */
 
     // test Min/Max against fixed levels
     if (min > 3000) {
@@ -987,7 +1006,7 @@ void EVSEController::setup() {
     ledcAttachPin(PIN_LCD_LED, LCD_CHANNEL);
 
     // channel 0, duty cycle 100%
-    ledcWrite(CP_CHANNEL, 1024);
+    ledcWrite(CP_CHANNEL, CONTROL_PILOT_DUTYCICLE_100);
     ledcWrite(RED_CHANNEL, 255);
     ledcWrite(GREEN_CHANNEL, 0);
     ledcWrite(BLUE_CHANNEL, 255);

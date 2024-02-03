@@ -288,6 +288,32 @@ void EVSEWifi::postReboot(AsyncWebServerRequest* request) {
     request->send(200, "application/json", json);
 }
 
+void EVSEWifi::forceDisconnect(AsyncWebServerRequest* request) {
+    DynamicJsonDocument doc(200);
+    evseController.onDisconnectInProgress();
+    evseController.setState(STATE_DISCONNECT_IN_PROGRESS);
+    doc["forceDisconnect"] = true;
+
+    String json;
+    serializeJson(doc, json);
+    request->send(200, "application/json", json);
+}
+
+void EVSEWifi::forceCharge(AsyncWebServerRequest* request) {
+    DynamicJsonDocument doc(200);
+    if (evseController.state != STATE_C_CHARGING) {
+        evseController.onVehicleStartCharging();
+        evseController.setState(STATE_C_CHARGING);
+        doc["forceCharge"] = true;
+    } else {
+        doc["forceCharge"] = false;
+    }
+
+    String json;
+    serializeJson(doc, json);
+    request->send(200, "application/json", json);
+}
+
 void EVSEWifi::startwebServer() {
     webServer->on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
         EVSELogger::debug("[EVSEWiFi] page / (root) requested and sent");
@@ -304,6 +330,14 @@ void EVSEWifi::startwebServer() {
 
     webServer->on(
         "/reboot", HTTP_POST, EVSEWifi::postReboot,
+        [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
+
+    webServer->on(
+        "/forcecharge", HTTP_GET, EVSEWifi::forceCharge,
+        [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
+
+    webServer->on(
+        "/forcedisconnect", HTTP_GET, EVSEWifi::forceDisconnect,
         [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
 
     webServer->serveStatic("/", SPIFFS, "/");
@@ -436,14 +470,14 @@ uint16_t EVSEWifi::getNTPLocalTime() {
     }
 
     // retrieve time from NTP server
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo, 1000U)) {
-        EVSELogger::error("[EVSEWiFi] Failed to obtain local time");
-        return 0;
-    }
-
     ntpLocalTimeSync = millis();
-    lastTimeinfo = (timeinfo.tm_hour * 100) + timeinfo.tm_min;
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo, 1000U)) {
+        lastTimeinfo = (timeinfo.tm_hour * 100) + timeinfo.tm_min;
+    } else {
+        EVSELogger::error("[EVSEWiFi] Failed to obtain local time");
+        lastTimeinfo = 0;
+    }
 
     return lastTimeinfo;
 }

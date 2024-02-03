@@ -74,6 +74,7 @@ void EVSEWorkflow::checkCurrentAvailableWaitMillis() {
     //  Current NOT in use after 30 seconds, disconnect
     currentAvailableWaitMillis = 0;
 
+    EVSELogger::info("[EVSEWorkflow] Disconnecting in progress due to wait timeout");
     evseController.setState(STATE_DISCONNECT_IN_PROGRESS);
     evseController.onDisconnectInProgress();
 }
@@ -84,6 +85,9 @@ void EVSEWorkflow::workflowVehicleDetected() {
             // Disconnected or no PWM
             evseController.setState(STATE_A_STANDBY);
             EVSELogger::debug("[EVSEWorkflow] CONTROL_PILOT_12V");
+            if (stateChanged) {
+                EVSELogger::info("[EVSEWorkflow] workflowVehicleDetected => CONTROL_PILOT_12V");
+            }
             break;
 
         case CONTROL_PILOT_DIODE_CHECK_OK:
@@ -128,10 +132,13 @@ void EVSEWorkflow::workflowVehicleDetected() {
         case CONTROL_PILOT_9V:
             // Nothing to do
             EVSELogger::debug("[EVSEWorkflow] CONTROL_PILOT_9V");
+            if (stateChanged) {
+                EVSELogger::info("[EVSEWorkflow] workflowVehicleDetected => CONTROL_PILOT_9V");
+            }
             break;
     }
 
-    checkCurrentAvailableWaitMillis();
+    // checkCurrentAvailableWaitMillis();
 }
 
 void EVSEWorkflow::workflowCharging() {
@@ -148,12 +155,6 @@ void EVSEWorkflow::workflowCharging() {
                 prevChargeCurrent = chargeCurrent;
             }
 
-            // Check operating hours
-            if (!evseController.isChargingInOperatingHours()) {
-                EVSELogger::info("[EVSEWorkflow] [C] Outside operating hours, stopping charging");
-                evseController.setState(STATE_DISCONNECT_IN_PROGRESS);
-            }
-
             break;
 
         case CONTROL_PILOT_12V:
@@ -168,6 +169,12 @@ void EVSEWorkflow::workflowCharging() {
             EVSELogger::info("[EVSEWorkflow] [C] Connected vehicle stopped charging");
             evseController.setState(STATE_DISCONNECT_IN_PROGRESS);
             break;
+    }
+
+    // Check operating hours
+    if (evseController.state == STATE_C_CHARGING && !evseController.isChargingInOperatingHours()) {
+        EVSELogger::info("[EVSEWorkflow] [C] Outside operating hours, stopping charging");
+        evseController.setState(STATE_DISCONNECT_IN_PROGRESS);
     }
 }
 
