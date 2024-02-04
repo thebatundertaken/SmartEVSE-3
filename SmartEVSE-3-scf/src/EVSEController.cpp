@@ -459,7 +459,9 @@ void EVSEController::setOperatingHours(uint16_t onTime, uint16_t offTime) {
 }
 
 void EVSEController::setState(uint8_t NewState) {
-    switch (NewState) {
+    state = NewState;
+
+    switch (state) {
         case STATE_B1_VEHICLE_DETECTED_NO_POWER:
             // When entering State B1, wait at least 3 seconds before switching to
             // another state.
@@ -476,7 +478,7 @@ void EVSEController::setState(uint8_t NewState) {
             // Alarm every 1ms, auto reload
             timerAlarmWrite(timerA, PWM_100, true);
 
-            if (NewState == STATE_A_STANDBY) {
+            if (state == STATE_A_STANDBY) {
                 cleanupNoPowerTimersFlags();
                 evseModbus.evMeterResetKwhOnStandby();
             }
@@ -515,7 +517,6 @@ void EVSEController::setState(uint8_t NewState) {
             break;
     }
 
-    state = NewState;
     evseCluster.setMasterNodeBalancedState(state);
 }
 
