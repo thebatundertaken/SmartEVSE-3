@@ -443,10 +443,10 @@ bool EVSEController::isChargingInOperatingHours() {
     }
 
     if (switchOnTime < switchOffTime) {
-        return localTime >= switchOnTime && localTime < switchOffTime;
+        return (localTime >= switchOnTime) && (localTime < switchOffTime);
     }
 
-    return (localTime >= switchOnTime) || localTime < switchOffTime;
+    return (localTime >= switchOnTime) || (localTime < switchOffTime);
 }
 
 void EVSEController::setOperatingHours(uint16_t onTime, uint16_t offTime) {

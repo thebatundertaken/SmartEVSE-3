@@ -466,7 +466,8 @@ uint16_t EVSEWifi::getNTPLocalTime() {
     }
 
     if (WiFi.status() != WL_CONNECTED) {
-        return 0;
+        // return 9999;
+        return UINT16_MAX;
     }
 
     // retrieve time from NTP server
@@ -476,7 +477,7 @@ uint16_t EVSEWifi::getNTPLocalTime() {
         lastTimeinfo = (timeinfo.tm_hour * 100) + timeinfo.tm_min;
     } else {
         EVSELogger::error("[EVSEWiFi] Failed to obtain local time");
-        lastTimeinfo = 0;
+        lastTimeinfo = UINT16_MAX;
     }
 
     return lastTimeinfo;

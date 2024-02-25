@@ -454,7 +454,7 @@ void GLCDWifiInfo() {
 
         // Display local time
         uint16_t localTime = evseWifi.getNTPLocalTime();
-        if (localTime != 0) {
+        if (localTime != UINT16_MAX) {
             sprintf(LCDStr, "%02u:%02u", localTime / 100u, localTime % 100);
         } else {
             sprintf(LCDStr, "--:--");
