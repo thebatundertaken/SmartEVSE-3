@@ -309,7 +309,7 @@
 
           $('#cable_max').text(data.controller.cableMaxCapacity.toFixed(0) + "A");
 
-          $('#localtime').text(formatTime(data.controller.time == 0 ? -1 : data.controller.time));
+          $('#localtime').text(formatTime(data.controller.time));
           $('#switch_on_time').text(formatTime(data.controller.switchOnTime));
           $('#switch_off_time').text(formatTime(data.controller.switchOffTime));
           /*$('#max_amps').prop("min", data.controller.minEVCurrent.toFixed(0));
@@ -431,13 +431,13 @@
 
     function forceCharge() {
       if (confirm("Do you want to force start charging?")) {
-        window.open("/forcecharge", "_blank");
+        window.open("/forcecharge", "_self");
       }
     }
 
     function forceDisconnect() {
       if (confirm("Do you want to force disconnect and stop charging?")) {
-        window.open("/forcedisconnect", "_blank");
+        window.open("/forcedisconnect", "_self");
       }
     }
 

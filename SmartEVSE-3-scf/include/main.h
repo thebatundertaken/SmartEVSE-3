@@ -22,6 +22,6 @@
 #define __EVSE_MAIN
 
 // SmartEVSE software version
-#define EVSE_VERSION "4.0.5"
+#define EVSE_VERSION "4.0.6"
 
 #endif

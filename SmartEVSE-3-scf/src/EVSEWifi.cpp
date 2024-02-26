@@ -157,7 +157,8 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["controller"]["solarStartCurrent"] = evseController.solarStartCurrent;
     doc["controller"]["solarImportCurrent"] = evseController.solarImportCurrent;
     doc["controller"]["solarStopTimer"] = evseController.solarStopTimer;
-    doc["controller"]["time"] = evseWifi.getNTPLocalTime();
+    uint16_t localTime = evseWifi.getNTPLocalTime();
+    doc["controller"]["time"] = localTime == UINT16_MAX ? -1 : localTime;
     if (evseController.isOperatingHoursEnabled()) {
         doc["controller"]["switchOnTime"] = evseController.getOperatingHoursOnTime();
         doc["controller"]["switchOffTime"] = evseController.getOperatingHoursOffTime();
@@ -466,7 +467,6 @@ uint16_t EVSEWifi::getNTPLocalTime() {
     }
 
     if (WiFi.status() != WL_CONNECTED) {
-        // return 9999;
         return UINT16_MAX;
     }
 

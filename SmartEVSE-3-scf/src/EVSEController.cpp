@@ -438,7 +438,7 @@ bool EVSEController::isChargingInOperatingHours() {
     }
 
     uint16_t localTime = evseWifi.getNTPLocalTime();
-    if (localTime == 0) {
+    if (localTime == UINT16_MAX) {
         return false;
     }
 
