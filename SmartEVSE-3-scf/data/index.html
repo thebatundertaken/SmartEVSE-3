@@ -177,6 +177,7 @@
     let initiated = false;
     let lastReceivedCTSeconds = null;
     let intervalHandler = null;
+    let prevSolarBoostRatio = 0;
 
     function updateLastReceivedCT() {
       if (lastReceivedCTSeconds != null) {
@@ -287,6 +288,15 @@
           $('#mode').text(data.controller.modeText);
           $('#config').html(data.controller.config == 0 ? "<i class=\"bi bi-outlet\"></i> Socket" : "<i class=\"bi bi-ev-station\"></i> Fixed cable");
           $('#charge_current').text((data.controller.chargeCurrent / 10).toFixed(1) + "A");
+          $('#solar_boost_current').text((data.controller.solarBoostCurrent / 10).toFixed(1) + "A");
+          $('#solar_boost_ratio').text(data.controller.solarBoostRatio + "%");
+          $('#range_solar_boost_ratio').val(data.controller.solarBoostRatio);
+          if (data.controller.solarBoostRatio == 0) {
+            $('#solar_boost_ratio_box').hide();
+          }
+          else if ($('#solar_boost_ratio_box').is(':hidden')) {
+            $('#solar_boost_ratio_box').show();
+          }
           $('#temp').text(data.controller.temperature + "°C / " + data.controller.maxTemperature + "°C");
           $('#rfid').text((data.rfid.reader == 0) ? "Not installed" : "Enabled [" + data.rfid.statusText + "]");
           $('#rfid_access').text((data.rfid.accessBit == 0) ? "No access" : "Granted");
@@ -397,6 +407,16 @@
 
     function disableOperatingHours() {
       $.post("/settings?disableOperatingHours=y");
+    }
+
+    function solarBoostRatioChanged() {
+      let solarBoostRatio = $("#range_solar_boost_ratio").val();
+      if (solarBoostRatio == prevSolarBoostRatio) {
+        return;
+      }
+      prevSolarBoostRatio = solarBoostRatio;
+      $("#solar_boost_ratio").text(solarBoostRatio + "%");
+      $.post("/settings?solarBoostRatio=" + parseInt(solarBoostRatio));
     }
 
     function enableOperatingHours() {
@@ -530,6 +550,14 @@
                         </div>
                         <div class="col">
                           <div class="h5 mb-0 pb-2 me-3 text-muted" id="charge_current"></div>
+                        </div>
+                      </div>
+                      <div class="row g-0 align-items-center" id="solar_boost_ratio_box">
+                        <div class="col-auto mb-0 h5 mb-0 me-3 pb-2">
+                          <i class="bi bi-sunrise"></i> Solar boost:
+                        </div>
+                        <div class="col">
+                          <div class="h5 mb-0 pb-2 me-3 text-muted" id="solar_boost_current"></div>
                         </div>
                       </div>
                       <div class="row g-0 align-items-center">
@@ -786,9 +814,6 @@
                 </div>
               </div>
             </div>
-
-
-
           </div>
 
 
@@ -817,19 +842,21 @@
 
                       <div class="row g-0 align-items-center mb-3">
                         <div class="col-auto h5 mb-0 me-3">
-                          <i class="bi bi-bug"></i> Log level:
+                          <i class="bi bi-sunrise"></i> Solar boost:
                         </div>
                       </div>
                       <div class="row g-0 align-items-center mb-3">
-                        <div class="col">
-                          <button id="loglevel_0" onclick="changeLogLevel('0')"
-                            class="btn btn-outline-secondary me-2 mb-2" type="button">DEBUG</button>
-                          <button id="loglevel_1" onclick="changeLogLevel('1')"
-                            class="btn btn-outline-secondary me-2 mb-2" type="button">INFO</button>
-                          <button id="loglevel_2" onclick="changeLogLevel('2')"
-                            class="btn btn-outline-secondary me-2 mb-2" type="button">WARN</button>
-                          <button id="loglevel_3" onclick="changeLogLevel('3')"
-                            class="btn btn-outline-secondary me-2 mb-2" type="button">ERROR</button>
+                        <div class="row g-0 mb-2 align-items-center">
+                          <div class="col-auto h5 mb-0 me-1">
+                            Boost ratio:
+                          </div>
+                          <div class="col-auto">
+                            <div class="h5 mb-0 text-muted" id="solar_boost_ratio"></div>
+                          </div>
+                        </div>
+                        <div class="row g-0 mb-2 align-items-center">
+                          <input type="range" class="form-range" min="0" max="100" step="1" id="range_solar_boost_ratio"
+                            onchange="solarBoostRatioChanged()">
                         </div>
                       </div>
 
@@ -870,6 +897,40 @@
                         </div>
                       </div>
 
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="mb-4">
+              <div class="card shadow h-100 py-0 bg-body-tertiary">
+                <div class="card-body">
+                  <div class="row g-0 align-items-center">
+                    <div class="col me-2">
+                      <h4 class="fw-bold text-uppercase mb-1">Admin</h4>
+
+
+                      <div class="row g-0 align-items-center mb-3">
+                        <div class="col-auto h5 mb-0 me-3">
+                          <i class="bi bi-bug"></i> Log level:
+                        </div>
+                      </div>
+                      <div class="row g-0 align-items-center mb-3">
+                        <div class="col">
+                          <button id="loglevel_0" onclick="changeLogLevel('0')"
+                            class="btn btn-outline-secondary me-2 mb-2" type="button">DEBUG</button>
+                          <button id="loglevel_1" onclick="changeLogLevel('1')"
+                            class="btn btn-outline-secondary me-2 mb-2" type="button">INFO</button>
+                          <button id="loglevel_2" onclick="changeLogLevel('2')"
+                            class="btn btn-outline-secondary me-2 mb-2" type="button">WARN</button>
+                          <button id="loglevel_3" onclick="changeLogLevel('3')"
+                            class="btn btn-outline-secondary me-2 mb-2" type="button">ERROR</button>
+                        </div>
+                      </div>
+
                       <div class="row g-0 align-items-center mb-3">
                         <div class="col-auto h5 mb-0 me-3">
                           <i class="bi bi-braces"></i> Actions:
@@ -889,26 +950,29 @@
                           <button onclick="update()" class="btn btn-outline-secondary me-2 mb-2" type="button">Update
                             firmware</button>
                           <button onclick="forceCharge()" class="btn btn-outline-secondary me-2 mb-2"
-                            type="button">Force Charge</button>
+                            type="button">Force
+                            Charge</button>
                           <button onclick="forceDisconnect()" class="btn btn-outline-secondary me-2 mb-2"
                             type="button">Force Disconnect</button>
                           <button onclick="reboot()" class="btn btn-outline-secondary me-2 mb-2"
                             type="button">Reboot</button>
                         </div>
+
+
                       </div>
                     </div>
                   </div>
                 </div>
+
+
               </div>
             </div>
           </div>
-
-
-
         </div>
       </div>
     </div>
   </div>
+
 </body>
 
 </html>

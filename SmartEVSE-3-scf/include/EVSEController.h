@@ -177,6 +177,12 @@ class EVSEController {
     uint16_t getMaxCurrentAvailable();
 
     int16_t getMainsMeasuredCurrent(bool allowSolarSurplus);
+    uint16_t getMainsExtraSolarSurplus();
+
+    uint8_t getSolarBoostRatio() { return solarBoostRatio; };
+    void setSolarBoostRatio(uint8_t ratio);
+    int16_t getSolarBoostCurrent() { return solarBoostCurrent; };
+    int16_t calcSolarBoostCurrent();
 
     // Configuration (0:Socket / 1:Fixed Cable)
     uint8_t config = CONFIG_SOCKET;
@@ -262,6 +268,10 @@ class EVSEController {
 
     uint32_t prevMin = 0;
     uint32_t prevMax = 0;
+
+    // Solar boost
+    uint8_t solarBoostRatio = 75;
+    int16_t solarBoostCurrent = 0;
 
     // declared volatile, as they are used in a ISR
     volatile uint16_t ADCsamples[ADC_SAMPLES_SIZE];

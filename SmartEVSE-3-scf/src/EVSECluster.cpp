@@ -394,7 +394,7 @@ int16_t EVSECluster::calcNewChargeCurrentWithSmart(int16_t maxCurrentAvailable) 
                 "[EVSECluster] clusterCurrent mismatch! Vehicle has just started charging?? "
                 "baseload=%d; clusterCurrent=%d",
                 baseload, clusterCurrent);
-        EVSELogger::info(sprintfStr);
+        EVSELogger::debug(sprintfStr);
 
         // Recalc baseload using minEVCurrent value as reference, because a charging vehicle will
         // consume a very minimum of minEVCurrent
@@ -403,6 +403,15 @@ int16_t EVSECluster::calcNewChargeCurrentWithSmart(int16_t maxCurrentAvailable) 
         // Using _max(X, 0) to avoid negative values due to solar panels surplus
         baseload = _max(baseload, 0);
     }
+
+    // Solar boost
+    int16_t solarBoostCurrent = evseController.calcSolarBoostCurrent();
+    if (solarBoostCurrent > 0) {
+        maxCurrentAvailable += solarBoostCurrent;
+    }
+    sprintf(sprintfStr, "[EVSECluster] [SolarBoost] solarBoostCurrent=%d; maxCurrentBoostedAvailable=%d",
+            solarBoostCurrent, maxCurrentAvailable);
+    EVSELogger::debug(sprintfStr);
 
     // Using _max(X, 0) because overrideCurrent, new menu configuration, etc... might lead to negative values
     int16_t newChargeCurrent = _max(maxCurrentAvailable - baseload, 0);

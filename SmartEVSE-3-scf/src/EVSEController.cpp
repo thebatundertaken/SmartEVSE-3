@@ -195,6 +195,18 @@ int16_t EVSEController::getMainsMeasuredCurrent(bool allowSolarSurplus) {
     return allowSolarSurplus ? imeasured : _max(imeasured, 0);
 }
 
+uint16_t EVSEController::getMainsExtraSolarSurplus() {
+    uint16_t extraSurplus = 0;
+
+    for (uint8_t x = 0; x < 3; x++) {
+        if (Irms[x] < 0) {
+            extraSurplus += abs(Irms[x]);
+        }
+    }
+
+    return extraSurplus;
+}
+
 //  Tell EV to stop charging. When we are not charging switch to State B1
 void EVSEController::stopChargingOnError() {
     EVSELogger::debug("[EVSEController] Stopping charging due to charge error");
@@ -369,7 +381,13 @@ void EVSEController::onChargeCurrentChanged() {
         return;
     }
 
-    const uint16_t maxCurrentAvailable = getMaxCurrentAvailable();
+    uint16_t maxCurrentAvailable = getMaxCurrentAvailable();
+    if (solarBoostRatio > 0 && solarBoostCurrent > 0) {
+        maxCurrentAvailable += solarBoostCurrent;
+    }
+    sprintf(sprintfStr, "[EVSEController] [solarBoost] maxCurrentAvailable=%d", maxCurrentAvailable);
+    EVSELogger::debug(sprintfStr);
+
     if (chargeCurrent > maxCurrentAvailable) {
         sprintf(sprintfStr, "[EVSEController] chargeCurrent (%d) above maxCurrentAvailable (%d)", chargeCurrent,
                 maxCurrentAvailable);
@@ -645,6 +663,34 @@ void EVSEController::setSolarStopTimer(uint16_t timer) {
 
     solarStopTimer = timer;
     evseCluster.setMasterSolarStopTimer(solarStopTimer);
+}
+
+void EVSEController::setSolarBoostRatio(uint8_t ratio) {
+    if (ratio < 0 || ratio > 100)
+        return;
+    solarBoostRatio = ratio;
+};
+
+int16_t EVSEController::calcSolarBoostCurrent() {
+    // Is solar boost on?
+    if (solarBoostRatio == 0) {
+        return 0;
+    }
+
+    // Is there any solar surplus?
+    int16_t extraSolarSurplus = evseController.getMainsExtraSolarSurplus();
+    sprintf(sprintfStr, "[EVSEController] [solarBoost] extraSolarSurplus=%d", extraSolarSurplus);
+    EVSELogger::debug(sprintfStr);
+
+    if (extraSolarSurplus <= 0) {
+        return 0;
+    }
+
+    solarBoostCurrent = extraSolarSurplus * (float)(solarBoostRatio / 100.0f);
+    sprintf(sprintfStr, "[EVSEController] [solarBoost] solarBoostCurrent=%d", solarBoostCurrent);
+    EVSELogger::debug(sprintfStr);
+
+    return solarBoostCurrent;
 }
 
 // RCM = Residual Current Monitor
