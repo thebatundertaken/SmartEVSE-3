@@ -674,7 +674,8 @@ void EVSEController::setSolarBoostRatio(uint8_t ratio) {
 int16_t EVSEController::calcSolarBoostCurrent() {
     // Is solar boost on?
     if (solarBoostRatio == 0) {
-        return 0;
+        solarBoostCurrent = 0;
+        return solarBoostCurrent;
     }
 
     // Is there any solar surplus?
@@ -683,7 +684,8 @@ int16_t EVSEController::calcSolarBoostCurrent() {
     EVSELogger::debug(sprintfStr);
 
     if (extraSolarSurplus <= 0) {
-        return 0;
+        solarBoostCurrent = 0;
+        return solarBoostCurrent;
     }
 
     solarBoostCurrent = extraSolarSurplus * (float)(solarBoostRatio / 100.0f);
