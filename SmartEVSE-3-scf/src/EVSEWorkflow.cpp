@@ -76,7 +76,6 @@ void EVSEWorkflow::checkCurrentAvailableWaitMillis() {
 
     EVSELogger::info("[EVSEWorkflow] Disconnecting in progress due to wait timeout");
     evseController.setState(STATE_DISCONNECT_IN_PROGRESS);
-    evseController.onDisconnectInProgress();
 }
 
 void EVSEWorkflow::workflowVehicleDetected() {
@@ -218,6 +217,7 @@ void EVSEWorkflow::workflowDisconnecting() {
 
     EVSELogger::info("[EVSEWorkflow] Gracefully disconected");
     disconnectWaitMillis = 0;
+    evseController.onDisconnectInProgress();
     evseController.setState(STATE_B_VEHICLE_DETECTED);
 }
 
