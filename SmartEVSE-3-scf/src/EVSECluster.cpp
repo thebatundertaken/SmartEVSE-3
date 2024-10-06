@@ -269,7 +269,9 @@ void EVSECluster::recalcBalancedChargeCurrent() {
     int16_t newChargeCurrent = 0;
     switch (evseController.mode) {
         case MODE_SMART:
-            newChargeCurrent = calcNewChargeCurrentWithSmart(maxCurrentAvailable);
+            newChargeCurrent = (evseController.state == STATE_A_STANDBY)
+                                   ? maxCurrentAvailable
+                                   : calcNewChargeCurrentWithSmart(maxCurrentAvailable);
             break;
 
         case MODE_SOLAR:
