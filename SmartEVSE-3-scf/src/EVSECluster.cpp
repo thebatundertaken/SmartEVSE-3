@@ -136,7 +136,7 @@ bool EVSECluster::isEnoughCurrentAvailableForOneEVSE() {
 
     const int16_t measuredCurrent = evseController.getMainsMeasuredCurrent(false);
 
-    // There should be at least MIN_EV_CURRENT (default 6A) available
+    // There should be at least MIN_EV_CURRENT (default 5A) available
     if (measuredCurrent <= (evseController.getMaxCurrentAvailable() - (evseController.minEVCurrent * 10))) {
         return true;
     }

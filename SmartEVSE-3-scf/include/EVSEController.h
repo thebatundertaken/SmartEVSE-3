@@ -96,7 +96,7 @@
 #define STATE_C1_CHARGING_NO_POWER_DELAY_SECONDS 15
 
 // minimum Current the EV will accept
-#define MIN_EV_CURRENT 6
+#define MIN_EV_CURRENT 5
 // Max Charge current (A) allowed by the EVSE device
 #define MAX_DEVICE_CURRENT 13
 // max current the Mains connection can supply (usually contracted power) (A)
@@ -130,7 +130,7 @@ extern portMUX_TYPE rtc_spinlock;
 
 class EVSEController {
    public:
-    EVSEController(){};
+    EVSEController() {};
 
     void setup();
     void loop();

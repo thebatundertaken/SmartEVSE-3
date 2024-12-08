@@ -100,7 +100,7 @@ const struct {
     // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
     {"LOCK", "LOCK", I18N_MENU_LOCK, 0, 2, LOCK_DISABLED},
     // Minimal current the EV is happy with (A)
-    {"MIN", "EV MIN", I18N_MENU_MIN, 6, 16, MIN_EV_CURRENT},
+    {"MIN", "EV MIN", I18N_MENU_MIN, MIN_EV_CURRENT, 16, MIN_EV_CURRENT},
     // Max Charge current (A)
     {"MAX", "EVSE MAX", I18N_MENU_MAX, 6, MAX_MAINS_HARD_LIMIT, MAX_DEVICE_CURRENT},
     // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
@@ -180,7 +180,7 @@ const struct {
 
 class EVSEMenu {
    public:
-    EVSEMenu(){};
+    EVSEMenu() {};
     void setup();
     uint16_t getMenuItemValue(uint8_t nav);
     uint8_t setMenuItemValue(uint8_t nav, uint16_t val);
