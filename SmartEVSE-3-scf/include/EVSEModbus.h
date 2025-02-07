@@ -230,7 +230,7 @@ struct ModBus {
 
 class EVSEModbus {
    public:
-    EVSEModbus(){};
+    EVSEModbus() {};
 
     void setup();
     void loop();
@@ -357,6 +357,7 @@ class EVSEModbus {
     // Used by SmartEVSE fuctions
     int32_t CM[3] = {0, 0, 0};
     int32_t PV[3] = {0, 0, 0};
+    char sprintfStr[128];
 
     struct NodeStatus Node[NR_EVSES] = {
         // 0: Master / 1: Node 1 ...

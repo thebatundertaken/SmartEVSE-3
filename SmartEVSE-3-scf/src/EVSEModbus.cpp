@@ -222,6 +222,9 @@ void EVSEModbus::modbusMainsMeterResponseHandler(ModbusMessage msg) {
                 CM[x] = CM[x] - PV[x];
             }
 
+            // sprintf(sprintfStr, "[EVSEModbus] mains meter L[%u] = %d", x, (signed int)(CM[x] / 100));
+            // EVSELogger::info(sprintfStr);
+
             // reduce resolution of Irms to 100mA
             evseController.Irms[x] = (signed int)(CM[x] / 100);
         }

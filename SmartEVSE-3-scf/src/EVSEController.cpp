@@ -382,7 +382,7 @@ void EVSEController::onChargeCurrentChanged() {
     }
 
     uint16_t maxCurrentAvailable = getMaxCurrentAvailable();
-    if (solarBoostRatio > 0 && solarBoostCurrent > 0) {
+    if (solarBoost && solarBoostCurrent > 0) {
         maxCurrentAvailable += solarBoostCurrent;
     }
     sprintf(sprintfStr, "[EVSEController] [solarBoost] maxCurrentAvailable=%d", maxCurrentAvailable);
@@ -665,68 +665,48 @@ void EVSEController::setSolarStopTimer(uint16_t timer) {
     evseCluster.setMasterSolarStopTimer(solarStopTimer);
 }
 
-void EVSEController::setSolarBoostRatio(uint8_t ratio) {
-    if (ratio < 0 || ratio > 100)
-        return;
-    solarBoostRatio = ratio;
+void EVSEController::setSolarBoost(bool active) {
+    solarBoost = active;
 };
 
 int16_t EVSEController::calcSolarBoostCurrent() {
     // Is solar boost on?
-    if (solarBoostRatio == 0) {
+    if (!solarBoost) {
         solarBoostCurrent = 0;
         return solarBoostCurrent;
     }
 
-    int16_t extraSolarSurplus = 0;
-    if (state != STATE_C_CHARGING) {
-        // Is there any solar surplus?
-        extraSolarSurplus = getMainsExtraSolarSurplus();
-        sprintf(sprintfStr, "[EVSEController] [solarBoost] extraSolarSurplus=%d", extraSolarSurplus);
-        EVSELogger::debug(sprintfStr);
-    } else {
-        extraSolarSurplus = getMaxCurrentAvailable() - getMainsMeasuredCurrent(true);
-        sprintf(sprintfStr,
-                "[EVSEController] [solarBoost] [charging] extraSolarSurplus=%d; getMaxCurrentAvailable()=%d; "
-                "getMainsMeasuredCurrent()=%d",
-                extraSolarSurplus, getMaxCurrentAvailable(), getMainsMeasuredCurrent(true));
-        EVSELogger::debug(sprintfStr);
-    }
-
-    if (extraSolarSurplus <= 0) {
-        solarBoostCurrent = 0;
-        return solarBoostCurrent;
-    }
-
-    solarBoostCurrent = extraSolarSurplus * (float)(solarBoostRatio / 100.0f);
-    sprintf(sprintfStr, "[EVSEController] [solarBoost] solarBoostCurrent=%d", solarBoostCurrent);
-    EVSELogger::debug(sprintfStr);
-
-    return solarBoostCurrent;
-
-    /*
-    // Is solar boost on?
-    if (solarBoostRatio == 0) {
-        solarBoostCurrent = 0;
-        return solarBoostCurrent;
-    }
-
-    // Is there any solar surplus?
     int16_t extraSolarSurplus = getMainsExtraSolarSurplus();
     sprintf(sprintfStr, "[EVSEController] [solarBoost] extraSolarSurplus=%d", extraSolarSurplus);
     EVSELogger::debug(sprintfStr);
 
+    // Is there any solar surplus?
     if (extraSolarSurplus <= 0) {
         solarBoostCurrent = 0;
         return solarBoostCurrent;
     }
 
-    solarBoostCurrent = extraSolarSurplus * (float)(solarBoostRatio / 100.0f);
+    if (state == STATE_C_CHARGING) {
+        // EV charging but there are surplus. It happens on 3 phases charges with 1 phase cable
+        uint16_t maxCurrentCache = getMaxCurrentAvailable();
+        extraSolarSurplus = maxCurrentCache - getMainsMeasuredCurrent(true);
+        int16_t chargeCurrentDiff = getChargeCurrent() - maxCurrentCache;
+        if (chargeCurrentDiff < 0) {
+            solarBoostCurrent = extraSolarSurplus;
+        } else {
+            solarBoostCurrent = _min(extraSolarSurplus + chargeCurrentDiff, maxCurrentCache);
+        }
+
+        sprintf(sprintfStr, "[EVSEController] [solarBoost] [charging] extraSolarSurplus=%d; chargeCurrentDiff=%d",
+                extraSolarSurplus, chargeCurrentDiff);
+        EVSELogger::debug(sprintfStr);
+    } else {
+        solarBoostCurrent = extraSolarSurplus;
+    }
+
     sprintf(sprintfStr, "[EVSEController] [solarBoost] solarBoostCurrent=%d", solarBoostCurrent);
     EVSELogger::debug(sprintfStr);
-
     return solarBoostCurrent;
-    */
 }
 
 // RCM = Residual Current Monitor

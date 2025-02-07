@@ -179,8 +179,8 @@ class EVSEController {
     int16_t getMainsMeasuredCurrent(bool allowSolarSurplus);
     uint16_t getMainsExtraSolarSurplus();
 
-    uint8_t getSolarBoostRatio() { return solarBoostRatio; };
-    void setSolarBoostRatio(uint8_t ratio);
+    bool isSolarBoost() { return solarBoost; };
+    void setSolarBoost(bool active);
     int16_t getSolarBoostCurrent() { return solarBoostCurrent; };
     int16_t calcSolarBoostCurrent();
 
@@ -270,7 +270,7 @@ class EVSEController {
     uint32_t prevMax = 0;
 
     // Solar boost
-    uint8_t solarBoostRatio = 75;
+    bool solarBoost = true;
     int16_t solarBoostCurrent = 0;
 
     // declared volatile, as they are used in a ISR

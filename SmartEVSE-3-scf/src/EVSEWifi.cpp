@@ -135,7 +135,7 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["controller"]["minEVCurrent"] = evseController.minEVCurrent;
     doc["controller"]["maxMains"] = evseController.maxMains;
     doc["controller"]["maxDeviceCurrent"] = evseController.maxDeviceCurrent;
-    doc["controller"]["solarBoostRatio"] = evseController.getSolarBoostRatio();
+    doc["controller"]["solarBoost"] = evseController.isSolarBoost();
     doc["controller"]["solarBoostCurrent"] = evseController.getSolarBoostCurrent();
     doc["controller"]["mode"] = evseController.mode;
     doc["controller"]["modeText"] = evseController.mode == MODE_SMART
@@ -270,9 +270,9 @@ void EVSEWifi::postSettings(AsyncWebServerRequest* request) {
         }
     }
 
-    if (request->hasParam("solarBoostRatio")) {
-        int solarBoostRatio = request->getParam("solarBoostRatio")->value().toInt();
-        evseController.setSolarBoostRatio(solarBoostRatio);
+    if (request->hasParam("solarBoost")) {
+        bool active = request->getParam("solarBoost")->value().toInt() == 1;
+        evseController.setSolarBoost(active);
         doc["mode"] = "OK";
     }
 
