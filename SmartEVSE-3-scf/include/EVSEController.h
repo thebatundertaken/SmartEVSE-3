@@ -197,7 +197,7 @@ class EVSEController {
     // Uncalibrated CT1 measurement (resolution 10mA)
     uint16_t Iuncal = 0;
     // Momentary current per Phase (23 = 2.3A) (resolution 100mA). Max 3 phases supported
-    int32_t Irms[3] = {0, 0, 0};
+    int16_t Irms[3] = {0, 0, 0};
     uint16_t solarStopTimer = 0;
     // Temperature EVSE in deg C (-50 to +125)
     int8_t temperature = 0;
