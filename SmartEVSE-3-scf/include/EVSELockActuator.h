@@ -30,48 +30,53 @@
 // Motor
 #define LOCK_MOTOR 2
 
+#define STATUS_UNLOCKED 0
+#define STATUS_LOCKED 1
+
 class EVSELockActuator {
- public:
-  EVSELockActuator(){};
+   public:
+    EVSELockActuator() {};
 
-  void setup();
-  void loop();
-  void updateSettings();
-  void resetSettings();
+    void setup();
+    void loop();
+    void updateSettings();
+    void resetSettings();
 
-  // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
-  uint8_t getLockType() { return lockType; }
-  void setLockType(uint8_t lockType);
-  bool isLockEnabled() { return lockType != LOCK_DISABLED; };
+    // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
+    uint8_t getLockType() { return lockType; }
+    void setLockType(uint8_t lockType);
+    bool isLockEnabled() { return lockType != LOCK_DISABLED; };
 
- protected:
-  static void onCableLockUnlockThread(EVSELockActuator* myself);
+   protected:
+    static void onCableLockUnlockThread(EVSELockActuator* myself);
 
- private:
-  void readEpromSettings();
-  void writeEpromSettings();
+   private:
+    void readEpromSettings();
+    void writeEpromSettings();
 
-  void setUnlockCable(bool val);
-  void setLockCable(bool val);
-  bool checkPinCableLocked();
-  bool checkPinCableUnlocked();
+    void setUnlockCable(bool val);
+    void setLockCable(bool val);
+    bool checkPinCableLocked();
+    bool checkPinCableUnlocked();
 
-  void startCableLockUnlockThread();
-  void stopCableLockUnlockThread();
-  void unlockCableWorkflow();
-  void lockCableWorkflow();
+    void startCableLockUnlockThread();
+    void stopCableLockUnlockThread();
+    void unlockCableWorkflow();
+    void lockCableWorkflow();
 
-  TaskHandle_t taskHandle = NULL;
+    TaskHandle_t taskHandle = NULL;
 
-  unsigned long cableUnlockMillis = 0;
-  unsigned long cableLockMillis = 0;
-  bool unlockCable = false;
-  bool lockCable = false;
+    unsigned long cableUnlockMillis = 0;
+    unsigned long cableLockMillis = 0;
+    bool unlockCable = false;
+    bool lockCable = false;
 
-  // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
-  uint8_t lockType = LOCK_DISABLED;
-  uint8_t lock1 = 0;
-  uint8_t lock2 = 1;
+    // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
+    uint8_t lockType = LOCK_DISABLED;
+    uint8_t lock1 = 0;
+    uint8_t lock2 = 1;
+
+    uint8_t status = STATUS_UNLOCKED;
 };
 
 extern EVSELockActuator evseLockActuator;

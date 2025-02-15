@@ -135,6 +135,7 @@ void EVSELockActuator::unlockCableWorkflow() {
     if (!checkPinCableLocked()) {
         // Done
         unlockCable = false;
+        status = STATUS_UNLOCKED;
         return;
     }
 
@@ -163,6 +164,7 @@ void EVSELockActuator::lockCableWorkflow() {
     if (!checkPinCableUnlocked()) {
         // Done
         lockCable = false;
+        status = STATUS_LOCKED;
         return;
     }
 
@@ -230,16 +232,19 @@ void EVSELockActuator::loop() {
         return;
     }
 
-    //  One RFID card can lock/unlock the charging socket (like a public charging station)
-    if (evseRFID.RFIDReader == RFID_READER_ENABLE_ONE) {
-        setUnlockCable(evseRFID.rfidAccessBit == RFID_NO_ACCESS);
-    } else {
+    if (status == STATUS_LOCKED) {
+        //  One RFID card can lock/unlock the charging socket (like a public charging station)
         // The charging socket is unlocked when charging stops.
-        setUnlockCable(evseController.state != STATE_C_CHARGING);
+        if ((evseRFID.isEnabled() && evseRFID.rfidAccessBit == RFID_ACCESS_GRANTED) ||
+            evseController.state == STATE_A_STANDBY) {
+            setUnlockCable(true);
+        }
+    } else {
+        // If the cable is connected to the EV, the cable will be locked.
+        if (evseController.state != STATE_A_STANDBY) {
+            setLockCable(true);
+        }
     }
-
-    // If the cable is connected to the EV, the cable will be locked.
-    setLockCable(evseController.state != STATE_A_STANDBY);
 }
 
 void EVSELockActuator::setup() {
