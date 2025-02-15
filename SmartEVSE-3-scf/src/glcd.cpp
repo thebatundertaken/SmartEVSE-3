@@ -412,7 +412,7 @@ void GLCDWifiPortalCountdown() {
     // Bottom row of the GLCD
     GLCD_buffer_clr();
 
-    sprintf(LCDStr, "WiFi portal start in %u", evseWifi.getPortalCountdownSeconds());
+    sprintf(LCDStr, I18N_WIFI_PORTAL_COUNTDOWN, evseWifi.getPortalCountdownSeconds());
     GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
 
     GLCD_sendbuf(0, 1);
@@ -427,10 +427,10 @@ void GLCDAccessPoint() {
 
     // Show Access Point name and password
     if (GLCDAccessPoint_toggle++ < 2) {
-        sprintf(LCDStr, "Wifi: %s", evseWifi.getApHostname());
+        sprintf(LCDStr, I18N_WIFI_APHOSTNAME, evseWifi.getApHostname());
         GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
     } else {
-        sprintf(LCDStr, "Pass: %s", evseWifi.getApPassword());
+        sprintf(LCDStr, I18N_WIFI_PASSWORD, evseWifi.getApPassword());
         GLCD_write_buf_str(127, 0, LCDStr, GLCD_ALIGN_RIGHT);
         if (GLCDAccessPoint_toggle++ > 5) {
             GLCDAccessPoint_toggle = 0;
@@ -463,7 +463,7 @@ void GLCDWifiInfo() {
         GLCD_write_buf_str(127, 0, LCDStr, GLCD_ALIGN_RIGHT);
         GLCD_sendbuf(0, 1);
     } else {
-        GLCD_write_buf_str(0, 0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
+        GLCD_write_buf_str(0, 0, I18N_WIFI_NOT_CONNECTED, GLCD_ALIGN_LEFT);
         GLCD_sendbuf(0, 1);
     }
 }

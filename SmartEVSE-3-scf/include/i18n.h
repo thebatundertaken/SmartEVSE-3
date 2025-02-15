@@ -188,6 +188,10 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_MENUIMPORT_FORMAT "%2u A"
 
 #define I18N_WIFI_APHOSTNAME_PREFIX "SmartEVSE-"
+#define I18N_WIFI_PORTAL_COUNTDOWN "WiFi portal start in %u"
+#define I18N_WIFI_APHOSTNAME "Wifi: %s"
+#define I18N_WIFI_PASSWORD "Pass: %s"
+#define I18N_WIFI_NOT_CONNECTED "Not connected to WiFi"
 
 const char* geti18nStrMeterText(uint8_t statusCode);
 
