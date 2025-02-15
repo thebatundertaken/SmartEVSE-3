@@ -322,8 +322,18 @@
           $('#cable_max').text(data.controller.cableMaxCapacity.toFixed(0) + "A");
 
           $('#localtime').text(formatTime(data.controller.time));
-          $('#switch_on_time').text(formatTime(data.controller.switchOnTime));
-          $('#switch_off_time').text(formatTime(data.controller.switchOffTime));
+          if (data.controller.switchOnTime < 0) {
+            $('#switch_on_off_time_box').hide();
+            $('#switch_off_time_button').hide();
+            $('#switch_on_time_button').show();
+          }
+          else {
+            $('#switch_on_off_time_box').show();
+            $('#switch_off_time_button').show();
+            $('#switch_on_time_button').hide();
+            $('#switch_on_time').text(formatTime(data.controller.switchOnTime));
+            $('#switch_off_time').text(formatTime(data.controller.switchOffTime));
+          }
           /*$('#max_amps').prop("min", data.controller.minEVCurrent.toFixed(0));
           $('#max_amps').prop("max", data.controller.cableMaxCapacity == 0 ? data.controller.maxDeviceCurrent.toFixed(0) : data.controller.cableMaxCapacity.toFixed(0));
           $('#max_amps').val(data.controller.maxDeviceCurrent.toFixed(0));
@@ -866,15 +876,16 @@
                           <div class="col-auto">
                             <div class="h5 mb-0 text-muted" id="localtime">--:--</div>
                           </div>
-
+                        </div>
+                        <div class="row g-0 mb-2 align-items-center" id="switch_on_off_time_box">
                           <div class="col-auto h5 mb-0 ms-3 me-1">
-                            Switch on time:
+                            <i class="bi bi-lightbulb"></i> Switch on time:
                           </div>
                           <div class="col-auto">
                             <div class="h5 mb-0 text-muted" id="switch_on_time">--:--</div>
                           </div>
                           <div class="col-auto h5 mb-0 ms-3 me-1">
-                            Switch off time:
+                            <i class="bi bi-lightbulb-off"></i> Switch off time:
                           </div>
                           <div class="col-auto">
                             <div class="h5 mb-0 text-muted" id="switch_off_time">--:--</div>
@@ -882,10 +893,11 @@
                         </div>
                         <div class="row g-0 align-items-center mb-3">
                           <div class="col">
-                            <button onclick="disableOperatingHours()" class="btn btn-outline-secondary me-2 mb-2"
-                              type="button">Disable operating hours</button>
-                            <button onclick="enableOperatingHours()" class="btn btn-outline-secondary me-2 mb-2"
-                              type="button">Enable operating hours</button>
+                            <button id="switch_off_time_button" onclick="disableOperatingHours()"
+                              class="btn btn-outline-secondary me-2 mb-2" type="button">Disable operating hours</button>
+                            <button id="switch_on_time_button" onclick="enableOperatingHours()"
+                              class="btn btn-outline-secondary me-2 mb-2" type="button">Enable
+                              operating hours</button>
                           </div>
                         </div>
                       </div>
