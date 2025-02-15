@@ -73,10 +73,6 @@ void EVSEMenu::buildMenuItems() {
                 if (evseModbus.isGridActive()) {
                     MenuItems[m++] = MENU_GRID;
                 }
-
-                if (evseModbus.isCalibrationActive()) {
-                    MenuItems[m++] = MENU_CALIBRATION;
-                }
             } else if (evseModbus.mainsMeter != MAINS_METER_DISABLED) {
                 MenuItems[m++] = MENU_MAINSMETERADDRESS;
                 MenuItems[m++] = MENU_MAINSMETERMEASURE;
@@ -162,8 +158,6 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseController.externalSwitch;
         case MENU_RCMON:
             return evseController.RCmon;
-        case MENU_CALIBRATION:
-            return evseController.ICal;
         case MENU_GRID:
             return evseModbus.grid;
         case MENU_MAINSMETER:
@@ -293,9 +287,6 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             break;
         case MENU_RCMON:
             evseController.RCmon = val;
-            break;
-        case MENU_CALIBRATION:
-            evseController.ICal = val;
             break;
         case MENU_GRID:
             evseModbus.grid = val;
@@ -606,22 +597,6 @@ void EVSEMenu::handleButtonOPressed() {
             }
             break;
 
-        case MENU_CALIBRATION:
-            if (buttonReleased != 0) {
-                return;
-            }
-
-            if (subMenu) {
-                evseController.calculateCalibration(CT1);
-            } else {
-                // make working copy of CT1 value
-                CT1 = (unsigned int)abs(evseController.Irms[0]);
-            }
-
-            subMenu = subMenu ? 0 : 1;
-            buttonReleased = 1;
-            break;
-
         default:
             if (buttonReleased != 0) {
                 return;
@@ -670,14 +645,6 @@ void EVSEMenu::handleButtonBothArrowsPressed() {
 
     buttonReleased = 1;
 
-    // Press both arrows buttons to reset
-    if ((currentMenuOption == MENU_CALIBRATION) && subMenu) {
-        // User in CT CAL submenu, reset Calibration value and exit submenu
-        evseController.ICal = ICAL_DEFAULT;
-        subMenu = 0;
-        return;
-    }
-
     // re-initialize LCD
     evseScreen.resetLCD();
 }
@@ -693,10 +660,6 @@ void EVSEMenu::handleButtonArrowPressed(uint8_t buttons) {
                 uint16_t value = 0;
 
                 switch (currentMenuOption) {
-                    case MENU_CALIBRATION:
-                        CT1 = circleValues(buttons, CT1, 100, 999);
-                        break;
-
                     case MENU_EVMETER:
                         // do not display the Sensorbox here
                         value = getMenuItemValue(currentMenuOption);
@@ -760,7 +723,7 @@ void EVSEMenu::handleButtons(uint8_t buttons) {
             break;
 
         case BUTTON_LEFT_AND_RIGHT_MASK:
-            // Buttons < and > pressed in order to reset or re-calibrate
+            // Buttons < and > pressed in order to reset
             handleButtonBothArrowsPressed();
             break;
 

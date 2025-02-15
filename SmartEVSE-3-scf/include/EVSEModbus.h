@@ -247,7 +247,6 @@ class EVSEModbus {
     void resetSettings();
     bool isGridActive();
     void setGridActive(bool val);
-    bool isCalibrationActive();
     void evMeterResetKwhOnCharging();
     void setPvMeter(uint8_t value);
     void evMeterResetKwhOnStandby();
@@ -344,9 +343,6 @@ class EVSEModbus {
 
     //  When the CT's are used on Sensorbox2, it enables the GRID menu option.
     bool gridActive = false;
-    // When the CT's are used on Sensorbox(1.5 or 2), it enables the CAL menu
-    // option.
-    bool calibrationActive = false;
     // if set, reset EV kwh meter at state transition B->C . Cleared when
     // charging, reset to 1 when disconnected (state A)
     uint8_t evMeterResetKwh = EVMETER_RESET_KWH_POWERUP;

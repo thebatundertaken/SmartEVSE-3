@@ -56,7 +56,6 @@
 
 const char* PREFS_CONTROLLER_NAMESPACE = "settings";
 const char* PREFS_RCMON_KEY = "RCmon";
-const char* PREFS_ICAL_KEY = "ICal";
 const char* PREFS_MODE_KEY = "Mode";
 const char* PREFS_CONFIG_KEY = "Config";
 const char* PREFS_SWITCH_KEY = "Switch";
@@ -650,12 +649,6 @@ void EVSEController::sampleControlPilotLine() {
     controlPilot = CONTROL_PILOT_NOK;
 }
 
-void EVSEController::calculateCalibration(uint16_t CT1) {
-    // Calculate new Calibration value and set the Irms value
-    ICal = ((unsigned long)CT1 * 10 + 5) * ICAL_DEFAULT / Iuncal;
-    Irms[0] = CT1;
-}
-
 void EVSEController::setSolarStopTimer(uint16_t timer) {
     if (solarStopTimer == timer) {
         return;
@@ -895,7 +888,6 @@ void EVSEController::readEpromSettings() {
         firstRun = false;
 
         RCmon = preferences.getUChar(PREFS_RCMON_KEY, RC_MON_DISABLED);
-        ICal = preferences.getUShort(PREFS_ICAL_KEY, ICAL_DEFAULT);
         mode = preferences.getUChar(PREFS_MODE_KEY, MODE_NORMAL);
         config = preferences.getUChar(PREFS_CONFIG_KEY, CONFIG_SOCKET);
         externalSwitch = preferences.getUChar(PREFS_SWITCH_KEY, SWITCH_DISABLED);
@@ -911,7 +903,6 @@ void EVSEController::readEpromSettings() {
 
     if (firstRun) {
         RCmon = RC_MON_DISABLED;
-        ICal = ICAL_DEFAULT;
         mode = MODE_NORMAL;
         config = CONFIG_SOCKET;
         externalSwitch = SWITCH_DISABLED;
@@ -954,7 +945,6 @@ void EVSEController::writeEpromSettings() {
     }
 
     preferences.putUChar(PREFS_RCMON_KEY, RCmon);
-    preferences.putUShort(PREFS_ICAL_KEY, ICal);
     preferences.putUChar(PREFS_MODE_KEY, mode);
     preferences.putUChar(PREFS_CONFIG_KEY, config);
     preferences.putUChar(PREFS_SWITCH_KEY, externalSwitch);

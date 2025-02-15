@@ -743,16 +743,6 @@ void GLCDMenu() {
     }
 
     switch (evseMenu.currentMenuOption) {
-        case MENU_CALIBRATION:
-            if (evseMenu.subMenu) {
-                sprintf(LCDStr, I18N_CALIBRATION_FORMAT, evseMenu.CT1 / 10, evseMenu.CT1 % 10);
-            } else {
-                sprintf(LCDStr, I18N_CALIBRATION_FORMAT, ((unsigned int)abs(evseController.Irms[0]) / 10),
-                        ((unsigned int)abs(evseController.Irms[0]) % 10));
-            }
-            GLCD_print_menu(4, LCDStr);
-            break;
-
         case MENU_WIFI:
             if (evseMenu.subMenu && wifimode == WIFI_MODE_DISABLED) {
                 // Clear Wifi info from top row of the GLCD

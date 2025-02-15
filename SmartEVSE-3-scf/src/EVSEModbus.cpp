@@ -57,10 +57,6 @@ void EVSEModbus::setGridActive(bool val) {
     gridActive = val;
 }
 
-bool EVSEModbus::isCalibrationActive() {
-    return calibrationActive;
-}
-
 void EVSEModbus::evMeterResetKwhOnCharging() {
     if (evMeter != EV_METER_DISABLED && evMeterResetKwh != EVMETER_RESET_KWH_OFF) {
         // store kwh measurement at start of charging.
@@ -1335,9 +1331,6 @@ void EVSEModbus::requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
 uint8_t EVSEModbus::receiveCurrentMeasurement(uint8_t* buf, uint8_t Meter, signed int* var) {
     uint8_t x, offset;
 
-    // No CAL option in Menu
-    calibrationActive = false;
-
     switch (Meter) {
         case MM_SENSORBOX:
             // return immediately if the data contains no new P1 or CT measurement
@@ -1359,12 +1352,7 @@ uint8_t EVSEModbus::receiveCurrentMeasurement(uint8_t* buf, uint8_t Meter, signe
                 // SmartEVSE works with Amps * 10
                 var[x] = receiveMeasurement(buf, offset + x, EMConfig[Meter].Endianness, EMConfig[Meter].DataType,
                                             EMConfig[Meter].IDivisor - 3u);
-                // When using CT's , adjust the measurements with calibration value
                 if (offset == 7) {
-                    if (x == 0) {
-                        evseController.Iuncal = abs((var[x] / 10));  // Store uncalibrated CT1 measurement (10mA)
-                    }
-                    var[x] = var[x] * (signed int)evseController.ICal / ICAL_DEFAULT;
                     // When MaxMains is set to >100A, it's assumed 200A:50ma CT's are used.
                     if (evseController.maxMains > 100) {
                         // Multiply measured currents with 2
@@ -1375,9 +1363,6 @@ uint8_t EVSEModbus::receiveCurrentMeasurement(uint8_t* buf, uint8_t Meter, signe
                     if ((var[x] > -1) && (var[x] < 1)) {
                         var[x] = 0;
                     }
-
-                    // Enable CAL option in Menu
-                    calibrationActive = true;
                 }
             }
             // Set Sensorbox 2 to 3/4 Wire configuration (and phase Rotation)

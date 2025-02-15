@@ -31,8 +31,6 @@
 #define RC_MON_DISABLED 0  // Residual Current Monitoring on IO3. Disabled=0, RCM14=1
 #define RC_MON_ENABLED 1   // Residual Current Monitoring on IO3. Disabled=0, RCM14=1
 
-#define ICAL_DEFAULT 1024  // Irms Calibration value (for Current transformers)
-
 #define ADC_SAMPLES_SIZE 25
 
 // ERROR FLAGS
@@ -142,7 +140,6 @@ class EVSEController {
     bool isVehicleConnected();
     uint8_t getChargeDelaySeconds() { return chargeDelaySeconds; };
 
-    void calculateCalibration(uint16_t CT1);
     void updateSettings();
     void resetSettings();
 
@@ -192,10 +189,6 @@ class EVSEController {
     uint8_t errorFlags = ERROR_FLAG_NO_ERROR;
     // Residual Current Monitor (0:Disable / 1:Enable)
     uint8_t RCmon = RC_MON_DISABLED;
-    // CT calibration value
-    uint16_t ICal = ICAL_DEFAULT;
-    // Uncalibrated CT1 measurement (resolution 10mA)
-    uint16_t Iuncal = 0;
     // Momentary current per Phase (23 = 2.3A) (resolution 100mA). Max 3 phases supported
     int16_t Irms[3] = {0, 0, 0};
     uint16_t solarStopTimer = 0;
