@@ -290,8 +290,15 @@
           $('#mode').text(data.controller.modeText);
           $('#config').html(data.controller.config == 0 ? "<i class=\"bi bi-outlet\"></i> Socket" : "<i class=\"bi bi-ev-station\"></i> Fixed cable");
           $('#charge_current').text((data.controller.chargeCurrent / 10).toFixed(1) + "A");
-          $('#solar_boost_current').text((data.controller.solarBoostCurrent / 10).toFixed(1) + "A");
-          $('#solar_boost').bootstrapToggle(data.controller.solarBoost ? "on" : "off");
+          if (data.controller.solarBoost) {
+            $('#solar_boost_current_box').show();
+            $('#solar_boost_current').text((data.controller.solarBoostCurrent / 10).toFixed(1) + "A");
+            $('#solar_boost').bootstrapToggle("on");
+          }
+          else {
+            $('#solar_boost_current_box').hide();
+            $('#solar_boost').bootstrapToggle("off");
+          }
           $('#temp').text(data.controller.temperature + "°C / " + data.controller.maxTemperature + "°C");
           $('#rfid').text((data.rfid.reader == 0) ? "Not installed" : "Enabled [" + data.rfid.statusText + "]");
           $('#rfid_access').text((data.rfid.accessBit == 0) ? "No access" : "Granted");
@@ -545,7 +552,7 @@
                           <div class="h5 mb-0 pb-2 me-3 text-muted" id="charge_current"></div>
                         </div>
                       </div>
-                      <div class="row g-0 align-items-center" id="solar_boost_ratio_box">
+                      <div class="row g-0 align-items-center" id="solar_boost_current_box">
                         <div class="col-auto mb-0 h5 mb-0 me-3 pb-2">
                           <i class="bi bi-sunrise"></i> Solar boost:
                         </div>
