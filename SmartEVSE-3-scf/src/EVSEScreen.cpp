@@ -33,7 +33,7 @@
 
 // Seconds delay for the LCD backlight to turn off (fading out effect)
 const uint16_t BACKLIGHT_ON_MILLIS = 15000;
-const uint8_t FADE_OUT_STEP = 10;
+const uint8_t FADE_OUT_STEP = 7;
 
 void EVSEScreen::lightUp() {
     // Do not write command if LCD is at max bright, just reset timer
