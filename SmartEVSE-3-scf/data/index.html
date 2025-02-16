@@ -289,15 +289,11 @@
           $('#config').html(data.controller.config == 0 ? "<i class=\"bi bi-outlet\"></i> Socket" : "<i class=\"bi bi-ev-station\"></i> Fixed cable");
           $('#charge_current').text((data.controller.chargeCurrent / 10).toFixed(1) + "A");
           if (data.controller.solarBoost) {
-            $('#solar_boost_current_box').show();
             $('#solar_boost_current').text((data.controller.solarBoostCurrent / 10).toFixed(1) + "A");
-            $('#solar_boost_check_label').text("Active");
-            $('#solar_boost_check').checked = true;
           }
-          else {
-            $('#solar_boost_current_box').hide();
-            $('#solar_boost_check_label').text("Disabled");
-            $('#solar_boost_check').checked = false;
+          $("#solar_boost_check").prop("checked", data.controller.solarBoost ? true : false);
+          if (prevSolarBoost != data.controller.solarBoost) {
+            solarBoostChanged();
           }
           $('#temp').text(data.controller.temperature + "°C / " + data.controller.maxTemperature + "°C");
           $('#rfid').text((data.rfid.reader == 0) ? "Not installed" : "Enabled [" + data.rfid.statusText + "]");
@@ -422,10 +418,23 @@
     }
 
     function solarBoostChanged() {
-      let solarBoost = $("#solar_boost_check").prop('checked');
+      let solarBoost = $("#solar_boost_check").prop("checked");
+      if (solarBoost) {
+        $('#solar_boost_check_label').text("Active");
+        $('#solar_boost_check').prop("checked", true);
+        $('#solar_boost_current_box').show();
+      }
+      else {
+        $('#solar_boost_current_box').hide();
+        $('#solar_boost_check_label').text("Disabled");
+        $('#solar_boost_check').prop("checked", false);
+      }
+
       if (prevSolarBoost != solarBoost) {
+        if (prevSolarBoost != null) {
+          $.post("/settings?solarBoost=" + (solarBoost ? '1' : '0'));
+        }
         prevSolarBoost = solarBoost;
-        $.post("/settings?solarBoost=" + (solarBoost ? '1' : '0'));
       }
     }
 
@@ -860,7 +869,7 @@
                           <input class="form-check-input" type="checkbox" role="switch" id="solar_boost_check"
                             onchange="solarBoostChanged()">
                           <label class="form-check-label" for="solar_boost_check"
-                            id="solar_boost_check_label">Active</label>
+                            id="solar_boost_check_label">--</label>
                         </div>
                       </div>
 
