@@ -685,9 +685,14 @@ int16_t EVSEController::calcSolarBoostCurrent() {
         extraSolarSurplus = maxCurrentCache - getMainsMeasuredCurrent(true);
         int16_t chargeCurrentDiff = getChargeCurrent() - maxCurrentCache;
         if (chargeCurrentDiff < 0) {
+            // difference < 0: Exceeded power, immediately decrease current to match maximum available
             solarBoostCurrent = extraSolarSurplus;
+        } else if (chargeCurrentDiff > 0) {
+            // difference > 0: Spare power, slowly increase current by 70% of difference
+            solarBoostCurrent =
+                _min(extraSolarSurplus + ceil((float)chargeCurrentDiff * SOLARBOOST_INCREASE_FACTOR), maxCurrentCache);
         } else {
-            solarBoostCurrent = _min(extraSolarSurplus + chargeCurrentDiff, maxCurrentCache);
+            // diference == 0: Perfectly balanced
         }
 
         sprintf(sprintfStr, "[EVSEController] [solarBoost] [charging] extraSolarSurplus=%d; chargeCurrentDiff=%d",

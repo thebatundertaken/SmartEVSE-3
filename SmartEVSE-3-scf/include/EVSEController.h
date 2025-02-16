@@ -122,6 +122,8 @@
 // Smart-Solar Button or hold button for 1,5 second to STOP charging
 #define SWITCH_SMARTSOLAR_BUTTON_LONGPRESSED_MILLIS 1500
 
+#define SOLARBOOST_INCREASE_FACTOR 0.7f
+
 extern portMUX_TYPE rtc_spinlock;
 #define RTC_ENTER_CRITICAL() portENTER_CRITICAL(&rtc_spinlock)
 #define RTC_EXIT_CRITICAL() portEXIT_CRITICAL(&rtc_spinlock)
