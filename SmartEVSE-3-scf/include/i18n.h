@@ -35,7 +35,7 @@ const char i18nStrDisabled[] = "Disabled";
 const char i18nStrLoadBl[9][9] = {"Disabled", "Master", "Node 1", "Node 2", "Node 3",
                                   "Node 4",   "Node 5", "Node 6", "Node 7"};
 const char i18nStrSwitch[5][10] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S"};
-const char i18nStrGrid[2][10] = {"4Wire", "3Wire"};
+const char i18nStrGrid[2][10] = {"4 Wire", "3 Wire"};
 const char i18nStrEnabled[] = "Enabled";
 const char i18nStrExitMenu[] = "MENU";
 const char i18nStrMainsAll[] = "All";
