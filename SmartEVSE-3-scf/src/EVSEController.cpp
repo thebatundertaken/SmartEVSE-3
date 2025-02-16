@@ -707,7 +707,7 @@ int16_t EVSEController::calcSolarBoostCurrent() {
                     solarBoostCurrent);
         }
 
-        EVSELogger::info(sprintfStr);
+        EVSELogger::debug(sprintfStr);
     } else {
         solarBoostCurrent = extraSolarSurplus;
         sprintf(sprintfStr, "[EVSEController] [solarBoost] solarBoostCurrent=%d", solarBoostCurrent);
