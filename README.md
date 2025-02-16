@@ -2,14 +2,14 @@ SmartEVSE v3
 =========
 
 Changes to original firmware v3.0.0
-- Massive code refactor to C++ objects
+- New solar boost feature to allow charging over max mains when solar power surplus available, useful for 3 phases installation and 1 phase charging cable
+- Fixed smart mode power rebalance on 3 phases grid
+- Device screen on Smart/Solar mode renders decimal amps for phases consumption
+- Added scheduled charging with switch on and off time (operating hours)
 - New web status page (UI design, Rest API and no webSockets)
 - New max EVSE temperature menu and settings
 - New RGB leds enabled/disabled menu and settings
-- Device screen on Smart/Solar mode renders decimal amps for phases consumption
-- Fixed smart mode power rebalance on 3 phases grid
-- Added scheduled charging with switch on and off time (operating hours)
-- New solar boost feature to allow charging over max mains when solar power surplus available
+- Massive code refactor to C++ objects
 - Improved timers and tasks
 - Special thanks to **serkri** for his work (https://github.com/serkri/SmartEVSE-3)
 
@@ -94,3 +94,12 @@ esptool.py.exe --chip esp32 --port COM4 --before default_reset --after hard_rese
 ```
 esptool.py.exe --chip esp32 --port COM4 erase_flash
 ```
+
+
+$~$
+# Official documentation
+
+[Hardware installation](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/installation.md)<br>
+[Configuration](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/configuration.md)<br>
+[Operation](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/operation.md)<br>
+[Building and Flashing the firmware](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/building_flashing.md)<br>
