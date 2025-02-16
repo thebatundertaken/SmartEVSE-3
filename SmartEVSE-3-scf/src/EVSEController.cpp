@@ -686,24 +686,34 @@ int16_t EVSEController::calcSolarBoostCurrent() {
         int16_t chargeCurrentDiff = getChargeCurrent() - maxCurrentCache;
         if (chargeCurrentDiff < 0) {
             // difference < 0: Exceeded power, immediately decrease current to match maximum available
-            solarBoostCurrent = extraSolarSurplus;
+            solarBoostCurrent = _min(extraSolarSurplus, 0);
+            sprintf(
+                sprintfStr,
+                "[EVSEController] [solarBoost] Charging exceeded power! solarBoostCurrent = %d; chargeCurrentDiff = %d",
+                solarBoostCurrent, chargeCurrentDiff);
         } else if (chargeCurrentDiff > 0) {
             // difference > 0: Spare power, slowly increase current by 70% of difference
-            solarBoostCurrent =
-                _min(extraSolarSurplus + ceil((float)chargeCurrentDiff * SOLARBOOST_INCREASE_FACTOR), maxCurrentCache);
+            float extraPower = ceil((float)chargeCurrentDiff * SOLARBOOST_INCREASE_FACTOR);
+            solarBoostCurrent = _min(extraSolarSurplus + extraPower, maxCurrentCache);
+            sprintf(sprintfStr,
+                    "[EVSEController] [solarBoost] Charging with spare solar power. maxCurrent = %.1fA; solarSurplus = "
+                    "%.1fA; spareDiff = %.1fA; extra power = %.1fA; factor = %.2f; new solarBoostCurrent = %.1fA",
+                    ((float)maxCurrentCache / 10), ((float)extraSolarSurplus / 10), ((float)chargeCurrentDiff / 10),
+                    (extraPower / 10), SOLARBOOST_INCREASE_FACTOR, ((float)solarBoostCurrent / 10));
         } else {
             // diference == 0: Perfectly balanced
+            solarBoostCurrent = extraSolarSurplus;
+            sprintf(sprintfStr, "[EVSEController] [solarBoost] Charging perfectly balanced. solarBoostCurrent = %d",
+                    solarBoostCurrent);
         }
 
-        sprintf(sprintfStr, "[EVSEController] [solarBoost] [charging] extraSolarSurplus=%d; chargeCurrentDiff=%d",
-                extraSolarSurplus, chargeCurrentDiff);
-        EVSELogger::debug(sprintfStr);
+        EVSELogger::info(sprintfStr);
     } else {
         solarBoostCurrent = extraSolarSurplus;
+        sprintf(sprintfStr, "[EVSEController] [solarBoost] solarBoostCurrent=%d", solarBoostCurrent);
+        EVSELogger::debug(sprintfStr);
     }
 
-    sprintf(sprintfStr, "[EVSEController] [solarBoost] solarBoostCurrent=%d", solarBoostCurrent);
-    EVSELogger::debug(sprintfStr);
     return solarBoostCurrent;
 }
 
