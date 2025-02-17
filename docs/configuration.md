@@ -1,10 +1,10 @@
 
 # How to configure your SmartEVSE device
-&gt; [!TIP]
-&gt; For the first time, it's recommended to setup the device alone without the Sensorbox (NORMAL mode), for the sake of simplicity
+> [!TIP]
+ For the first time, it's recommended to setup the device alone without the Sensorbox (NORMAL mode), for the sake of simplicity
 
-&gt; [!NOTE]
-&gt; Not all menu options are available at once. Device will display only options applicable to current configuration (ex: solar settings will appear when device is setup in SOLAR mode, etc)
+> [!NOTE]
+> Not all menu options are available at once. Device will display only options applicable to current configuration (ex: solar settings will appear when device is setup in SOLAR mode, etc)
 
 * Set the proper values of the settings belowe (for the first time skip MAINSMET and set MODE to Normal)
 * Now you are ready to test/operate your SmartEVSE in its simplest mode, called Normal Mode.
@@ -14,8 +14,8 @@
 
 $~$
 # All menu options on the LCD screen:
-&gt; [!NOTE]
-&gt; Per default you are in Normal EVSE mode; you can also choose Smart Mode or Solar Mode, but you will have to configure a MAINSMETer to actually use these modes.
+> [!NOTE]
+> Per default you are in Normal EVSE mode; you can also choose Smart Mode or Solar Mode, but you will have to configure a MAINSMETer to actually use these modes.
 
 
 | Menu | Description | Options |
@@ -54,8 +54,8 @@ Up to eight SmartEVSE modules can share one mains supply.
   - If you are using Smart/Solar mode, you should connect the A, B , +12V and GND wires from the sensorbox to the same screw terminals of the SmartEVSE! Make sure that the +12V wire from the sensorbox is connected to **only one SmartEVSE**.
 
 ## Software configuration
-&gt; [!IMPORTANT]
-&gt; Make sure there is only one Master, and node numbers are unique!
+> [!IMPORTANT]
+> Make sure there is only one Master, and node numbers are unique!
 
 - Set one SmartEVSE PWR SHARE setting to MASTER, the others to NODE 1-7. 
   - On the Master configure the following:
