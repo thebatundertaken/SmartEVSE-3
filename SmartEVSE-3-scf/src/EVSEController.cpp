@@ -915,7 +915,7 @@ void EVSEController::readEpromSettings() {
         solarStopTimeMinutes = preferences.getUShort(PREFS_STOPTIME_KEY, SOLAR_STOP_TIME_MINUTES);
         solarImportCurrent = preferences.getUShort(PREFS_IMPORTCURRENT_KEY, SOLAR_IMPORT_CURRENT);
         maxTemperature = preferences.getChar(PREFS_MAXTEMP_KEY, DEFAULT_MAX_TEMPERATURE);
-        solarBoost = preferences.getChar(PREFS_SOLARBOOST_KEY, SOLAR_BOOST_ENABLED);
+        solarBoost = preferences.getChar(PREFS_SOLARBOOST_KEY, SOLAR_BOOST_DISABLED);
         solarBoostIncreaseFactor = preferences.getChar(PREFS_SOLARBOOST_FACTOR_KEY, DEFAULT_SOLARBOOST_INCREASE_FACTOR);
     }
     preferences.end();
@@ -932,7 +932,7 @@ void EVSEController::readEpromSettings() {
         solarStopTimeMinutes = SOLAR_STOP_TIME_MINUTES;
         solarImportCurrent = SOLAR_IMPORT_CURRENT;
         maxTemperature = DEFAULT_MAX_TEMPERATURE;
-        solarBoost = SOLAR_BOOST_ENABLED;
+        solarBoost = SOLAR_BOOST_DISABLED;
         solarBoostIncreaseFactor = DEFAULT_SOLARBOOST_INCREASE_FACTOR;
         writeEpromSettings();
     }
