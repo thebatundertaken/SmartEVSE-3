@@ -273,6 +273,7 @@ void EVSEWifi::postSettings(AsyncWebServerRequest* request) {
     if (request->hasParam("solarBoost")) {
         bool active = request->getParam("solarBoost")->value().toInt() == 1;
         evseController.setSolarBoost(active);
+        updateSettings = true;
         doc["mode"] = "OK";
     }
 
