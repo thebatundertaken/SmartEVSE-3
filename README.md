@@ -21,6 +21,12 @@ Changes to original firmware v3.0.0
 
 ![Status page](./pictures/device.jpg)
 
+$~$
+## Device configuration
+
+[Device configuration and all menu options explained](docs/configuration.md)<br>
+[Official SmartEVSE 3 manual](manual/SmartEVSEv3_install_v3.0.pdf)<br>
+
 ## Setting up WiFi
 
 > Documentation from: https://github.com/tzapu/WiFiManager
@@ -100,6 +106,5 @@ $~$
 # Official documentation
 
 [Hardware installation](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/installation.md)<br>
-[Configuration](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/configuration.md)<br>
 [Operation](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/operation.md)<br>
 [Building and Flashing the firmware](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/building_flashing.md)<br>
