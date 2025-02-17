@@ -66,6 +66,8 @@ const char* PREFS_STARTCURRENT_KEY = "StartCurrent";
 const char* PREFS_STOPTIME_KEY = "StopTime";
 const char* PREFS_IMPORTCURRENT_KEY = "ImportCurrent";
 const char* PREFS_MAXTEMP_KEY = "Temperature";
+const char* PREFS_SOLARBOOST_KEY = "SolarBost";
+const char* PREFS_SOLARBOOST_FACTOR_KEY = "SolarBostF";
 
 // Alarm interrupt handler
 // in STATE A this is called every 1ms (autoreload)
@@ -692,14 +694,14 @@ int16_t EVSEController::calcSolarBoostCurrent() {
                 "[EVSEController] [solarBoost] Charging exceeded power! solarBoostCurrent = %d; chargeCurrentDiff = %d",
                 solarBoostCurrent, chargeCurrentDiff);
         } else if (chargeCurrentDiff > 0) {
-            // difference > 0: Spare power, slowly increase current by 70% of difference
-            float extraPower = ceil((float)chargeCurrentDiff * SOLARBOOST_INCREASE_FACTOR);
+            // difference > 0: Spare power, slowly increase current by % of difference
+            float extraPower = ceil((float)chargeCurrentDiff * solarBoostIncreaseFactor);
             solarBoostCurrent = _min(extraSolarSurplus + extraPower, maxCurrentCache);
             sprintf(sprintfStr,
                     "[EVSEController] [solarBoost] Charging with spare solar power. maxCurrent = %.1fA; solarSurplus = "
                     "%.1fA; spareDiff = %.1fA; extra power = %.1fA; factor = %.2f; new solarBoostCurrent = %.1fA",
                     ((float)maxCurrentCache / 10), ((float)extraSolarSurplus / 10), ((float)chargeCurrentDiff / 10),
-                    (extraPower / 10), SOLARBOOST_INCREASE_FACTOR, ((float)solarBoostCurrent / 10));
+                    (extraPower / 10), solarBoostIncreaseFactor, ((float)solarBoostCurrent / 10));
         } else {
             // diference == 0: Perfectly balanced
             solarBoostCurrent = extraSolarSurplus;
@@ -913,6 +915,8 @@ void EVSEController::readEpromSettings() {
         solarStopTimeMinutes = preferences.getUShort(PREFS_STOPTIME_KEY, SOLAR_STOP_TIME_MINUTES);
         solarImportCurrent = preferences.getUShort(PREFS_IMPORTCURRENT_KEY, SOLAR_IMPORT_CURRENT);
         maxTemperature = preferences.getChar(PREFS_MAXTEMP_KEY, DEFAULT_MAX_TEMPERATURE);
+        solarBoost = preferences.getChar(PREFS_SOLARBOOST_KEY, SOLAR_BOOST_ENABLED);
+        solarBoostIncreaseFactor = preferences.getChar(PREFS_SOLARBOOST_FACTOR_KEY, DEFAULT_SOLARBOOST_INCREASE_FACTOR);
     }
     preferences.end();
 
@@ -928,6 +932,8 @@ void EVSEController::readEpromSettings() {
         solarStopTimeMinutes = SOLAR_STOP_TIME_MINUTES;
         solarImportCurrent = SOLAR_IMPORT_CURRENT;
         maxTemperature = DEFAULT_MAX_TEMPERATURE;
+        solarBoost = SOLAR_BOOST_ENABLED;
+        solarBoostIncreaseFactor = DEFAULT_SOLARBOOST_INCREASE_FACTOR;
         writeEpromSettings();
     }
 
@@ -970,6 +976,8 @@ void EVSEController::writeEpromSettings() {
     preferences.putUShort(PREFS_STOPTIME_KEY, solarStopTimeMinutes);
     preferences.putUShort(PREFS_IMPORTCURRENT_KEY, solarImportCurrent);
     preferences.putChar(PREFS_MAXTEMP_KEY, maxTemperature);
+    preferences.putChar(PREFS_SOLARBOOST_KEY, solarBoost);
+    preferences.putChar(PREFS_SOLARBOOST_FACTOR_KEY, solarBoostIncreaseFactor);
 
     preferences.end();
 }

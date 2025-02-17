@@ -37,8 +37,10 @@
 #include "utils.h"
 
 void EVSEMenu::buildMenuItems() {
-    // MENU_XXX defines referes to menuEntries array position, if order changed in
-    // struct, then defines must be changed, EVSEMenu::buildMenuItems() and EVSEModbus::mapModbusRegister2MenuItemID
+    // MENU_XXX defines referes to menuEntries array position, can not be empty numbers (gaps)
+    // due to array iteration over menu elements.
+    // If position changes in struct, then corresponding DEFINE value must be changed accordly
+    // Mind EVSEMenu::buildMenuItems() and EVSEModbus::mapModbusRegister2MenuItemID
 
     uint8_t m = 0;
 
@@ -49,7 +51,7 @@ void EVSEMenu::buildMenuItems() {
 
     MenuItems[m++] = MENU_MODE;
 
-    // ? Mode Smart/Solar and Load Balancing Disabled/Master?
+    // Mode Smart/Solar and Load Balancing Disabled/Master
     if (evseController.mode != MODE_NORMAL && evseCluster.amIMasterOrLBDisabled()) {
         MenuItems[m++] = MENU_MIN_EV;
         MenuItems[m++] = MENU_MAX_MAINS;
@@ -57,25 +59,26 @@ void EVSEMenu::buildMenuItems() {
 
     MenuItems[m++] = MENU_MAX_CURRENT;
 
-    // ? Solar mode and Load Balancing Disabled/Master?
+    // Mode Smart/Solar and Load Balancing Disabled/Master
     if (evseController.mode == MODE_SOLAR && evseCluster.amIMasterOrLBDisabled()) {
         MenuItems[m++] = MENU_SOLAR_START;
         MenuItems[m++] = MENU_SOLAR_STOP_TIME_MINUTES;
         MenuItems[m++] = MENU_IMPORT;
     }
 
-    // ? Smart or Solar mode?
+    // Mode Smart/Solar
     if (evseController.mode != MODE_NORMAL) {
         if (evseCluster.amIMasterOrLBDisabled()) {
             MenuItems[m++] = MENU_MAINSMETER;
-            // - - ? Sensorbox?
+
+            // Sensorbox
             if (evseModbus.mainsMeter == MM_SENSORBOX) {
-                if (evseModbus.isGridActive()) {
-                    MenuItems[m++] = MENU_GRID;
-                }
+                MenuItems[m++] = MENU_GRID;
+                MenuItems[m++] = MENU_SOLAR_BOOST;
             } else if (evseModbus.mainsMeter != MAINS_METER_DISABLED) {
                 MenuItems[m++] = MENU_MAINSMETERADDRESS;
                 MenuItems[m++] = MENU_MAINSMETERMEASURE;
+                MenuItems[m++] = MENU_SOLAR_BOOST;
 
                 // PV not measured by Mains electric meter?
                 if (evseModbus.mainsMeterMeasure) {
@@ -88,13 +91,12 @@ void EVSEMenu::buildMenuItems() {
         }
 
         MenuItems[m++] = MENU_EVMETER;
-        // - ? EV meter configured?
         if (evseModbus.evMeter != EV_METER_DISABLED) {
             MenuItems[m++] = MENU_EVMETERADDRESS;
         }
 
         if (evseCluster.amIMasterOrLBDisabled()) {
-            // ? Custom electric meter used?
+            // Custom electric meter used?
             if (evseModbus.mainsMeter == MM_CUSTOM || evseModbus.pvMeter == MM_CUSTOM ||
                 evseModbus.evMeter == MM_CUSTOM) {
                 MenuItems[m++] = MENU_EMCUSTOM_ENDIANESS;
@@ -204,6 +206,8 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseController.maxTemperature;
         case MENU_LEDS:
             return evseRgbLeds.ledsEnabled ? 1 : 0;
+        case MENU_SOLAR_BOOST:
+            return evseController.isSolarBoost() ? 1 : 0;
 
         // Status writeable
         case NODE_STATUS_STATE:
@@ -356,6 +360,9 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             break;
         case MENU_LEDS:
             evseRgbLeds.ledsEnabled = (val == 1);
+            break;
+        case MENU_SOLAR_BOOST:
+            evseController.setSolarBoost(val == 1);
             break;
         // Status writeable
         case NODE_STATUS_STATE:
@@ -515,6 +522,8 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
             return Str;
         case MENU_LEDS:
             return i18nStrLeds[evseRgbLeds.ledsEnabled ? 1 : 0];
+        case MENU_SOLAR_BOOST:
+            return i18nStrSolarBoost[evseController.isSolarBoost() ? 1 : 0];
         case MENU_EXIT:
             return i18nStrExitMenu;
         default:

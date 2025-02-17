@@ -57,6 +57,7 @@ const char i18nStrMeter[9][20] = {"Disabled", "Sensorbox", "Phoenix", "Finder", 
                                   "ABB",      "SolarEdge", "WAGO",    "Custom"};
 const char i18nStrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
 const char i18nStrLeds[2][10] = {"Disabled", "Enabled"};
+const char i18nStrSolarBoost[2][10] = {"Disabled", "Enabled"};
 
 const char i18nStrStateName[11][10] = {"A",      "B",         "C",        "D",  "COMM_B", "COMM_B_OK",
                                        "COMM_C", "COMM_C_OK", "Activate", "B1", "C1"};
@@ -76,7 +77,7 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_MENU_MIN "MIN Charge Current the EV will accept"
 // #define I18N_MENU_MAX "MAX Charge Current for this EVSE (per phase)"
 #define I18N_MENU_MAX "MAX Charge Current EVSE will dispatch"
-#define I18N_MENU_LOADBL "Load Balancing mode for 2-8 SmartEVSEs"
+#define I18N_MENU_LOADBL "Share Power between multiple SmartEVSEs (2-8)"
 #define I18N_MENU_SW "Switch function control on pin SW"
 #define I18N_MENU_RCMON "Residual Current Monitor on pin RCM"
 #define I18N_MENU_RFID "RFID reader, learn/remove cards"
@@ -85,6 +86,7 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_MENU_MODE "Normal, Smart or Solar EVSE mode"
 #define I18N_MENU_CIRCUIT "EVSE Circuit max Current"
 #define I18N_MENU_GRID "Grid type to which the Sensorbox is connected"
+#define I18N_MENU_SOLAR_BOOST "Overexceed max mains when solar surplus avaiable"
 #define I18N_MENU_CAL "Calibrate CT1 (CT2+3 will also change)"
 #define I18N_MENU_MAINS "Max MAINS Current (usually contracted power)"
 #define I18N_MENU_START "Surplus energy start Current"
@@ -108,7 +110,7 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_MENU_EMEDIV "Divisor for Energy (kWh) of custom electric meter"
 #define I18N_MENU_EMREAD "Max register read at once of custom electric meter"
 #define I18N_MENU_WIFI "Connect to WiFi access point"
-#define I18N_MENU_TEMPERATURE "Max operation temperature in degrees"
+#define I18N_MENU_TEMPERATURE "Maximum temperature for the EVSE module (degrees)"
 #define I18N_MENU_LEDS "Enable or disabled RGB leds"
 #define I18N_MENU_EXIT "EXIT menu and save settings"
 

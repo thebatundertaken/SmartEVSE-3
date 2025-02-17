@@ -122,7 +122,9 @@
 // Smart-Solar Button or hold button for 1,5 second to STOP charging
 #define SWITCH_SMARTSOLAR_BUTTON_LONGPRESSED_MILLIS 1500
 
-#define SOLARBOOST_INCREASE_FACTOR 0.95f
+#define SOLAR_BOOST_DISABLED 0
+#define SOLAR_BOOST_ENABLED 1
+#define DEFAULT_SOLARBOOST_INCREASE_FACTOR 0.95f
 
 extern portMUX_TYPE rtc_spinlock;
 #define RTC_ENTER_CRITICAL() portENTER_CRITICAL(&rtc_spinlock)
@@ -265,7 +267,8 @@ class EVSEController {
     uint32_t prevMax = 0;
 
     // Solar boost
-    bool solarBoost = true;
+    bool solarBoost = SOLAR_BOOST_ENABLED;
+    float solarBoostIncreaseFactor = DEFAULT_SOLARBOOST_INCREASE_FACTOR;
     int16_t solarBoostCurrent = 0;
 
     // declared volatile, as they are used in a ISR

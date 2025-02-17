@@ -49,14 +49,6 @@ const char* PREFS_MAINSMETERADDRESS_KEY = "MainsMAddress";
 const char* PREFS_MAINSMETERMEASURE_KEY = "MainsMMeasure";
 const char* PREFS_MAINSMETER_KEY = "MainsMeter";
 
-bool EVSEModbus::isGridActive() {
-    return gridActive;
-}
-
-void EVSEModbus::setGridActive(bool val) {
-    gridActive = val;
-}
-
 void EVSEModbus::evMeterResetKwhOnCharging() {
     if (evMeter != EV_METER_DISABLED && evMeterResetKwh != EVMETER_RESET_KWH_OFF) {
         // store kwh measurement at start of charging.
@@ -1368,13 +1360,9 @@ uint8_t EVSEModbus::receiveCurrentMeasurement(uint8_t* buf, uint8_t Meter, signe
             // Set Sensorbox 2 to 3/4 Wire configuration (and phase Rotation)
             // (v2.16)
             if (buf[1] >= 0x10 && offset == 7) {
-                // Enable the GRID menu option
-                setGridActive(true);
                 if ((buf[1] & 0x3) != (grid << 1) && evseCluster.amIMasterOrLBDisabled()) {
                     ModbusWriteSingleRequest(MM_SENSORBOX_ADDRESS, MODBUS_FUNCTION_SENSORBOX_GRID_REGISTER, grid << 1);
                 }
-            } else {
-                setGridActive(false);
             }
             break;
 

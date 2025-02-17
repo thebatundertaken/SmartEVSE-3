@@ -58,7 +58,7 @@
 // Home+EVSE / 2: Home)
 #define MAINS_METER_MEASURE 0
 
-// Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
+// Type of Grid connected to Sensorbox (4 Wire or 3 Wire)
 #define GRID_4WIRE 0
 #define GRID_3WIRE 1
 
@@ -341,8 +341,6 @@ class EVSEModbus {
     // TCP timeout set to 2000 ms
     ModbusServerRTU* MBserver = NULL;
 
-    //  When the CT's are used on Sensorbox2, it enables the GRID menu option.
-    bool gridActive = false;
     // if set, reset EV kwh meter at state transition B->C . Cleared when
     // charging, reset to 1 when disconnected (state A)
     uint8_t evMeterResetKwh = EVMETER_RESET_KWH_POWERUP;
