@@ -382,8 +382,9 @@
           }
 
           if (data.modbus.mainsMeterText == "Disabled" || data.controller.mode == 0) {
-            $('#with_pvmeter').hide();
+            $('#with_mainsmeter').hide();
           } else {
+            $('#with_mainsmeter').show();
             $('#mainsmeter_description').text(data.modbus.mainsMeterText);
             $('#mainsmeter_phase_1').text((data.controller.Irms.L1 / 10).toFixed(1) + "A");
             $('#mainsmeter_phase_2').text((data.controller.Irms.L2 / 10).toFixed(1) + "A");
@@ -676,12 +677,12 @@
               </div>
             </div>
 
-            <div class="col-xl-3 col-md-6 mb-4" id="with_pvmeter">
+            <div class="col-xl-3 col-md-6 mb-4" id="with_mainsmeter">
               <div class="card shadow h-100 py-0 bg-body-tertiary">
                 <div class="card-body">
                   <div class="row g-0 align-items-center">
                     <div class="col">
-                      <h6 class="fw-bold text-uppercase mb-1">PV Meter</h6>
+                      <h6 class="fw-bold text-uppercase mb-1">Mains Meter</h6>
                       <div class="row g-0 align-items-center">
                         <div class="col-auto h5 mb-0 me-3">
                           <i class="bi bi-speedometer2"></i> Type:
