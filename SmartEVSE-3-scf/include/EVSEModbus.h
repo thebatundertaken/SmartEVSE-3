@@ -246,8 +246,6 @@ class EVSEModbus {
 
     void updateSettings();
     void resetSettings();
-    bool isGridActive();
-    void setGridActive(bool val);
     void evMeterResetKwhOnCharging();
     void setPvMeter(uint8_t value);
     void evMeterResetKwhOnStandby();
