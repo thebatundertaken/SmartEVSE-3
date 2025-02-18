@@ -58,9 +58,10 @@
 // Home+EVSE / 2: Home)
 #define MAINS_METER_MEASURE 0
 
-// Type of Grid connected to Sensorbox (4 Wire or 3 Wire)
+// Type of Grid connected to Sensorbox (3 phases 4 Wire or 3 Wire, single phase)
 #define GRID_4WIRE 0
 #define GRID_3WIRE 1
+#define GRID_SINGLE_PHASE 2
 
 // Sensorbox v2 has always address 0x0A
 #define MM_SENSORBOX_ADDRESS 0x0A

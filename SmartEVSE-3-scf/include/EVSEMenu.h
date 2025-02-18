@@ -124,7 +124,7 @@ const struct {
     {"MODE", I18N_MENU_MODE, 0, 2, MODE_NORMAL},
     // Max current of the EVSE circuit (A)
     {"CIRCUIT", I18N_MENU_CIRCUIT, 10, 160, MAX_CIRCUIT},
-    {"GRID", I18N_MENU_GRID, 0, 1, GRID_3WIRE},
+    {"GRID", I18N_MENU_GRID, 0, 2, GRID_3WIRE},
     {"SOL BOOST", I18N_MENU_SOLAR_BOOST, 0, 1, SOLAR_BOOST_DISABLED},
     // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
     // (Mode:Smart/Solar)

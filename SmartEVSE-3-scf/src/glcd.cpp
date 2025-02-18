@@ -630,14 +630,25 @@ void GLCDSmartSolarMode() {
         sprintf(LCDStr, I18N_CURRENTS_FORMAT_SOLAR, imeasured / 10, imeasured % 10);
         GLCD_write_buf_str(48, 1, LCDStr, GLCD_ALIGN_RIGHT);
     } else {
-        // Display L1, L2 and L3 currents on LCD
-        for (unsigned char phase = 0; phase < 3; phase++) {
-            // Bug fix: solar suplus between -0.1 and -0.9 was rendered as positive, due to zero is consider positive
+        // Display L1, L2 and L3 currents on LCD in Smart mode
+        if (evseModbus.grid == GRID_SINGLE_PHASE) {
+            // Display L1 only for single phase installations
             sprintf(LCDStr,
+                    (evseController.Irms[0] < 0 ? I18N_CURRENTS_FORMAT_SMART_SYMBOL : I18N_CURRENTS_FORMAT_SMART),
+                    (unsigned int)abs(evseController.Irms[0] / 10), (unsigned int)abs(evseController.Irms[0]) % 10);
+            GLCD_write_buf_str(48, 1, LCDStr, GLCD_ALIGN_RIGHT);
+        } else {
+            // Display L1, L2 and L3 currents on LCD
+            for (unsigned char phase = 0; phase < 3; phase++) {
+                // Bug fix: solar suplus between -0.1 and -0.9 was rendered as positive, due to zero is consider
+                // positive
+                sprintf(
+                    LCDStr,
                     (evseController.Irms[phase] < 0 ? I18N_CURRENTS_FORMAT_SMART_SYMBOL : I18N_CURRENTS_FORMAT_SMART),
                     (unsigned int)abs(evseController.Irms[phase] / 10),
                     (unsigned int)abs(evseController.Irms[phase]) % 10);
-            GLCD_write_buf_str(48, phase, LCDStr, GLCD_ALIGN_RIGHT);
+                GLCD_write_buf_str(48, phase, LCDStr, GLCD_ALIGN_RIGHT);
+            }
         }
     }
     GLCD_sendbuf(0, 4);

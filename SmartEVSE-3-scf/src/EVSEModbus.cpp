@@ -1357,11 +1357,12 @@ uint8_t EVSEModbus::receiveCurrentMeasurement(uint8_t* buf, uint8_t Meter, signe
                     }
                 }
             }
+
             // Set Sensorbox 2 to 3/4 Wire configuration (and phase Rotation)
-            // (v2.16)
             if (buf[1] >= 0x10 && offset == 7) {
-                if ((buf[1] & 0x3) != (grid << 1) && evseCluster.amIMasterOrLBDisabled()) {
-                    ModbusWriteSingleRequest(MM_SENSORBOX_ADDRESS, MODBUS_FUNCTION_SENSORBOX_GRID_REGISTER, grid << 1);
+                uint8_t modbusGrid = (grid == GRID_SINGLE_PHASE ? GRID_3WIRE : grid) << 1;
+                if (((buf[1] & 0x3) != modbusGrid) && evseCluster.amIMasterOrLBDisabled()) {
+                    ModbusWriteSingleRequest(MM_SENSORBOX_ADDRESS, MODBUS_FUNCTION_SENSORBOX_GRID_REGISTER, modbusGrid);
                 }
             }
             break;
