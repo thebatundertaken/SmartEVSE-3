@@ -74,7 +74,9 @@ void EVSEMenu::buildMenuItems() {
             // Sensorbox
             if (evseModbus.mainsMeter == MM_SENSORBOX) {
                 MenuItems[m++] = MENU_GRID;
-                MenuItems[m++] = MENU_SOLAR_BOOST;
+                if (evseController.mode == MODE_SMART) {
+                    MenuItems[m++] = MENU_SOLAR_BOOST;
+                }
             } else if (evseModbus.mainsMeter != MAINS_METER_DISABLED) {
                 MenuItems[m++] = MENU_MAINSMETERADDRESS;
                 MenuItems[m++] = MENU_MAINSMETERMEASURE;
@@ -256,7 +258,7 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
                 break;
             }
         case MENU_MODE:
-            evseController.mode = val;
+            evseController.switchMode(val);
             break;
         case MENU_SOLAR_START:
             evseController.solarStartCurrent = val;
@@ -537,7 +539,7 @@ uint8_t EVSEMenu::getPosInMenu() {
             return i + 1u;
     }
 
-    return 0;
+    return 1;
 }
 
 /**
@@ -560,18 +562,11 @@ uint16_t EVSEMenu::circleValues(uint8_t buttons, uint16_t value, uint16_t minVal
  * Navigate left/right in a menu of char array options
  */
 void EVSEMenu::prevNextMenuEntry(uint8_t buttons) {
-    // Rebuild menu, maybe some user selection added/changed menu values or
-    // entries
+    // Rebuild menu, maybe some user selection added/removed menu entries
     buildMenuItems();
 
     uint8_t posInMenu = getPosInMenu();
-
-    if (posInMenu-- == 0) {
-        EVSELogger::error("Programming error, menu option not found");
-        return;
-    }
-
-    posInMenu = circleValues(buttons, posInMenu, 0, menuItemsCount - 1u);
+    posInMenu = circleValues(buttons, --posInMenu, 0, menuItemsCount - 1u);
     currentMenuOption = MenuItems[posInMenu];
 }
 
