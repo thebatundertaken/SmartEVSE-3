@@ -174,6 +174,7 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
     doc["modbus"]["pvMeterText"] = geti18nStrMeterText(evseModbus.pvMeter);
     doc["modbus"]["lastCTResponseMillis"] = evseModbus.getLastCTResponse();
     doc["modbus"]["powerMeasured"] = evseModbus.powerMeasured;
+    doc["modbus"]["grid"] = evseModbus.grid;
     // in kWh, precision 1 decimal
     doc["modbus"]["evMeterEnergy"] = round(evseModbus.getEvMeterEnergy() / 100) / 10;
     // in kWh, precision 1 decimal
