@@ -338,6 +338,7 @@
 
           $('#temp').text(data.controller.temperature + "°C / " + data.controller.maxTemperature + "°C");
           $('#rfid').text((data.rfid.reader == 0) ? "Not installed" : "Enabled [" + data.rfid.statusText + "]");
+          $('#power_share').text((data.cluster.loadbl == 0) ? "Disabled" : (data.cluster.loadbl == 1 ? "Master" : "Node [" + data.cluster.loadbl + "]"));
           $('#rfid_access').text((data.rfid.accessBit == 0) ? "No access" : "Granted");
           if (data.rfid.reader == 0) {
             $('#rfid_access_box').hide();
@@ -349,11 +350,17 @@
           $('#current_min').text(data.controller.minEVCurrent.toFixed(0) + "A");
           $('#current_max').text(data.controller.maxMains.toFixed(0) + "A");
           $('#device_max').text(data.controller.maxDeviceCurrent.toFixed(0) + "A");
-          if (data.modbus.overrideCurrent > 0) {
-            $('#override_current').text((data.modbus.overrideCurrent / 10).toFixed(1) + "A");
+          if (data.cluster.loadbl > 0) {
+            $("#override_current_box").show();
+            if (data.modbus.overrideCurrent > 0) {
+              $('#override_current').text((data.modbus.overrideCurrent / 10).toFixed(1) + "A");
+            }
+            else {
+              $('#override_current').text("--");
+            }
           }
           else {
-            $('#override_current').text("--");
+            $("#override_current_box").hide();
           }
 
           $('#cable_max').text(data.controller.cableMaxCapacity.toFixed(0) + "A");
@@ -673,7 +680,7 @@
                           <div class="h5 mb-0 text-muted text-end" id="current_max"></div>
                         </div>
                       </div>
-                      <div class="row g-0 align-items-center">
+                      <div class="row g-0 align-items-center" id="override_current_box">
                         <div class="col-auto h5 mb-0 me-3">
                           <i class="bi bi-code"></i> Override:
                         </div>
@@ -861,6 +868,14 @@
                         </div>
                         <div class="col">
                           <div class="h5 mb-0 text-muted text-end" id="device_max"></div>
+                        </div>
+                      </div>
+                      <div class="row g-0 align-items-center">
+                        <div class="col-auto h5 mb-0 me-3">
+                          <i class="bi bi-diagram-3"></i> Power sharing:
+                        </div>
+                        <div class="col">
+                          <div class="h5 mb-0 text-muted text-end" id="power_share"></div>
                         </div>
                       </div>
                       <div class="row g-0 align-items-center">

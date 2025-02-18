@@ -168,6 +168,7 @@ void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
         doc["controller"]["switchOnTime"] = -1;
         doc["controller"]["switchOffTime"] = -1;
     }
+    doc["cluster"]["loadbl"] = evseCluster.getLoadBl();
 
     doc["modbus"]["mainsMeterText"] = geti18nStrMeterText(evseModbus.mainsMeter);
     doc["modbus"]["evMeterText"] = geti18nStrMeterText(evseModbus.evMeter);
