@@ -98,6 +98,9 @@ void EVSEController::switchMode(uint8_t newMode) {
     evseCluster.setMasterNodeControllerMode(mode);
 
     cleanupNoPowerTimersFlags();
+    if (mode != MODE_SMART) {
+        solarBoostCurrent = 0;
+    }
 }
 
 //  Change from Solar to Smart mode and vice versa
@@ -666,7 +669,7 @@ void EVSEController::setSolarBoost(bool active) {
 
 int16_t EVSEController::calcSolarBoostCurrent() {
     // Is solar boost on?
-    if (!solarBoost) {
+    if (!solarBoost || mode != MODE_SMART) {
         solarBoostCurrent = 0;
         return solarBoostCurrent;
     }
@@ -840,6 +843,7 @@ void EVSEController::sampleExternalSwitch() {
 void EVSEController::resetChargeCurrent() {
     //  Do not exceed cable max capacity
     setChargeCurrent(getMaxCurrentAvailable());
+    solarBoostCurrent = 0;
 }
 
 // Sample the Proximity Pin, and determine the maximum current the cable can
