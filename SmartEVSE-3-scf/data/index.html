@@ -272,7 +272,7 @@
           } else {
             $('[id=with_errors]').hide();
           }
-          $('#vehicle_connected').html(data.controller.vehicleConnected ? "<i class=\"bi bi-plug text-warning\"></i><span class=\"text-warning\">Vehicle connected</span>" : "<i class=\"bi bi-ev-station\"></i> Vehicle not detected");
+          $('#vehicle_connected').html(data.controller.vehicleConnected ? "<i class=\"bi bi-plug text-warning\"></i><span class=\"fw-bold text-warning-emphasis\"> Vehicle plugged-in</span>" : "<i class=\"bi bi-ev-front\"></i> No vehicle detected");
           if (data.controller.isCharging) {
             $('#state').html("<i class=\"bi-battery-charging\"></i> ");
           }
@@ -323,13 +323,19 @@
           $('#mode').text(data.controller.modeText);
           $('#config').html(data.controller.config == 0 ? "<i class=\"bi bi-outlet\"></i> Socket" : "<i class=\"bi bi-ev-station\"></i> Fixed cable");
           $('#charge_current').text((data.controller.chargeCurrent / 10).toFixed(1) + "A");
-          if (data.controller.solarBoost) {
-            $('#solar_boost_current').text((data.controller.solarBoostCurrent / 10).toFixed(1) + "A");
+
+          if (data.controller.mode != 1) {
+            $("#solar_boost_current_box").hide();
+            $("#solar_boost_check_box").hide();
           }
-          $("#solar_boost_check").prop("checked", data.controller.solarBoost ? true : false);
-          if (prevSolarBoost != data.controller.solarBoost) {
-            solarBoostChanged();
+          else {
+            $("#solar_boost_check_box").show();
+            renderSolarBoostCheck(data.controller.solarBoost);
+            if (data.controller.solarBoost) {
+              $('#solar_boost_current').text((data.controller.solarBoostCurrent / 10).toFixed(1) + "A");
+            }
           }
+
           $('#temp').text(data.controller.temperature + "°C / " + data.controller.maxTemperature + "°C");
           $('#rfid').text((data.rfid.reader == 0) ? "Not installed" : "Enabled [" + data.rfid.statusText + "]");
           $('#rfid_access').text((data.rfid.accessBit == 0) ? "No access" : "Granted");
@@ -387,8 +393,16 @@
             $('#with_mainsmeter').show();
             $('#mainsmeter_description').text(data.modbus.mainsMeterText);
             $('#mainsmeter_phase_1').text((data.controller.Irms.L1 / 10).toFixed(1) + "A");
-            $('#mainsmeter_phase_2').text((data.controller.Irms.L2 / 10).toFixed(1) + "A");
-            $('#mainsmeter_phase_3').text((data.controller.Irms.L3 / 10).toFixed(1) + "A");
+            if (data.modbus.grid != 2) {
+              $('#mainsmeter_phase_2_box').show();
+              $('#mainsmeter_phase_2').text((data.controller.Irms.L2 / 10).toFixed(1) + "A");
+              $('#mainsmeter_phase_3_box').show();
+              $('#mainsmeter_phase_3').text((data.controller.Irms.L3 / 10).toFixed(1) + "A");
+            }
+            else {
+              $('#mainsmeter_phase_2_box').hide();
+              $('#mainsmeter_phase_3_box').hide();
+            }
 
             if (data.modbus.lastCTResponseMillis > 0) {
               lastReceivedCTSeconds = data.modbus.lastCTResponseMillis;
@@ -453,8 +467,7 @@
       $.post("/settings?disableOperatingHours=y");
     }
 
-    function solarBoostChanged() {
-      let solarBoost = $("#solar_boost_check").prop("checked");
+    function renderSolarBoostCheck(solarBoost) {
       if (solarBoost) {
         $('#solar_boost_check_label').text("Active");
         $('#solar_boost_check').prop("checked", true);
@@ -465,6 +478,11 @@
         $('#solar_boost_check_label').text("Disabled");
         $('#solar_boost_check').prop("checked", false);
       }
+    }
+
+    function solarBoostChanged() {
+      let solarBoost = $("#solar_boost_check").prop("checked");
+      renderSolarBoostCheck(solarBoost);
 
       if (prevSolarBoost != solarBoost) {
         if (prevSolarBoost != null) {
@@ -700,7 +718,7 @@
                           <div class="h5 mb-0 text-muted text-end" id="mainsmeter_phase_1"></div>
                         </div>
                       </div>
-                      <div class="row g-0 align-items-center">
+                      <div class="row g-0 align-items-center" id="mainsmeter_phase_2_box">
                         <div class="col-auto h5 mb-0 me-3">
                           <i class="bi bi-lightning-charge"></i> L2:
                         </div>
@@ -708,7 +726,7 @@
                           <div class="h5 mb-0 text-muted text-end" id="mainsmeter_phase_2"></div>
                         </div>
                       </div>
-                      <div class="row g-0 align-items-center">
+                      <div class="row g-0 align-items-center" id="mainsmeter_phase_3_box">
                         <div class="col-auto h5 mb-0 me-3">
                           <i class="bi bi-lightning-charge"></i> L3:
                         </div>
@@ -895,7 +913,7 @@
                         </div>
                       </div>
 
-                      <div class="row g-0 align-items-center mb-3">
+                      <div class="row g-0 align-items-center mb-3" id="solar_boost_check_box">
                         <div class="col-auto h5 mb-3 me-3">
                           <i class="bi bi-sunrise"></i> Solar boost:
                         </div>
