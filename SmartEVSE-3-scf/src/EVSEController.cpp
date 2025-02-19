@@ -500,11 +500,10 @@ void EVSEController::setState(uint8_t NewState) {
             // Alarm every 1ms, auto reload
             timerAlarmWrite(timerA, PWM_100, true);
 
-            if (state == STATE_A_STANDBY) {
-                cleanupNoPowerTimersFlags();
-                evseModbus.evMeterResetKwhOnStandby();
-            }
+            cleanupNoPowerTimersFlags();
+            evseModbus.evMeterResetKwhOnStandby();
             chargeDelaySeconds = 0;
+            resetChargeCurrent();
             break;
 
         case STATE_B_VEHICLE_DETECTED:
