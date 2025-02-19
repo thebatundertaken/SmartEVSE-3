@@ -2,6 +2,7 @@ SmartEVSE v3
 =========
 
 Changes to original firmware v3.0.0
+- Adaptation for a 3 phases installation with 1 phase fixed cable
 - New solar boost feature to allow charging over max mains when solar power surplus available, useful for 3 phases installation and 1 phase charging cable
 - Fixed smart mode power rebalance on 3 phases grid
 - Device screen on Smart/Solar mode renders decimal amps for phases consumption

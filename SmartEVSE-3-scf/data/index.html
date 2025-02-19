@@ -223,10 +223,11 @@
     let intervalHandler = null;
     let prevSolarBoost = null;
     let lastCheckForUpdate = null;
+    let currentVersion = null;
 
-    function checkForUpdate(curVersion) {
+    function checkForUpdate(verbose = false, force = false) {
       //Check for update every 24h
-      if ((lastCheckForUpdate != null) && ((lastCheckForUpdate + 3600000) > Date.now())) {
+      if ((currentVersion == null) || (!force && ((lastCheckForUpdate != null) && ((lastCheckForUpdate + 3600000) > Date.now())))) {
         return;
       }
 
@@ -238,13 +239,22 @@
           try {
             lastCheckForUpdate = Date.now();
             let lastestV = data.name;
-            let currentV = ("v" + curVersion)
+            let currentV = ("v" + currentVersion)
+            let upToDate = true;
             if (currentV != lastestV) {
               console.log("Current version = " + currentV);
               console.log("Latest version = " + lastestV);
               $("#firmware_update_text").html("Firmware update available!<br /><a href=\"" + data.html_url + "\" target=\"_blank\" class=\"text-primary-emphasis\"> Release notes: " + lastestV + "</a > ");
               $("#firmware_update_available").show();
+              upToDate = false;
             }
+
+            if (verbose) {
+              const toast = bootstrap.Toast.getOrCreateInstance(document.getElementById("liveToast"));
+              $("#liveToast .toast-body").text(upToDate ? "You are enjoying SmartEVSE latest version" : "New version " + lastestV + " available!");
+              toast.show();
+            }
+
           }
           catch (error) {
             console.log(error);
@@ -302,10 +312,11 @@
             initiated = true;
             $('#hostname').text(data.hostname);
             $('#version').append(data.version);
+            currentVersion = data.version;
             document.title = data.hostname;
           }
 
-          checkForUpdate(data.version);
+          checkForUpdate();
 
           if (data.controller.error) {
             $('#error').text(data.controller.errorText);
@@ -501,13 +512,6 @@
     function resetFlags(level) {
       if (confirm("Are you sure you want to reset error flags?")) {
         $.post("/settings?resetFlags");
-      }
-    }
-
-    function modifyMainsMax() {
-      let value = prompt("Enter new Mains MAX value (5 - 80)");
-      if (value != null && parseInt(value) >= 5 && parseInt(value) <= 80) {
-        $.post("/settings?maxmains=" + parseInt(value));
       }
     }
 
@@ -1022,10 +1026,11 @@
                         <div class="row g-0 align-items-center mb-3">
                           <div class="col">
                             <button id="switch_off_time_button" onclick="disableOperatingHours()"
-                              class="btn btn-outline-secondary me-2 mb-2" type="button">Disable operating hours</button>
+                              class="btn btn-outline-secondary me-2 mb-2" type="button"><i class="bi bi-power"></i>
+                              Disable operating hours</button>
                             <button id="switch_on_time_button" onclick="enableOperatingHours()"
-                              class="btn btn-outline-secondary me-2 mb-2" type="button">Enable
-                              operating hours</button>
+                              class="btn btn-outline-secondary me-2 mb-2" type="button"><i
+                                class="bi bi-clock-history"></i> Enable operating hours</button>
                           </div>
                         </div>
                       </div>
@@ -1049,9 +1054,7 @@
                         <div class="col-auto h5 mb-0 mt-0 me-3">
                           <button class="btn btn-outline-secondary me-2 mb-2" type="button" data-bs-toggle="collapse"
                             data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample"
-                            onclick="$(this).hide()">
-                            Show advanced options
-                          </button>
+                            onclick="$(this).hide()"><i class="bi bi-gear"></i> Show advanced options</button>
                         </div>
                       </div>
 
@@ -1083,25 +1086,32 @@
                         </div>
                         <div class="row g-0 align-items-center mb-3">
                           <div class="col">
-                            <button onclick="rawData()" class="btn btn-outline-secondary me-2 mb-2" type="button">Raw
-                              Data</button>
-                            <button onclick="webSerial()" class="btn btn-outline-secondary me-2 mb-2"
-                              type="button">Console</button>
-                            <button onclick="resetFlags()" class="btn btn-outline-secondary me-2 mb-2"
-                              type="button">Clear
-                              errors</button>
-                            <button onclick="modifyMainsMax()" class="btn btn-outline-secondary me-2 mb-2"
-                              type="button">Modify Mains Max
-                            </button>
-                            <button onclick="update()" class="btn btn-outline-secondary me-2 mb-2" type="button">Update
-                              firmware</button>
-                            <button onclick="forceCharge()" class="btn btn-outline-secondary me-2 mb-2"
-                              type="button">Force
-                              Charge</button>
+                            <button onclick="rawData()" class="btn btn-outline-secondary me-2 mb-2" type="button"><i
+                                class="bi bi-file-binary"></i> Raw Data</button>
+                            <button onclick="webSerial()" class="btn btn-outline-secondary me-2 mb-2" type="button"><i
+                                class="bi bi-bug"></i> Console</button>
+                            <button onclick="resetFlags()" class="btn btn-outline-secondary me-2 mb-2" type="button"><i
+                                class="bi bi-eraser"></i> Clear errors</button>
+                            <button onclick="forceCharge()" class="btn btn-outline-secondary me-2 mb-2" type="button"><i
+                                class="bi bi-lightning"></i> Force Charge</button>
                             <button onclick="forceDisconnect()" class="btn btn-outline-secondary me-2 mb-2"
-                              type="button">Force Disconnect</button>
-                            <button onclick="reboot()" class="btn btn-outline-secondary me-2 mb-2"
-                              type="button">Reboot</button>
+                              type="button"><i class="bi bi-power"></i> Force Disconnect</button>
+                            <button onclick="reboot()" class="btn btn-outline-secondary me-2 mb-2" type="button"><i
+                                class="bi bi-bootstrap-reboot"></i> Reboot</button>
+                          </div>
+                        </div>
+
+                        <div class="row g-0 align-items-center mb-3">
+                          <div class="col-auto h5 mb-0 me-3">
+                            <i class="bi bi-cloud-arrow-down"></i> Firmware update:
+                          </div>
+                        </div>
+                        <div class="row g-0 align-items-center mb-3">
+                          <div class="col">
+                            <button onclick="checkForUpdate(true, true)" class="btn btn-outline-secondary me-2 mb-2"
+                              type="button"><i class="bi bi-tools"></i> Check for updates</button>
+                            <button onclick="update()" class="btn btn-outline-secondary me-2 mb-2" type="button"><i
+                                class="bi bi-sd-card"></i> Update firmware</button>
                           </div>
                         </div>
 
@@ -1119,6 +1129,17 @@
       </div>
     </div>
   </div>
+
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="liveToast" class="toast bg-success fs-5" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <strong class="me-auto">Check for updates</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body"></div>
+    </div>
+  </div>
+
 
 </body>
 
