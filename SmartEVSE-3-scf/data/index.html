@@ -57,12 +57,21 @@
       font-size: medium;
     }
 
+
     svg {
       fill: cornflowerblue;
     }
 
     #evse_data .col .row>* {
       min-width: 130px !important;
+    }
+
+    #firmware_update_available {
+      border-left: solid 8px #997404;
+    }
+
+    #evse_data #firmware_update_available .col-auto {
+      min-width: 40px !important;
     }
 
     #solar_boost_check_label {
@@ -213,6 +222,36 @@
     let lastReceivedCTSeconds = null;
     let intervalHandler = null;
     let prevSolarBoost = null;
+    let lastCheckForUpdate = null;
+
+    function checkForUpdate(curVersion) {
+      //Check for update every 24h
+      if ((lastCheckForUpdate != null) && ((lastCheckForUpdate + 3600000) > Date.now())) {
+        return;
+      }
+
+      let repoUri = "https://api.github.com/repos/thebatundertaken/SmartEVSE-3/releases/latest";
+      $.ajax({
+        url: repoUri
+      }).then(
+        function (data) {
+          try {
+            lastCheckForUpdate = Date.now();
+            let lastestV = data.name;
+            let currentV = ("v" + curVersion)
+            if (currentV != lastestV) {
+              console.log("Current version = " + currentV);
+              console.log("Latest version = " + lastestV);
+              $("#firmware_update_text").html("Firmware update available!<br /><a href=\"" + data.html_url + "\" target=\"_blank\" class=\"text-primary-emphasis\"> Release notes: " + lastestV + "</a > ");
+              $("#firmware_update_available").show();
+            }
+          }
+          catch (error) {
+            console.log(error);
+          }
+        }
+      );
+    }
 
     function updateLastReceivedCT() {
       if (lastReceivedCTSeconds != null) {
@@ -265,6 +304,8 @@
             $('#version').append(data.version);
             document.title = data.hostname;
           }
+
+          checkForUpdate(data.version);
 
           if (data.controller.error) {
             $('#error').text(data.controller.errorText);
@@ -582,6 +623,15 @@
                   <div class="row g-0 align-items-center">
                     <div class="col me-2">
                       <h3 class="fw-bold mb-1"><span id="hostname">EVSE</span> <span id="version">v</span></h3>
+                      <div class="row g-0 align-items-center bg-warning-subtle mb-2 mt-2 p-3 fs-5"
+                        id="firmware_update_available" style="display: none">
+                        <div class="col-auto">
+                          <i class="bi bi-download text-warning-emphasis fw-bold"></i>
+                        </div>
+                        <div class="col">
+                          <div id="firmware_update_text" class="text-warning-emphasis fw-bold"></div>
+                        </div>
+                      </div>
                       <div class="row g-0 align-items-center bg-light mb-2 ps-2" id="with_errors"
                         style="display: none;">
                         <div class="col-auto h5 mb-0 me-3 pb-2 pt-2 text-danger fw-bold">
