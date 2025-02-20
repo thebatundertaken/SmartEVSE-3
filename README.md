@@ -1,5 +1,6 @@
 SmartEVSE v3
 =========
+[![GitHub release](https://img.shields.io/github/release/thebatundertaken/SmartEVSE-3.svg)](https://github.com/thebatundertaken/SmartEVSE-3/releases)
 
 Changes to original firmware v3.0.0
 - Adaptation for a 3 phases installation with 1 phase fixed cable
