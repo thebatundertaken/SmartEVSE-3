@@ -376,16 +376,18 @@
           $('#config').html(data.controller.config == 0 ? "<i class=\"bi bi-outlet\"></i> Socket" : "<i class=\"bi bi-ev-station\"></i> Fixed cable");
           $('#charge_current').text((data.controller.chargeCurrent / 10).toFixed(1) + "A");
 
+          prevSolarBoost = data.controller.solarBoost;
           if (data.controller.mode != 1) {
             $("#solar_boost_current_box").hide();
             $("#solar_boost_check_box").hide();
           }
           else {
             $("#solar_boost_check_box").show();
-            renderSolarBoostCheck(data.controller.solarBoost);
+            $('#solar_boost_check').prop("checked", data.controller.solarBoost);
             if (data.controller.solarBoost) {
               $('#solar_boost_current').text((data.controller.solarBoostCurrent / 10).toFixed(1) + "A");
             }
+            renderSolarBoostCheck();
           }
 
           $('#temp').text(data.controller.temperature + "°C / " + data.controller.maxTemperature + "°C");
@@ -519,27 +521,24 @@
       $.post("/settings?disableOperatingHours=y");
     }
 
-    function renderSolarBoostCheck(solarBoost) {
+    function renderSolarBoostCheck() {
+      let solarBoost = $("#solar_boost_check").prop("checked");
       if (solarBoost) {
         $('#solar_boost_check_label').text("Active");
-        $('#solar_boost_check').prop("checked", true);
         $('#solar_boost_current_box').show();
       }
       else {
         $('#solar_boost_current_box').hide();
         $('#solar_boost_check_label').text("Disabled");
-        $('#solar_boost_check').prop("checked", false);
       }
     }
 
     function solarBoostChanged() {
-      let solarBoost = $("#solar_boost_check").prop("checked");
-      renderSolarBoostCheck(solarBoost);
+      renderSolarBoostCheck();
 
+      let solarBoost = $("#solar_boost_check").prop("checked");
       if (prevSolarBoost != solarBoost) {
-        if (prevSolarBoost != null) {
-          $.post("/settings?solarBoost=" + (solarBoost ? '1' : '0'));
-        }
+        $.post("/settings?solarBoost=" + (solarBoost ? '1' : '0'));
         prevSolarBoost = solarBoost;
       }
     }
