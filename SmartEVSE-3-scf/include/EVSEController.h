@@ -167,6 +167,8 @@ class EVSEController {
     void onVehicleStartCharging();
     void onDisconnectInProgress();
 
+    void forceDisconnect();
+    bool forceStartCharging();
     void disableOperatingHours();
     bool isOperatingHoursEnabled();
     bool isChargingInOperatingHours();

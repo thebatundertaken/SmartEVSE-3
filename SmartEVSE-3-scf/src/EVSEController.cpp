@@ -324,6 +324,21 @@ void EVSEController::onSolarStopTimer() {
     evseCluster.resetBalancedStates();
 }
 
+void EVSEController::forceDisconnect() {
+    onDisconnectInProgress();
+    setState(STATE_DISCONNECT_IN_PROGRESS);
+}
+
+bool EVSEController::forceStartCharging() {
+    if (evseController.state == STATE_C_CHARGING) {
+        return false;
+    }
+
+    evseController.onVehicleStartCharging();
+    evseController.setState(STATE_C_CHARGING);
+    return true;
+}
+
 void EVSEController::onDisconnectInProgress() {
     // PWM off, channel 0, duty cycle 0%
     ledcWrite(CP_CHANNEL, CONTROL_PILOT_DUTYCICLE_0);
