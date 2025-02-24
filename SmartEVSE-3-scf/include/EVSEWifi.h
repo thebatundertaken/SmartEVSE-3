@@ -43,9 +43,10 @@ static void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);
 
 class EVSEWifi {
    public:
-    EVSEWifi(){};
+    EVSEWifi() {};
 
     void setup();
+
     void setWifiMode(const uint8_t newMode);
     const uint8_t getWifiMode();
     const char* getApHostname();
@@ -59,6 +60,7 @@ class EVSEWifi {
     bool isPortalReady();
     uint8_t getPortalCountdownSeconds();
     IPAddress getLlocalIp();
+    void onWiFiStationDisconnected();
     void onWiFiStationGotIp();
 
     uint8_t wifiMode = WIFI_MODE_DISABLED;
@@ -67,6 +69,9 @@ class EVSEWifi {
     TaskHandle_t startPortalTaskHandle = NULL;
     static void startPortalTask();
     void endPortalTask();
+    TaskHandle_t wifiReconnectTaskHandle = NULL;
+    static void startWifiReconnectTask();
+    void endWifiReconnectTask();
     static void getSettings(AsyncWebServerRequest* request);
     static void postSettings(AsyncWebServerRequest* request);
     static void postReboot(AsyncWebServerRequest* request);

@@ -84,41 +84,45 @@ void EVSEWifi::wifiSetup() {
         EVSELogger::info(sprintfStr);
     }
 
+    // Manual reconnect due to WiFi.setAutoReconnect(true) limitations
     WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
     WiFi.onEvent(WiFiStationGotIp, ARDUINO_EVENT_WIFI_STA_GOT_IP);
-    //  WiFi.onEvent(onWifiStop, SYSTEM_EVENT_AP_STOP);
 
     configTzTime(TZ_INFO, NTP_SERVER);
 }
-
-/*void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info)
-{
-  EVSELogger::debug("[EVSEWiFi] WiFi connection lost");
-  // try to reconnect when not connected to AP
-  if (WiFi.getMode() != WIFI_AP_STA)
-  {
-    EVSELogger::debug("[EVSEWiFi] Trying to Reconnect");
-    WiFi.begin();
-  }
-}*/
 
 void WiFiStationGotIp(WiFiEvent_t event, WiFiEventInfo_t info) {
     evseWifi.onWiFiStationGotIp();
 }
 
 void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
-    EVSELogger::debug("[EVSEWiFi] WiFi connection lost");
+    evseWifi.onWiFiStationDisconnected();
+}
+
+void EVSEWifi::onWiFiStationDisconnected() {
+    EVSELogger::info("[EVSEWiFi] WiFi connection lost");
+
     // try to reconnect when not connected to AP
-    if (WiFi.getMode() != WIFI_AP_STA) {
-        EVSELogger::debug("[EVSEWiFi] Trying to reconnect");
-        // WiFi.begin();
+    if (WiFi.getMode() == WIFI_AP_STA) {
+        EVSELogger::info("[EVSEWiFi] Portal mode detected, no need to reconnect");
+        return;
     }
+
+    if (wifiReconnectTaskHandle != NULL) {
+        EVSELogger::debug("[EVSEWiFi] Race condition detected on disconnect task");
+        return;
+    }
+
+    EVSELogger::info("[EVSEWiFi] Starting WiFi reconnect task...");
+    xTaskCreate((TaskFunction_t)&startWifiReconnectTask, "startWifiReconnectTask", 16384, NULL, 1,
+                &wifiReconnectTaskHandle);
 }
 
 void EVSEWifi::onWiFiStationGotIp() {
     localIp = WiFi.localIP();
     sprintf(sprintfStr, "[EVSEWifi] Connected to AP: %s; Local IP: %s", WiFi.SSID(), localIp);
     EVSELogger::info(sprintfStr);
+    endWifiReconnectTask();
 }
 
 IPAddress EVSEWifi::getLlocalIp() {
@@ -302,8 +306,7 @@ void EVSEWifi::postReboot(AsyncWebServerRequest* request) {
 
 void EVSEWifi::forceDisconnect(AsyncWebServerRequest* request) {
     DynamicJsonDocument doc(200);
-    evseController.onDisconnectInProgress();
-    evseController.setState(STATE_DISCONNECT_IN_PROGRESS);
+    evseController.forceDisconnect();
     doc["forceDisconnect"] = true;
 
     String json;
@@ -313,13 +316,7 @@ void EVSEWifi::forceDisconnect(AsyncWebServerRequest* request) {
 
 void EVSEWifi::forceCharge(AsyncWebServerRequest* request) {
     DynamicJsonDocument doc(200);
-    if (evseController.state != STATE_C_CHARGING) {
-        evseController.onVehicleStartCharging();
-        evseController.setState(STATE_C_CHARGING);
-        doc["forceCharge"] = true;
-    } else {
-        doc["forceCharge"] = false;
-    }
+    doc["forceCharge"] = evseController.forceStartCharging();
 
     String json;
     serializeJson(doc, json);
@@ -383,6 +380,14 @@ void EVSEWifi::startConfigPortal() {
     }
 }
 
+void EVSEWifi::startPortalTask() {
+    // Wait 5 seconds before starting the portal
+    vTaskDelay((PORTAL_START_WAIT_SECONDS * 1000) / portTICK_PERIOD_MS);
+
+    EVSELogger::info("[EVSEWiFi] Starting wifi config portal...");
+    evseWifi.startConfigPortal();
+}
+
 void EVSEWifi::endPortalTask() {
     if (startPortalTaskHandle != NULL) {
         vTaskDelete(startPortalTaskHandle);
@@ -390,12 +395,41 @@ void EVSEWifi::endPortalTask() {
     }
 }
 
-void EVSEWifi::startPortalTask() {
-    // Wait 5 seconds before starting the portal
-    vTaskDelay((PORTAL_START_WAIT_SECONDS * 1000) / portTICK_PERIOD_MS);
+void EVSEWifi::startWifiReconnectTask() {
+    uint32_t attempt = 1;
+    uint32_t exponentialDelay = 15000;
+    uint32_t maxDelay = 60000;
+    char buffer[250];
+    while (1) {
+        if (evseWifi.wifiMode == WIFI_MODE_DISABLED) {
+            EVSELogger::info("[EVSEWiFi] Wifi disabled, no need to reconnect");
+            return;
+        }
 
-    EVSELogger::info("[EVSEWiFi] Starting wifi config portal...");
-    evseWifi.startConfigPortal();
+        if (WiFi.status() == WL_CONNECTED) {
+            EVSELogger::info("[EVSEWiFi] Connected to Wifi, no need to reconnect");
+            return;
+        }
+
+        sprintf(buffer, "[EVSEWiFi] Trying to reconnect [attempt %u]", attempt++);
+        EVSELogger::info(buffer);
+
+        WiFi.disconnect();
+        WiFi.reconnect();
+
+        exponentialDelay = _min(exponentialDelay + 1000, maxDelay);
+        vTaskDelay(exponentialDelay / portTICK_PERIOD_MS);
+    }
+
+    EVSELogger::info("[EVSEWiFi] Reconnect loop done");
+}
+
+void EVSEWifi::endWifiReconnectTask() {
+    if (wifiReconnectTaskHandle != NULL) {
+        vTaskDelete(wifiReconnectTaskHandle);
+        wifiReconnectTaskHandle = NULL;
+        EVSELogger::info("[EVSEWiFi] Reconnect task deleted");
+    }
 }
 
 void EVSEWifi::setWifiMode(const uint8_t newMode) {
@@ -405,8 +439,9 @@ void EVSEWifi::setWifiMode(const uint8_t newMode) {
 
     wifiMode = newMode;
 
-    // Stop portal thread
+    // Stop portal and wifiReconnect threads
     endPortalTask();
+    endWifiReconnectTask();
 
     switch (newMode) {
         case WIFI_MODE_ENABLED:
@@ -418,7 +453,8 @@ void EVSEWifi::setWifiMode(const uint8_t newMode) {
                 EVSELogger::info("[EVSEWifi] Starting WiFi...");
                 WiFi.mode(WIFI_STA);
                 WiFi.begin();
-                WiFi.setAutoReconnect(true);
+                // setAutoReconnect fails if WiFi is down for several minutes (ex: router firmware update)
+                // WiFi.setAutoReconnect(true);
             }
             break;
 
