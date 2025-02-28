@@ -19,6 +19,7 @@
  */
 
 #include "EVSEWifi.h"
+#include "EVSENetwork.h"
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -33,12 +34,9 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "EVSECluster.h"
 #include "EVSEController.h"
 #include "EVSELogger.h"
-#include "EVSEModbus.h"
 #include "EVSEOTA.h"
-#include "EVSERFID.h"
 #include "i18n.h"
 #include "main.h"
 
@@ -129,224 +127,36 @@ IPAddress EVSEWifi::getLlocalIp() {
     return localIp;
 }
 
-void EVSEWifi::getSettings(AsyncWebServerRequest* request) {
-    DynamicJsonDocument doc(1200);
-    doc["version"] = String(EVSE_VERSION);
-    doc["hostname"] = String(evseWifi.apHostname);
-
-    doc["controller"]["vehicleConnected"] = evseController.isVehicleConnected();
-    doc["controller"]["isCharging"] = evseController.state == STATE_C_CHARGING;
-    doc["controller"]["minEVCurrent"] = evseController.minEVCurrent;
-    doc["controller"]["maxMains"] = evseController.maxMains;
-    doc["controller"]["maxDeviceCurrent"] = evseController.maxDeviceCurrent;
-    doc["controller"]["solarBoost"] = evseController.isSolarBoost();
-    doc["controller"]["solarBoostCurrent"] = evseController.getSolarBoostCurrent();
-    doc["controller"]["mode"] = evseController.mode;
-    doc["controller"]["modeText"] = evseController.mode == MODE_SMART
-                                        ? i18nStrSmart
-                                        : (evseController.mode == MODE_SOLAR ? i18nStrSolar : i18nStrNormal);
-    doc["controller"]["config"] = evseController.config;
-    doc["controller"]["state"] = evseController.state;
-    doc["controller"]["stateText"] = geti18nStateText(evseController.state);
-    doc["controller"]["error"] = evseController.errorFlags;
-    doc["controller"]["errorText"] =
-        (evseController.errorFlags != 0) ? geti18nErrorText(evseController.errorFlags) : "";
-    doc["controller"]["temperature"] = evseController.temperature;
-    doc["controller"]["maxTemperature"] = evseController.maxTemperature;
-    doc["controller"]["Irms"]["L1"] = evseController.Irms[0];
-    doc["controller"]["Irms"]["L2"] = evseController.Irms[1];
-    doc["controller"]["Irms"]["L3"] = evseController.Irms[2];
-    doc["controller"]["cableMaxCapacity"] = evseController.getCableMaxCapacity();
-    doc["controller"]["chargeDelaySeconds"] = evseController.getChargeDelaySeconds();
-    doc["controller"]["chargeCurrent"] = evseController.getChargeCurrent();
-    doc["controller"]["solarStopTimeMinutes"] = evseController.solarStopTimeMinutes;
-    doc["controller"]["solarStartCurrent"] = evseController.solarStartCurrent;
-    doc["controller"]["solarImportCurrent"] = evseController.solarImportCurrent;
-    doc["controller"]["solarStopTimer"] = evseController.solarStopTimer;
-    uint16_t localTime = evseWifi.getNTPLocalTime();
-    doc["controller"]["time"] = localTime == UINT16_MAX ? -1 : localTime;
-    if (evseController.isOperatingHoursEnabled()) {
-        doc["controller"]["switchOnTime"] = evseController.getOperatingHoursOnTime();
-        doc["controller"]["switchOffTime"] = evseController.getOperatingHoursOffTime();
-    } else {
-        doc["controller"]["switchOnTime"] = -1;
-        doc["controller"]["switchOffTime"] = -1;
-    }
-    doc["cluster"]["loadbl"] = evseCluster.getLoadBl();
-
-    doc["modbus"]["mainsMeterText"] = geti18nStrMeterText(evseModbus.mainsMeter);
-    doc["modbus"]["evMeterText"] = geti18nStrMeterText(evseModbus.evMeter);
-    doc["modbus"]["pvMeterText"] = geti18nStrMeterText(evseModbus.pvMeter);
-    doc["modbus"]["lastCTResponseMillis"] = evseModbus.getLastCTResponse();
-    doc["modbus"]["powerMeasured"] = evseModbus.powerMeasured;
-    doc["modbus"]["grid"] = evseModbus.grid;
-    // in kWh, precision 1 decimal
-    doc["modbus"]["evMeterEnergy"] = round(evseModbus.getEvMeterEnergy() / 100) / 10;
-    // in kWh, precision 1 decimal
-    doc["modbus"]["energyCharged"] = round(evseModbus.energyCharged / 100) / 10;
-    doc["modbus"]["overrideCurrent"] = evseCluster.getOverrideCurrent();
-
-    doc["rfid"]["reader"] = evseRFID.RFIDReader;
-    doc["rfid"]["status"] = evseRFID.RFIDstatus;
-    doc["rfid"]["statusText"] = evseRFID.isEnabled() ? geti18nRfidStatusText(evseRFID.RFIDstatus) : "";
-    doc["rfid"]["accessBit"] = evseRFID.rfidAccessBit == RFID_ACCESS_GRANTED ? true : false;
-
-    doc["nerd"]["controller"]["CP"] = evseController.getControlPilot();
-    doc["nerd"]["maxCurrentAvailable"] = evseController.getMaxCurrentAvailable();
-    doc["nerd"]["errorFlags"] = evseController.errorFlags;
-    doc["nerd"]["chargeDelaySeconds"] = evseController.errorFlags;
-    doc["nerd"]["logLevel"] = EVSELogger::LogLevel;
-    doc["nerd"]["clusterCurrent"] = evseCluster.getClusterCurrent();
-    doc["nerd"]["DEBUG_LAST_CHARGE_REBALANCE_CALC"] = evseCluster.DEBUG_LAST_CHARGE_REBALANCE_CALC;
-
-    String json;
-    serializeJson(doc, json);
-
-    AsyncWebServerResponse* response = request->beginResponse(200, "application/json", json);
-    response->addHeader("Access-Control-Allow-Origin", "*");
-    request->send(response);
-}
-
-void EVSEWifi::postSettings(AsyncWebServerRequest* request) {
-    DynamicJsonDocument doc(512);
-    bool updateSettings = false;
-
-    if (request->hasParam("mode")) {
-        String mode = request->getParam("mode")->value();
-        updateSettings = true;
-        switch (mode.toInt()) {
-            case MODE_NORMAL:
-                evseController.setAccess(true);
-                evseController.switchMode(MODE_NORMAL);
-                break;
-
-            case MODE_SOLAR:
-                evseController.setAccess(true);
-                evseController.switchMode(MODE_SOLAR);
-                break;
-
-            case MODE_SMART:
-                evseController.setAccess(true);
-                evseController.switchMode(MODE_SMART);
-                break;
-
-            default:
-                updateSettings = false;
-                mode = "ERROR: Value not allowed!";
-        }
-        doc["mode"] = mode;
-    }
-
-    if (request->hasParam("loglevel")) {
-        String value = request->getParam("loglevel")->value();
-        uint8_t logLevel = _max((uint8_t)value.toInt(), LOG_LEVEL_DEBUG);
-        logLevel = _min(logLevel, LOG_LEVEL_ERROR);
-        EVSELogger::LogLevel = logLevel;
-        doc["mode"] = "OK";
-    }
-
-    if (request->hasParam("resetFlags")) {
-        evseController.errorFlags = ERROR_FLAG_NO_ERROR;
-        doc["mode"] = "OK";
-    }
-    if (request->hasParam("maxmains")) {
-        int maxMainsVal = request->getParam("maxmains")->value().toInt();
-        if (maxMainsVal >= evseController.minEVCurrent && maxMainsVal <= evseController.maxDeviceCurrent) {
-            evseController.maxMains = maxMainsVal;
-            updateSettings = true;
-            doc["mode"] = "OK";
-        } else {
-            doc["mode"] = "ERROR: Value not allowed!";
-        }
-    }
-
-    if (request->hasParam("disableOperatingHours")) {
-        evseController.disableOperatingHours();
-        doc["mode"] = "OK";
-    }
-
-    if (request->hasParam("enableOperatingHours")) {
-        int onTime = request->getParam("switchon")->value().toInt();
-        int offTime = request->getParam("switchoff")->value().toInt();
-        if (onTime >= 0 && onTime <= 2359 && offTime >= 0 && offTime <= 2359 && onTime != offTime) {
-            evseController.setOperatingHours(onTime, offTime);
-            doc["mode"] = "OK";
-        } else {
-            doc["mode"] = "ERROR: Value not allowed!";
-        }
-    }
-
-    if (request->hasParam("solarBoost")) {
-        bool active = request->getParam("solarBoost")->value().toInt() == 1;
-        evseController.setSolarBoost(active);
-        updateSettings = true;
-        doc["mode"] = "OK";
-    }
-
-    if (updateSettings) {
-        evseController.updateSettings();
-    }
-
-    String json;
-    serializeJson(doc, json);
-
-    request->send(200, "application/json", json);
-}
-
-void EVSEWifi::postReboot(AsyncWebServerRequest* request) {
-    ESP.restart();
-
-    DynamicJsonDocument doc(200);
-    doc["reboot"] = true;
-
-    String json;
-    serializeJson(doc, json);
-    request->send(200, "application/json", json);
-}
-
-void EVSEWifi::forceDisconnect(AsyncWebServerRequest* request) {
-    DynamicJsonDocument doc(200);
-    evseController.forceDisconnect();
-    doc["forceDisconnect"] = true;
-
-    String json;
-    serializeJson(doc, json);
-    request->send(200, "application/json", json);
-}
-
-void EVSEWifi::forceCharge(AsyncWebServerRequest* request) {
-    DynamicJsonDocument doc(200);
-    doc["forceCharge"] = evseController.forceStartCharging();
-
-    String json;
-    serializeJson(doc, json);
-    request->send(200, "application/json", json);
-}
-
 void EVSEWifi::startwebServer() {
     webServer->on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
         EVSELogger::debug("[EVSEWiFi] page / (root) requested and sent");
         request->send(SPIFFS, "/index.html");
     });
 
-    webServer->on("/update", HTTP_GET, EVSEOTA::updateGETRequestHandler);
+    webServer->on("/update", HTTP_GET, [](AsyncWebServerRequest* request) {
+        EVSELogger::debug("[EVSEWiFi] page / (root) requested and sent");
+        request->send(SPIFFS, "/update.html");
+    });
+
     webServer->on("/update", HTTP_POST, EVSEOTA::updatePOSTRequestHandler, EVSEOTA::updateMultipartUploadHandler);
 
-    webServer->on("/settings", HTTP_GET, EVSEWifi::getSettings);
+    webServer->on("/currents", HTTP_POST, EVSENetwork::postSensorboxReadings);
+
+    webServer->on("/settings", HTTP_GET, EVSENetwork::getWebUIData);
     webServer->on(
-        "/settings", HTTP_POST, EVSEWifi::postSettings,
+        "/settings", HTTP_POST, EVSENetwork::postSettings,
         [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
 
     webServer->on(
-        "/reboot", HTTP_POST, EVSEWifi::postReboot,
+        "/reboot", HTTP_POST, EVSENetwork::postReboot,
         [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
 
     webServer->on(
-        "/forcecharge", HTTP_GET, EVSEWifi::forceCharge,
+        "/forcecharge", HTTP_GET, EVSENetwork::forceCharge,
         [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
 
     webServer->on(
-        "/forcedisconnect", HTTP_GET, EVSEWifi::forceDisconnect,
+        "/forcedisconnect", HTTP_GET, EVSENetwork::forceDisconnect,
         [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {});
 
     webServer->serveStatic("/", SPIFFS, "/");

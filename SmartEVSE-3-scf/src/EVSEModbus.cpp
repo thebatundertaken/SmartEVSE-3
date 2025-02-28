@@ -194,27 +194,21 @@ void EVSEModbus::modbusMainsMeterResponseHandler(ModbusMessage msg) {
     if (MB.Register == EMConfig[mainsMeter].IRegister && MB.Type == MODBUS_RESPONSE) {
         // Serial.print("Mains Meter Response\n");
         x = receiveCurrentMeasurement(MB.Data, mainsMeter, CM);
-        // only reset timeout when data is ok, and Master/Disabled
-        if (x && evseCluster.amIMasterOrLBDisabled()) {
-            // Clear communication error, if present
-            if (evseController.errorFlags & ERROR_FLAG_CT_NOCOMM) {
-                evseController.errorFlags &= ~ERROR_FLAG_CT_NOCOMM;
-            }
-            lastCTResponseMillis = millis();
-        }
 
-        for (x = 0; x < 3; x++) {
-            // Calculate difference of Mains and PV electric meter
-            if (pvMeter != PV_METER_DISABLED) {
-                // CurrentMeter and PV resolution are 1mA
-                CM[x] = CM[x] - PV[x];
+        // when data is ok
+        if (x) {
+            for (x = 0; x < 3; x++) {
+                // Calculate difference of Mains and PV electric meter
+                if (pvMeter != PV_METER_DISABLED) {
+                    // CurrentMeter and PV resolution are 1mA
+                    CM[x] = CM[x] - PV[x];
+                }
+
+                // sprintf(sprintfStr, "[EVSEModbus] mains meter L[%u] = %d", x, (signed int)(CM[x] / 100));
+                // EVSELogger::info(sprintfStr);
             }
 
-            // sprintf(sprintfStr, "[EVSEModbus] mains meter L[%u] = %d", x, (signed int)(CM[x] / 100));
-            // EVSELogger::info(sprintfStr);
-
-            // reduce resolution of Irms to 100mA
-            evseController.Irms[x] = (signed int)(CM[x] / 100);
+            evseController.mainsMeterReadings(CM[0], CM[1], CM[2]);
         }
     }
 }
@@ -856,7 +850,8 @@ void EVSEModbus::setup() {
 
 void EVSEModbus::loop() {
     // ctCommTimeout if CT current measurement takes > 10 secs
-    if (evseController.mode != MODE_NORMAL && (millis() - lastCTResponseMillis) > DEFAULT_CT_COMM_TIMEOUT) {
+    if (evseController.mode != MODE_NORMAL &&
+        (millis() - evseController.getLastMainsMeterResponse()) > DEFAULT_CT_COMM_TIMEOUT) {
         EVSELogger::debug("[EVSEModbus] CT communication lost");
         evseController.onCTCommunicationLost();
     }

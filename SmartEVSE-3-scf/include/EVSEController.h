@@ -153,6 +153,8 @@ class EVSEController {
     void onCTCommunicationLost();
     void onNodeReceivedError(uint8_t newErrorFlags);
 
+    long getLastMainsMeterResponse();
+
     uint16_t getChargeCurrent() { return chargeCurrent; };
     void setChargeCurrent(uint16_t value);
 
@@ -166,6 +168,8 @@ class EVSEController {
     void onVehicleConnected();
     void onVehicleStartCharging();
     void onDisconnectInProgress();
+
+    void mainsMeterReadings(int32_t L1, int32_t L2, int32_t L3);
 
     void forceDisconnect();
     bool forceStartCharging();
@@ -280,6 +284,8 @@ class EVSEController {
     esp_adc_cal_characteristics_t* adc_chars_CP;
     esp_adc_cal_characteristics_t* adc_chars_PP;
     esp_adc_cal_characteristics_t* adc_chars_Temperature;
+
+    unsigned long lastMainsMeterResponseMillis = 0;
 
     hw_timer_t* timerA = NULL;
     char sprintfStr[128];

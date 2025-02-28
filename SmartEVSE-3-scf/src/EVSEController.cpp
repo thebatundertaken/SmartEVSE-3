@@ -417,6 +417,26 @@ void EVSEController::onChargeCurrentChanged() {
     openElectricCircuit();
 }
 
+void EVSEController::mainsMeterReadings(int32_t L1, int32_t L2, int32_t L3) {
+    if (evseCluster.amIMasterOrLBDisabled()) {
+        // Clear communication error, if present
+        if (errorFlags & ERROR_FLAG_CT_NOCOMM) {
+            errorFlags &= ~ERROR_FLAG_CT_NOCOMM;
+        }
+        lastMainsMeterResponseMillis = millis();
+    }
+
+    // TODO SCF integrate with power meter in EM_API
+    //  reduce resolution of Irms to 100mA
+    Irms[0] = (signed int)(L1 / 100);
+    Irms[1] = (signed int)(L2 / 100);
+    Irms[2] = (signed int)(L3 / 100);
+}
+
+long EVSEController::getLastMainsMeterResponse() {
+    return lastMainsMeterResponseMillis == 0 ? -1 : millis() - lastMainsMeterResponseMillis;
+};
+
 // Set Charge Current
 // Current in Amps * 10 (160 = 16A)
 void EVSEController::setCurrent(uint16_t current) {

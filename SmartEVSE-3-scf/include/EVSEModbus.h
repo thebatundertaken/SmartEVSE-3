@@ -249,7 +249,6 @@ class EVSEModbus {
     void evMeterResetKwhOnCharging();
     void setPvMeter(uint8_t value);
     void evMeterResetKwhOnStandby();
-    long getLastCTResponse() { return lastCTResponseMillis == 0 ? -1 : millis() - lastCTResponseMillis; };
 
     int32_t getEvMeterEnergy() { return evMeterEnergy; };
 
@@ -330,7 +329,6 @@ class EVSEModbus {
     void modbusWorkflowSolarSmartMode();
 
     // last CT communication, to calculate timeout
-    unsigned long lastCTResponseMillis = 0;
     unsigned long lastCTRequestMillis = 0;
     // Flag to request Modbus information
     uint8_t workflowModbusRequest = WORKFLOW_FINISHED;

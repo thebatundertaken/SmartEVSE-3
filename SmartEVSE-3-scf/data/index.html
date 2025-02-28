@@ -465,8 +465,8 @@
               $('#mainsmeter_phase_3_box').hide();
             }
 
-            if (data.modbus.lastCTResponseMillis > 0) {
-              lastReceivedCTSeconds = data.modbus.lastCTResponseMillis;
+            if (data.modbus.lastMainsMeterResponse > 0) {
+              lastReceivedCTSeconds = data.modbus.lastMainsMeterResponse;
               if (intervalHandler == null) {
                 updateLastReceivedCT();
                 $('[id=with_p1_api_data]').show();
