@@ -851,7 +851,7 @@ void EVSEModbus::setup() {
 void EVSEModbus::loop() {
     // ctCommTimeout if CT current measurement takes > 10 secs
     if (evseController.mode != MODE_NORMAL &&
-        (millis() - evseController.getLastMainsMeterResponse()) > DEFAULT_CT_COMM_TIMEOUT) {
+        (millis() - evseController.getLastMainsMeterResponseMillis()) > DEFAULT_CT_COMM_TIMEOUT) {
         EVSELogger::debug("[EVSEModbus] CT communication lost");
         evseController.onCTCommunicationLost();
     }

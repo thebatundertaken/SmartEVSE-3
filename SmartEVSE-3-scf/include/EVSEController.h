@@ -154,6 +154,7 @@ class EVSEController {
     void onNodeReceivedError(uint8_t newErrorFlags);
 
     long getLastMainsMeterResponse();
+    long getLastMainsMeterResponseMillis() { return lastMainsMeterResponseMillis; };
 
     uint16_t getChargeCurrent() { return chargeCurrent; };
     void setChargeCurrent(uint16_t value);
