@@ -13,6 +13,7 @@ Changes to original firmware v3.0.0
 - New RGB leds enabled/disabled menu and settings
 - Massive code refactor to C++ objects
 - Improved timers and tasks
+- Support for API meter readings (Sensorbox v2)
 - Special thanks to **serkri** for his work (https://github.com/serkri/SmartEVSE-3)
 
 ![Status page](./pictures/statuspage.jpg)
