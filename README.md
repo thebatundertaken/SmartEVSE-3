@@ -74,11 +74,30 @@ File `firmware.bin` contains C++ compiled code and file `spiffs.bin` contains em
 
 
 $~$
-### Option 2: USB flashing (Windows OS)
-* InstallDriver for Virtual Port https://www.silabs.com/documents/public/software/CP210x_VCP_Windows.zip
-* Open `platformio.ini` file and replace COM4 port with your SmartEVSE device port (check via Windows device manager)
-* Upload via USB configured in platformio.ini: platformio run --target upload
-* Flash `spiffs.bin` archive (recommended via WiFi flashing)
+### Option 2: USB flashing
+* **Windows users**: Install driver for Virtual Port https://www.silabs.com/documents/public/software/CP210x_VCP_Windows.zip
+* Open `platformio.ini` file and replace COM4 port with your SmartEVSE device port *(check via Windows device manager, Linux users: the device will present itself usually as /dev/ttyUSB0)*
+
+You can use the following flashing software:
+
+  1. **PlatformIO**:
+     ```
+     pio run -t upload
+     pio run -t uploadfs
+     ```
+
+     THIS IS THE PREFERRED WAY, because it also flashes your bootloader and the partitions.bin; so whatever you messed up, this will fix it!
+
+  2. **ESPTool**:
+     ```
+     sudo apt install esptool
+     esptool --port /dev/ttyUSB0 write_flash 0x10000 firmware.bin
+     esptool --port /dev/ttyUSB0 write_flash 0x1c0000 firmware.bin 
+     ```
+  3. Flash it with a **3rd party tool**:
+     A nice 3rd party tool can be found here: https://github.com/marcelstoer/nodemcu-pyflasher
+     Follow the instructions in the screenshot posted here: https://github.com/dingo35/SmartEVSE-3.5/issues/79
+     Remember to flash to both partitions, `0x10000` and `0x1c0000` !!!
 
 $~$
 ## Embeded webserver HTML content
