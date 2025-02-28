@@ -128,15 +128,9 @@ IPAddress EVSEWifi::getLlocalIp() {
 }
 
 void EVSEWifi::startwebServer() {
-    webServer->on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-        EVSELogger::debug("[EVSEWiFi] page / (root) requested and sent");
-        request->send(SPIFFS, "/index.html");
-    });
+    webServer->on("/", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(SPIFFS, "/index.html"); });
 
-    webServer->on("/update", HTTP_GET, [](AsyncWebServerRequest* request) {
-        EVSELogger::debug("[EVSEWiFi] page / (root) requested and sent");
-        request->send(SPIFFS, "/update.html");
-    });
+    webServer->on("/update", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(SPIFFS, "/update.html"); });
 
     webServer->on("/update", HTTP_POST, EVSEOTA::updatePOSTRequestHandler, EVSEOTA::updateMultipartUploadHandler);
 
