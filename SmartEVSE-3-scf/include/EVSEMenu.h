@@ -137,7 +137,7 @@ const struct {
     {"SOL IMPORT", I18N_MENU_IMPORT, 0, 20, SOLAR_IMPORT_CURRENT},
 
     // Type of Mains electric meter (0: Disabled / Constants EM_*)
-    {"MAINS METER", I18N_MENU_MAINEM, 1, MM_CUSTOM, MM_SENSORBOX},
+    {"MAINS METER", I18N_MENU_MAINEM, 0, MM_CUSTOM, MM_SENSORBOX},
     // Address of Mains electric meter (5 - 254)
     {"MAINS ADDR", I18N_MENU_MAINAD, MIN_EV_METER_ADDRESS, MAX_EV_METER_ADDRESS, MAINS_METER_ADDRESS},
     // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1:
