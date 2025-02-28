@@ -53,8 +53,8 @@ const char i18nStrRFIDStatus[8][20] = {"Ready",
                                        "Card not in storage",
                                        "Card storage full",
                                        "Invalid"};
-const char i18nStrMeter[9][20] = {"Disabled", "Sensorbox", "Phoenix", "Finder", "Eastron",
-                                  "ABB",      "SolarEdge", "WAGO",    "Custom"};
+const char i18nStrMeter[10][20] = {"Disabled", "Sensorbox", "API",       "Phoenix", "Finder",
+                                   "Eastron",  "ABB",       "SolarEdge", "WAGO",    "Custom"};
 const char i18nStrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
 const char i18nStrLeds[2][10] = {"Disabled", "Enabled"};
 const char i18nStrSolarBoost[2][10] = {"Disabled", "Enabled"};

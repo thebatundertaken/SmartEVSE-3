@@ -42,16 +42,17 @@
 #define PV_METER_DISABLED 0
 #define PV_METER_ADDRESS 11
 
-// Mains Meter, 1= Sensorbox, 2=Phoenix, 3= Finder, 4= Eastron, 8=Custom
+// Mains Meter
 #define MAINS_METER_DISABLED 0
 #define MM_SENSORBOX 1
-#define MM_PHOENIX_CONTACT 2
-#define MM_FINDER 3
-#define MM_EASTRON 4
-#define MM_ABB 5
-#define MM_SOLAREDGE 6
-#define MM_WAGO 7
-#define MM_CUSTOM 8
+#define MM_API 2
+#define MM_PHOENIX_CONTACT 3
+#define MM_FINDER 4
+#define MM_EASTRON 5
+#define MM_ABB 6
+#define MM_SOLAREDGE 7
+#define MM_WAGO 8
+#define MM_CUSTOM 9
 
 #define MAINS_METER_ADDRESS 10
 // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1:

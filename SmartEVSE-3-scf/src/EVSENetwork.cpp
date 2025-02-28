@@ -201,10 +201,9 @@ void EVSENetwork::postSensorboxReadings(AsyncWebServerRequest* request) {
         return;
     }
 
-    evseController.Irms[0] = request->getParam("L1")->value().toInt();
-    evseController.Irms[1] = request->getParam("L2")->value().toInt();
-    evseController.Irms[2] = request->getParam("L3")->value().toInt();
-    MainsMeter.Timeout = COMM_TIMEOUT;
+    evseController.mainsMeterReadings(request->getParam("L1")->value().toInt(),
+                                      request->getParam("L2")->value().toInt(),
+                                      request->getParam("L3")->value().toInt());
 
     request->send(200, "text/plain", "OK");
 }
