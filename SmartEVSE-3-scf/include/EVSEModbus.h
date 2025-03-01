@@ -67,6 +67,11 @@
 // Sensorbox v2 has always address 0x0A
 #define MM_SENSORBOX_ADDRESS 0x0A
 
+// Sensorbox-2 WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
+#define SB2_WIFI_MODE_DISABLED 0
+#define SB2_WIFI_MODE_ENABLED 1
+#define SB2_WIFI_MODE_PORTAL 2
+
 #define MODBUS_FUNCTION_READ_HOLDING_REGISTER 0x03
 #define MODBUS_FUNCTION_READ_INPUT_REGISTER 0x04
 #define MODBUS_FUNCTION_WRITE_SINGLE_REGISTER 0x06
@@ -75,6 +80,7 @@
 #define MODBUS_FUNCTION_NODE_CONFIG_REGISTER 0x0108
 #define MODBUS_FUNCTION_NODE_STATUS_REGISTER 0x0000
 #define MODBUS_FUNCTION_SENSORBOX_GRID_REGISTER 0x800
+#define MODBUS_FUNCTION_SENSORBOX_WIFI_REGISTER 0x801
 
 // communication timeout (millis)
 #define DEFAULT_CT_COMM_TIMEOUT 10000
@@ -230,6 +236,15 @@ struct ModBus {
     uint8_t Exception;
 };
 
+struct Sensorbox {
+    uint8_t SoftwareVer;    // Sensorbox 2 software version
+    uint8_t WiFiConnected;  // 0:not connected / 1:connected to WiFi
+    uint8_t WiFiAPSTA;      // 0:no portal /  1: portal active
+    uint8_t WIFImode;       // 0:Wifi Off / 1:WiFi On / 2: Portal Start
+    uint8_t IP[4];
+    uint8_t APpassword[9];  // 8 characters + null termination
+};
+
 class EVSEModbus {
    public:
     EVSEModbus() {};
@@ -251,6 +266,9 @@ class EVSEModbus {
     void setPvMeter(uint8_t value);
     void evMeterResetKwhOnStandby();
 
+    void setSensorboxWifiMode(uint8_t mode) { SB2_WIFImode = mode; }
+    uint8_t getSensorboxWifiMode() { return SB2_WIFImode; }
+
     int32_t getEvMeterEnergy() { return evMeterEnergy; };
 
     // Type of PV electric meter (0: Disabled / Constants EM_*)
@@ -271,6 +289,8 @@ class EVSEModbus {
     int32_t energyCharged = 0;
     // Measured Charge power in Watt by kWh meter
     int32_t powerMeasured = 0;
+
+    struct Sensorbox SB2;
 
     struct EMstruct EMConfig[MM_CUSTOM + 1] = {
         /* DESC,      ENDIANNESS,      FCT, DATATYPE,            U_REG,DIV,
@@ -350,6 +370,8 @@ class EVSEModbus {
     int32_t CM[3] = {0, 0, 0};
     int32_t PV[3] = {0, 0, 0};
     char sprintfStr[128];
+
+    uint8_t SB2_WIFImode;
 
     struct NodeStatus Node[NR_EVSES] = {
         // 0: Master / 1: Node 1 ...

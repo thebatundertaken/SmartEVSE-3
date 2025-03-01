@@ -48,6 +48,7 @@ const char* PREFS_GRID_KEY = "Grid";
 const char* PREFS_MAINSMETERADDRESS_KEY = "MainsMAddress";
 const char* PREFS_MAINSMETERMEASURE_KEY = "MainsMMeasure";
 const char* PREFS_MAINSMETER_KEY = "MainsMeter";
+const char* PREFS_SB2_WIFI_MODE_KEY = "SB2WIFImode";
 
 void EVSEModbus::evMeterResetKwhOnCharging() {
     if (evMeter != EV_METER_DISABLED && evMeterResetKwh != EVMETER_RESET_KWH_OFF) {
@@ -643,6 +644,7 @@ void EVSEModbus::readEpromSettings() {
         mainsMeterAddress = preferences.getUChar(PREFS_MAINSMETERADDRESS_KEY, MAINS_METER_ADDRESS);
         mainsMeter = preferences.getUChar(PREFS_MAINSMETER_KEY, MAINS_METER_DISABLED);
         mainsMeterMeasure = preferences.getUChar(PREFS_MAINSMETERMEASURE_KEY, MAINS_METER_MEASURE);
+        SB2_WIFImode = preferences.getUChar(PREFS_SB2_WIFI_MODE_KEY, SB2_WIFI_MODE_DISABLED);
 
         EMConfig[MM_CUSTOM].Endianness = preferences.getUChar("EMEndianness", EMCUSTOM_ENDIANESS);
         EMConfig[MM_CUSTOM].IRegister = preferences.getUShort("EMIRegister", EMCUSTOM_IREGISTER);
@@ -667,6 +669,7 @@ void EVSEModbus::readEpromSettings() {
         mainsMeterAddress = MAINS_METER_ADDRESS;
         mainsMeter = MAINS_METER_DISABLED;
         mainsMeterMeasure = MAINS_METER_MEASURE;
+        SB2_WIFImode = SB2_WIFI_MODE_DISABLED;
 
         EMConfig[MM_CUSTOM].Endianness = EMCUSTOM_ENDIANESS;
         EMConfig[MM_CUSTOM].IRegister = EMCUSTOM_IREGISTER;
@@ -731,6 +734,7 @@ void EVSEModbus::writeEpromSettings() {
     preferences.putUChar(PREFS_MAINSMETERADDRESS_KEY, mainsMeterAddress);
     preferences.putUChar(PREFS_MAINSMETERMEASURE_KEY, mainsMeterMeasure);
     preferences.putUChar(PREFS_MAINSMETER_KEY, mainsMeter);
+    preferences.putUChar(PREFS_SB2_WIFI_MODE_KEY, SB2_WIFImode);
 
     preferences.putUChar("EMEndianness", EMConfig[MM_CUSTOM].Endianness);
     preferences.putUShort("EMIRegister", EMConfig[MM_CUSTOM].IRegister);
@@ -770,9 +774,8 @@ void EVSEModbus::configureModbusMode(uint8_t newmode) {
     MBserver = new ModbusServerRTU(Serial1, 2000, PIN_RS485_DIR);
     MBclient = new ModbusClientRTU(Serial1, PIN_RS485_DIR);
 
-    char buffer[50];
-    sprintf(buffer, "[EVSEModbus] Changing LoadBL from %u to %u", evseCluster.getLoadBl(), newmode);
-    EVSELogger::info(buffer);
+    sprintf(sprintfStr, "[EVSEModbus] Changing LoadBL from %u to %u", evseCluster.getLoadBl(), newmode);
+    EVSELogger::info(sprintfStr);
 
     // Start mode or convert master to worker
     if (evseCluster.amIMasterOrLBDisabled() && (newmode == MODBUS_START_MODE || newmode > 1)) {
@@ -835,8 +838,8 @@ void EVSEModbus::configureModbusMode(uint8_t newmode) {
     // Change worker id
     if ((newmode != MODBUS_START_MODE) && newmode > 1) {
         // Register worker. at serverID 'LoadBl', all function codes
-        sprintf(buffer, "[EVSEModbus] Registering new LoadBl worker at id %u", newmode);
-        EVSELogger::info(buffer);
+        sprintf(sprintfStr, "[EVSEModbus] Registering new LoadBl worker at id %u", newmode);
+        EVSELogger::info(sprintfStr);
         evseCluster.setLoadBl(newmode);
         MBserver->registerWorker(newmode, ANY_FUNCTION_CODE, &onModbusNodeRequest);
     }
@@ -1279,6 +1282,9 @@ signed int EVSEModbus::receivePowerMeasurement(uint8_t* buf, uint8_t Meter) {
  */
 void EVSEModbus::requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
     switch (Meter) {
+        case MM_API:
+            break;
+
         case MM_SENSORBOX:
             ModbusReadInputRequest(Address, 4, 0, 20);
             break;
@@ -1353,7 +1359,48 @@ uint8_t EVSEModbus::receiveCurrentMeasurement(uint8_t* buf, uint8_t Meter, signe
                 }
             }
 
-            // Set Sensorbox 2 to 3/4 Wire configuration (and phase Rotation)
+            // Store Sensorbox software version
+            SB2.SoftwareVer = buf[0];
+            // Make sure the version and datalength are correct before processing the data.
+            // the version alone does not indicate that we have read the extended registers.
+            if (SB2.SoftwareVer == 1 && MB.DataLength == 64) {
+                // Read Status, IP, AP Password from Sensorbox
+                SB2.WiFiConnected = buf[40] >> 1 & 1;
+                SB2.WiFiAPSTA = buf[40] >> 2 & 1;
+                SB2.WIFImode = buf[41];
+
+                sprintf(sprintfStr, "[EVSEModbus] Workflow[SS] SB2 WiFiMode:%u", SB2.WIFImode);
+                EVSELogger::info(sprintfStr);
+
+                SB2.IP[0] = buf[48];
+                SB2.IP[1] = buf[49];
+                SB2.IP[2] = buf[50];
+                SB2.IP[3] = buf[51];
+                for (x = 0; x < 8; x++) {
+                    SB2.APpassword[7 - x] = buf[56 + x];
+                }
+                SB2.APpassword[8] = '\0';
+
+                /*if (SB2_WIFImode == SB2_WIFI_MODE_PORTAL && SB2.WiFiConnected && !evseMenu.subMenu) {
+                    // Portal active and connected? Switch back to Enabled.
+                    SB2_WIFImode = SB2_WIFI_MODE_ENABLED;
+                    writeEpromSettings();
+                    evseMenu.currentMenuOption = MENU_NO_OPTION;
+                }*/
+
+                // Send new mode to Sensorbox 2 when mode differs from local SB2_WiFimode
+                // for mode "SetupWifi" only send mode when -not- in Submenu.
+                // if ((SB2.WIFImode != SB2_WIFImode) && !(SB2_WIFImode == SB2_WIFI_MODE_PORTAL && evseMenu.subMenu)) {
+                if (SB2.WIFImode != SB2_WIFImode) {
+                    // Send new WiFi mode to Sensorbox
+                    sprintf(sprintfStr, "[EVSEModbus] New SB2 mode:%u", SB2.WIFImode);
+                    EVSELogger::info(sprintfStr);
+                    ModbusWriteSingleRequest(MM_SENSORBOX_ADDRESS, MODBUS_FUNCTION_SENSORBOX_WIFI_REGISTER,
+                                             SB2_WIFImode);
+                }
+            }
+
+            // Set Sensorbox 2 to 3/4 Wire configuration (and phase Rotation) (v2.16)
             if (buf[1] >= 0x10 && offset == 7) {
                 uint8_t modbusGrid = (grid == GRID_SINGLE_PHASE ? GRID_3WIRE : grid) << 1;
                 if (((buf[1] & 0x3) != modbusGrid) && evseCluster.amIMasterOrLBDisabled()) {

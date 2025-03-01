@@ -34,54 +34,53 @@
 
 // Node specific configuration
 #define MENU_NO_OPTION 0
-
 // Node specific configuration
 #define MENU_ENTER 1
+#define MENU_CONFIG 2       // Configuration
+#define MENU_LOCK 3         // Cable lock
+#define MENU_MIN_EV 4       // MIN Charge Current the EV will accept
+#define MENU_MAX_CURRENT 5  // MAX Charge Current for this EVSE
+#define MENU_POWER_SHARE 6  // Load Balance
+#define MENU_SWITCH 7       // External Start/Stop button
+#define MENU_RCMON 8        // Residual Current Monitor
+#define MENU_RFIDREADER 9   // Use RFID reader
 
-#define MENU_CONFIG 2           // 0x0100: Configuration
-#define MENU_LOCK 3             // 0x0101: Cable lock
-#define MENU_MIN_EV 4           // 0x0102: MIN Charge Current the EV will accept
-#define MENU_MAX_CURRENT 5      // 0x0103: MAX Charge Current for this EVSE
-#define MENU_LOADBL 6           // 0x0104: Load Balance
-#define MENU_SWITCH 7           // 0x0105: External Start/Stop button
-#define MENU_RCMON 8            // 0x0106: Residual Current Monitor
-#define MENU_RFIDREADER 9       // 0x0107: Use RFID reader
-#define MENU_EVMETER 10         // 0x0108: Type of EV electric meter
-#define MENU_EVMETERADDRESS 11  // 0x0109: Address of EV electric meter
+#define MENU_EVMETER 10         // Type of EV electric meter
+#define MENU_EVMETERADDRESS 11  // Address of EV electric meter
+#define MENU_MODE 12            // EVSE mode
+#define MENU_CIRCUIT 13         // EVSE Circuit max Current
+#define MENU_GRID 14            // Grid type to which the Sensorbox is connected
+#define MENU_SENSORBOX_WIFI 15
+#define MENU_SOLAR_BOOST 16
+// #define MENU_CALIBRATION 15              // CT calibration value
+#define MENU_MAX_MAINS 17                // Max Mains Current
+#define MENU_SOLAR_START 18              // Surplus energy start Current
+#define MENU_SOLAR_STOP_TIME_MINUTES 19  // Stop solar charging at 6A after this time
 
-// System configuration (same on all SmartEVSE in a LoadBalancing setup)
-#define MENU_MODE 12         // 0x0200: EVSE mode
-#define MENU_CIRCUIT 13      // 0x0201: EVSE Circuit max Current
-#define MENU_GRID 14         // 0x0202: Grid type to which the Sensorbox is connected
-#define MENU_SOLAR_BOOST 15  // 0x0202: Grid type to which the Sensorbox is connected
-// #define MENU_CALIBRATION 15              // 0x0203: CT calibration value
-#define MENU_MAX_MAINS 16                // 0x0204: Max Mains Current
-#define MENU_SOLAR_START 17              // 0x0205: Surplus energy start Current
-#define MENU_SOLAR_STOP_TIME_MINUTES 18  // 0x0206: Stop solar charging at 6A after this time
-#define MENU_IMPORT 19                   // 0x0207: Allow grid power when solar charging
-#define MENU_MAINSMETER 20               // 0x0208: Type of Mains electric meter
-#define MENU_MAINSMETERADDRESS 21        // 0x0209: Address of Mains electric meter
+#define MENU_IMPORT 20              // Allow grid power when solar charging
+#define MENU_MAINSMETER 21          // Type of Mains electric meter
+#define MENU_MAINSMETERADDRESS 22   // Address of Mains electric meter
+#define MENU_MAINSMETERMEASURE 23   // What does Mains electric meter measure
+#define MENU_PVMETER 24             // Type of PV electric meter
+#define MENU_PVMETERADDRESS 25      // Address of PV electric meter
+#define MENU_EMCUSTOM_ENDIANESS 26  // Byte order of custom electric meter
+#define MENU_EMCUSTOM_DATATYPE 27   // Data type of custom electric meter
+#define MENU_EMCUSTOM_FUNCTION 28   // Modbus Function (3/4) of custom electric meter
+#define MENU_EMCUSTOM_UREGISTER 29  // Register for Voltage (V) of custom electric meter
 
-#define MENU_MAINSMETERMEASURE 22   // 0x020A: What does Mains electric meter measure
-#define MENU_PVMETER 23             // 0x020B: Type of PV electric meter
-#define MENU_PVMETERADDRESS 24      // 0x020C: Address of PV electric meter
-#define MENU_EMCUSTOM_ENDIANESS 25  // 0x020D: Byte order of custom electric meter
-#define MENU_EMCUSTOM_DATATYPE 26   // 0x020E: Data type of custom electric meter
-#define MENU_EMCUSTOM_FUNCTION 27   // 0x020F: Modbus Function (3/4) of custom electric meter
-#define MENU_EMCUSTOM_UREGISTER 28  // 0x0210: Register for Voltage (V) of custom electric meter
-#define MENU_EMCUSTOM_UDIVISOR 29   // 0x0211: Divisor for Voltage (V) of custom electric meter (10^x)
-#define MENU_EMCUSTOM_IREGISTER 30  // 0x0212: Register for Current (A) of custom electric meter
-#define MENU_EMCUSTOM_IDIVISOR 31   // 0x0213: Divisor for Current (A) of custom electric meter (10^x)
+#define MENU_EMCUSTOM_UDIVISOR 30   // Divisor for Voltage (V) of custom electric meter (10^x)
+#define MENU_EMCUSTOM_IREGISTER 31  // Register for Current (A) of custom electric meter
+#define MENU_EMCUSTOM_IDIVISOR 32   // Divisor for Current (A) of custom electric meter (10^x)
+#define MENU_EMCUSTOM_PREGISTER 33  // Register for Power (W) of custom electric meter
+#define MENU_EMCUSTOM_PDIVISOR 34   // Divisor for Power (W) of custom electric meter (10^x)
+#define MENU_EMCUSTOM_EREGISTER 35  // Register for Energy (kWh) of custom electric meter
+#define MENU_EMCUSTOM_EDIVISOR 36   // Divisor for Energy (kWh) of custom electric meter (10^x)
+#define MENU_EMCUSTOM_READMAX 37    // Maximum register read (not implemented)
+#define MENU_MAX_TEMPERATURE 38
+#define MENU_LEDS 39
 
-#define MENU_EMCUSTOM_PREGISTER 32  // 0x0214: Register for Power (W) of custom electric meter
-#define MENU_EMCUSTOM_PDIVISOR 33   // 0x0215: Divisor for Power (W) of custom electric meter (10^x)
-#define MENU_EMCUSTOM_EREGISTER 34  // 0x0216: Register for Energy (kWh) of custom electric meter
-#define MENU_EMCUSTOM_EDIVISOR 35   // 0x0217: Divisor for Energy (kWh) of custom electric meter (10^x)
-#define MENU_EMCUSTOM_READMAX 36    // 0x0218: Maximum register read (not implemented)
-#define MENU_MAX_TEMPERATURE 37
-#define MENU_LEDS 38
-#define MENU_WIFI 39  // 0x0219: WiFi mode
-#define MENU_EXIT 40
+#define MENU_WIFI 40
+#define MENU_EXIT 41
 
 // MENU_XXX defines referes to menuEntries array position, can not be empty numbers (gaps)
 // due to array iteration over menu elements.
@@ -106,7 +105,7 @@ const struct {
     // Max Charge current (A)
     {"EVSE MAX", I18N_MENU_MAX, 6, (MAX_MAINS_HARD_LIMIT / 10), MAX_DEVICE_CURRENT},
     // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
-    {"PWR SHARE", I18N_MENU_LOADBL, 0, CLUSTER_NUM_EVSES, LOAD_BALANCER_DISABLED},
+    {"PWR SHARE", I18N_MENU_POWER_SHARE, 0, CLUSTER_NUM_EVSES, LOAD_BALANCER_DISABLED},
     // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
     {"SWITCH", I18N_MENU_SW, 0, 4, SWITCH_DISABLED},
     // Residual Current Monitor on RCM (0:Disable / 1:Enable)
@@ -125,6 +124,8 @@ const struct {
     // Max current of the EVSE circuit (A)
     {"CIRCUIT", I18N_MENU_CIRCUIT, 10, 160, MAX_CIRCUIT},
     {"GRID", I18N_MENU_GRID, 0, 2, GRID_3WIRE},
+    // Sensorbox-2 WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
+    {"SB2 WIFI", I18N_MENU_SENSORBOX_WIFI, 0, 2, SB2_WIFI_MODE_DISABLED},
     {"SOL BOOST", I18N_MENU_SOLAR_BOOST, 0, 1, SOLAR_BOOST_DISABLED},
     // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
     // (Mode:Smart/Solar)
@@ -133,9 +134,9 @@ const struct {
     {"SOL START", I18N_MENU_START, 0, 48, SOLAR_START_CURRENT},
     // Stop time (min)
     {"SOL STOP", I18N_MENU_STOP, 0, 60, SOLAR_STOP_TIME_MINUTES},
+
     // Import Current from Grid (A) in Solar mode
     {"SOL IMPORT", I18N_MENU_IMPORT, 0, 20, SOLAR_IMPORT_CURRENT},
-
     // Type of Mains electric meter (0: Disabled / Constants EM_*)
     {"MAINS METER", I18N_MENU_MAINEM, 0, MM_CUSTOM, MM_SENSORBOX},
     // Address of Mains electric meter (5 - 254)
@@ -155,9 +156,9 @@ const struct {
     {"FUNCTION", I18N_MENU_EMFUNC, 3, 4, EMCUSTOM_FUNCTION},
     // Starting register for voltage of custom electric meter
     {"VOL REGI", I18N_MENU_EMUREG, 0, 65530, EMCUSTOM_UREGISTER},
+
     // Divisor for voltage of custom electric meter
     {"VOL DIVI", I18N_MENU_EMUDIV, 0, 7, EMCUSTOM_UDIVISOR},
-
     // Starting register for current of custom electric meter
     {"CUR REGI", I18N_MENU_EMIREG, 0, 65530, EMCUSTOM_IREGISTER},
     // Divisor for current of custom electric meter
@@ -173,8 +174,8 @@ const struct {
     {"READ MAX", I18N_MENU_EMREAD, 3, 255, 3},
     {"MAX TEMP", I18N_MENU_TEMPERATURE, 40, 65, DEFAULT_MAX_TEMPERATURE},
     {"LEDS", I18N_MENU_LEDS, 0, 1, DEFAULT_LEDS_ENABLED_VALUE},
-    {"WIFI", I18N_MENU_WIFI, 0, 2, WIFI_MODE_DISABLED},
 
+    {"WIFI", I18N_MENU_WIFI, 0, 2, WIFI_MODE_DISABLED},
     {"EXIT", I18N_MENU_EXIT, 0, 0, 0}};
 
 class EVSEMenu {

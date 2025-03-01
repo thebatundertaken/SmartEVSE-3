@@ -761,7 +761,7 @@ void GLCDMenu() {
             if (evseMenu.subMenu && wifimode == WIFI_MODE_DISABLED) {
                 // Clear Wifi info from top row of the GLCD
                 glcd_clrln(0, 0);
-            } else if (evseMenu.subMenu && wifimode == WIFI_MODE_START_PORTAL) {
+            } else if (wifimode == WIFI_MODE_START_PORTAL) {
                 if (evseWifi.isPortalReady()) {
                     GLCDAccessPoint();
                 } else {
@@ -778,6 +778,37 @@ void GLCDMenu() {
                 GLCDRFID();
             } else {
                 GLCD_print_menu(4, evseMenu.getMenuItemi18nText(evseMenu.currentMenuOption));
+            }
+            break;
+
+        case MENU_SENSORBOX_WIFI:
+            if (evseMenu.subMenu && (evseModbus.SB2.WIFImode != evseModbus.getSensorboxWifiMode())) {
+                // wait for sensorbox to switch to selected mode
+                GLCD_write_buf_str(0, 0, "One moment please...", GLCD_ALIGN_LEFT);
+                break;
+            }
+
+            switch (evseModbus.getSensorboxWifiMode()) {
+                case SB2_WIFI_MODE_PORTAL:
+                    // Show SB2 Portal Password
+                    sprintf(LCDStr, "Password: %s", evseModbus.SB2.APpassword);
+                    GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
+                    GLCD_sendbuf(7, 1);
+                    GLCD_buffer_clr();
+                    sprintf(LCDStr, "Connect to SB2 portal");
+                    GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
+                    break;
+
+                case SB2_WIFI_MODE_ENABLED:
+                    // Enable WiFi on Sensorbox 2
+                    if (evseModbus.SB2.WiFiConnected) {
+                        sprintf(LCDStr, "SB2: %u.%u.%u.%u", evseModbus.SB2.IP[0], evseModbus.SB2.IP[1],
+                                evseModbus.SB2.IP[2], evseModbus.SB2.IP[3]);
+                        GLCD_write_buf_str(0, 0, LCDStr, GLCD_ALIGN_LEFT);
+                    } else {
+                        GLCD_write_buf_str(0, 0, "SB2 not conn to WiFi", GLCD_ALIGN_LEFT);
+                    }
+                    break;
             }
             break;
 

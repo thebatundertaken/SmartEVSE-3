@@ -74,6 +74,10 @@ void EVSEMenu::buildMenuItems() {
             // Sensorbox
             if (evseModbus.mainsMeter == MM_SENSORBOX) {
                 MenuItems[m++] = MENU_GRID;
+                if (evseModbus.SB2.SoftwareVer == 0x01) {
+                    MenuItems[m++] = MENU_SENSORBOX_WIFI;
+                }
+
                 if (evseController.mode == MODE_SMART) {
                     MenuItems[m++] = MENU_SOLAR_BOOST;
                 }
@@ -116,7 +120,7 @@ void EVSEMenu::buildMenuItems() {
         }
     }
 
-    MenuItems[m++] = MENU_LOADBL;
+    MenuItems[m++] = MENU_POWER_SHARE;
     if (evseCluster.isLoadBalancerMaster()) {
         MenuItems[m++] = MENU_CIRCUIT;
     }
@@ -146,7 +150,7 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseController.solarStopTimeMinutes;
         case MENU_IMPORT:
             return evseController.solarImportCurrent;
-        case MENU_LOADBL:
+        case MENU_POWER_SHARE:
             return evseCluster.getLoadBl();
         case MENU_MAX_MAINS:
             return evseController.maxMains;
@@ -210,7 +214,8 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseRgbLeds.ledsEnabled ? 1 : 0;
         case MENU_SOLAR_BOOST:
             return evseController.isSolarBoost() ? 1 : 0;
-
+        case MENU_SENSORBOX_WIFI:
+            return evseModbus.getSensorboxWifiMode();
         // Status writeable
         case NODE_STATUS_STATE:
             return evseController.state;
@@ -269,7 +274,7 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
         case MENU_IMPORT:
             evseController.solarImportCurrent = val;
             break;
-        case MENU_LOADBL:
+        case MENU_POWER_SHARE:
             evseModbus.configureModbusMode(val);
             evseCluster.setLoadBl(val);
             break;
@@ -393,6 +398,10 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             evseController.statusConfigChanged = val;
             break;
 
+        case MENU_SENSORBOX_WIFI:
+            evseModbus.setSensorboxWifiMode(val);
+            break;
+
         default:
             return 0;
     }
@@ -427,7 +436,7 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
                 return Str;
             } else
                 return i18nStrDisabled;
-        case MENU_LOADBL:
+        case MENU_POWER_SHARE:
             /*if (controller->externalMaster && value == 1)
                 return "Node 0";
             else*/
@@ -459,6 +468,8 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
             return geti18nStrMeterText(value);
         case MENU_GRID:
             return i18nStrGrid[evseModbus.grid];
+        case MENU_SENSORBOX_WIFI:
+            return i18nStrSensorboxWifi[evseModbus.getSensorboxWifiMode()];
         case MENU_MAINSMETERADDRESS:
         case MENU_PVMETERADDRESS:
         case MENU_EVMETERADDRESS:
@@ -772,7 +783,7 @@ void EVSEMenu::checkExitMenuOnInactivity() {
             }
 
             // Corner case: WiFi portal and WiFi configuration
-            if (currentMenuOption == MENU_WIFI && subMenu) {
+            if ((currentMenuOption == MENU_WIFI || currentMenuOption == MENU_SENSORBOX_WIFI) && subMenu) {
                 EVSELogger::debug("EVSEMenu] Canceling menu exit due to WIFI submenu");
                 continue;
             }
@@ -825,7 +836,8 @@ void EVSEMenu::onButtonChanged(uint8_t buttons) {
 
 bool EVSEMenu::shouldRedrawMenu() {
     return (buttonReleased == 1 || currentMenuOption == MENU_ENTER ||
-            (currentMenuOption == MENU_RFIDREADER && subMenu) || (currentMenuOption == MENU_WIFI && subMenu));
+            (currentMenuOption == MENU_RFIDREADER && subMenu) || (currentMenuOption == MENU_WIFI && subMenu) ||
+            (currentMenuOption == MENU_SENSORBOX_WIFI && subMenu));
 }
 
 void EVSEMenu::setup() {

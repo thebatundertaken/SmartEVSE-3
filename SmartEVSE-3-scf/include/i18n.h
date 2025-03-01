@@ -36,6 +36,7 @@ const char i18nStrLoadBl[9][9] = {"Disabled", "Master", "Node 1", "Node 2", "Nod
                                   "Node 4",   "Node 5", "Node 6", "Node 7"};
 const char i18nStrSwitch[5][10] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S"};
 const char i18nStrGrid[3][10] = {"4 wire", "3 wire", "1 phase"};
+const char i18nStrSensorboxWifi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
 const char i18nStrEnabled[] = "Enabled";
 const char i18nStrExitMenu[] = "MENU";
 const char i18nStrMainsAll[] = "All";
@@ -77,7 +78,7 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_MENU_MIN "MIN Charge Current the EV will accept"
 // #define I18N_MENU_MAX "MAX Charge Current for this EVSE (per phase)"
 #define I18N_MENU_MAX "MAX Charge Current EVSE will dispatch"
-#define I18N_MENU_LOADBL "Share Power between multiple SmartEVSEs (2-8)"
+#define I18N_MENU_POWER_SHARE "Share Power between multiple SmartEVSEs (2-8)"
 #define I18N_MENU_SW "Switch function control on pin SW"
 #define I18N_MENU_RCMON "Residual Current Monitor on pin RCM"
 #define I18N_MENU_RFID "RFID reader, learn/remove cards"
@@ -86,6 +87,7 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_MENU_MODE "Normal, Smart or Solar EVSE mode"
 #define I18N_MENU_CIRCUIT "EVSE Circuit max Current"
 #define I18N_MENU_GRID "Grid type to which the Sensorbox is connected"
+#define I18N_MENU_SENSORBOX_WIFI "Connect Sensorbox to WiFi"
 #define I18N_MENU_SOLAR_BOOST "Overexceed max mains when solar surplus avaiable"
 #define I18N_MENU_CAL "Calibrate CT1 (CT2+3 will also change)"
 #define I18N_MENU_MAINS "Max MAINS Current (usually contracted power)"
