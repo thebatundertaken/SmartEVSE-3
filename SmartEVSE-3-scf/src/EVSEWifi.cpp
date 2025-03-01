@@ -98,14 +98,18 @@ void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 
 void EVSEWifi::onWiFiStationDisconnected() {
-    EVSELogger::info("[EVSEWiFi] WiFi connection lost");
+    if (wifiMode == WIFI_OFF) {
+        EVSELogger::info("[EVSEWiFi] WiFi disabled");
+        return;
+    }
 
     // try to reconnect when not connected to AP
-    if (WiFi.getMode() == WIFI_AP_STA) {
+    if (wifiMode == WIFI_MODE_START_PORTAL) {
         EVSELogger::info("[EVSEWiFi] Portal mode detected, no need to reconnect");
         return;
     }
 
+    EVSELogger::info("[EVSEWiFi] WiFi connection lost");
     if (wifiReconnectTaskHandle != NULL) {
         EVSELogger::debug("[EVSEWiFi] Race condition detected on disconnect task");
         return;
@@ -196,6 +200,7 @@ void EVSEWifi::endPortalTask() {
     if (startPortalTaskHandle != NULL) {
         vTaskDelete(startPortalTaskHandle);
         startPortalTaskHandle = NULL;
+        delay(100);
     }
 }
 
@@ -205,7 +210,7 @@ void EVSEWifi::startWifiReconnectTask() {
     uint32_t maxDelay = 60000;
     char buffer[250];
     while (1) {
-        if (evseWifi.wifiMode == WIFI_MODE_DISABLED) {
+        if (evseWifi.wifiMode != WIFI_MODE_ENABLED) {
             EVSELogger::info("[EVSEWiFi] Wifi disabled, no need to reconnect");
             return;
         }
@@ -233,6 +238,7 @@ void EVSEWifi::endWifiReconnectTask() {
         vTaskDelete(wifiReconnectTaskHandle);
         wifiReconnectTaskHandle = NULL;
         EVSELogger::info("[EVSEWiFi] Reconnect task deleted");
+        delay(100);
     }
 }
 
@@ -244,8 +250,8 @@ void EVSEWifi::setWifiMode(const uint8_t newMode) {
     wifiMode = newMode;
 
     // Stop portal and wifiReconnect threads
-    endPortalTask();
     endWifiReconnectTask();
+    endPortalTask();
 
     switch (newMode) {
         case WIFI_MODE_ENABLED:
