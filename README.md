@@ -33,7 +33,7 @@ $~$
 $~$
 # How to install the hardware
 
-- [3 phases mains with 1 phase charger wiring diagrama and electrical installation](docs/installation.md)
+- [3 phases mains with 1 phase charger wiring diagram and electrical installation](docs/installation.md)
 
 
 <br>
