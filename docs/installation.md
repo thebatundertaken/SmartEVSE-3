@@ -21,6 +21,9 @@ $~$
 - [Contactor 40A 2p normally open](https://www.se.com/es/es/product/A9C20842/contactor-modular-acti9-ict-40-a-2-p-2-na-230-240v-ca/)
 - [Enclosure IP65 with DIN rail](https://amzn.eu/d/fZdd9F9)
 - [Type 2 female cable 1 phase 32A](https://www.aliexpress.com/item/1005006746361767.html)
+- Electrical wire 6mm 750V H071-K (blue, brown, yellow/gren, grey and black) (*Note: you don't need grey and black wires for a single phase grid*)
+- Electrical wire 1,5mm 750V H071-K (blue, yellow/gren and black)
+- Bell wire 6 conductors
 
 ### Type 2 female cable (1 phase 32A) picture
 $~$
