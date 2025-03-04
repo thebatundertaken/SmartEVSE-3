@@ -127,19 +127,21 @@
 #define ENDIANESS_HBF_LWF 2
 #define ENDIANESS_HBF_HWF 3
 
-// EVSE status
-#define NODE_STATUS_STATE 64           // 0x0000: State
-#define NODE_STATUS_ERROR 65           // 0x0001: Error
-#define NODE_STATUS_CHARGECURRENT 66   // 0x0002: Charging current (A * 10)
-#define NODE_STATUS_MODE 67            // 0x0003: EVSE Mode
-#define NODE_STATUS_SOLAR_TIMER 68     // 0x0004: Solar Timer
-#define NODE_STATUS_ACCESSBIT 69       // 0x0005: Access bit
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+#define NODE_STATUS_STATE 64          // 0x0000: State
+#define NODE_STATUS_ERROR 65          // 0x0001: Error
+#define NODE_STATUS_CHARGECURRENT 66  // 0x0002: Charging current (A * 10)
+#define NODE_STATUS_MODE 67           // 0x0003: EVSE Mode
+#define NODE_STATUS_SOLAR_TIMER 68    // 0x0004: Solar Timer
+#if EVSE_FEATFLAG_ENABLE_RFID
+#define NODE_STATUS_ACCESSBIT 69  // 0x0005: Access bit
+#endif
 #define NODE_STATUS_CONFIG_CHANGED 70  // 0x0006: Configuration changed
 #define NODE_STATUS_CABLEMAX 71        // 0x0007: Maximum charging current (ReadOnly)
 #define NODE_STATUS_PHASE_COUNT 72     // 0x0008: Number of used phases (ReadOnly) (not implemented)
 #define NODE_STATUS_REAL_CURRENT 73    // 0x0009: Real charging current (ReadOnly) (not implemented)
 #define NODE_STATUS_TEMP 74            // 0x000A: Temperature (ReadOnly)
-// #define STATUS_SERIAL 75         // 0x000B: Serial number (ReadOnly)
+#endif
 
 // SW set to 0, set to output (driven low)
 #define ONEWIRE_LOW                   \
@@ -156,36 +158,39 @@
 // SW input (floating high)
 #define ONEWIRE_FLOATHIGH pinMode(PIN_SW_IN, INPUT_PULLUP);
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
 #define EVMETER_RESET_KWH_OFF 0
 #define EVMETER_RESET_KWH_ON 1
 #define EVMETER_RESET_KWH_POWERUP 2
+#endif
 
 #define NR_EVSES CLUSTER_NUM_EVSES
 
 #define WORKFLOW_FINISHED 0
 #define WORKFLOW_SKIP 99
 
-#define WORKFLOW_SOLARSMART_REQUESTPVREADINGS 1
-#define WORKFLOW_SOLARSMART_REQUESTMAINSREADINGS 2
-#define WORKFLOW_SOLARSMART_FINDNEXTONLINESMARTEVSE 3
-#define WORKFLOW_SOLARSMART_REQUESTEVENERGY 4
-#define WORKFLOW_SOLARSMART_REQUESTEVPOWER 5
+#define WORKFLOW_REQUESTPVREADINGS 1
+#define WORKFLOW_REQUESTMAINSREADINGS 2
+#define WORKFLOW_FINDNEXTONLINESMARTEVSE 3
+#define WORKFLOW_REQUESTEVENERGY 4
+#define WORKFLOW_REQUESTEVPOWER 5
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+#define WORKFLOW_REQUESTREADINGSNODE1 6
+#define WORKFLOW_REQUESTREADINGSNODE2 7
+#define WORKFLOW_REQUESTREADINGSNODE3 8
+#define WORKFLOW_REQUESTREADINGSNODE4 9
+#define WORKFLOW_REQUESTREADINGSNODE5 10
+#define WORKFLOW_REQUESTREADINGSNODE6 11
+#define WORKFLOW_REQUESTREADINGSNODE7 12
 
-#define WORKFLOW_NORMAL_REQUESTREADINGSNODE1 6
-#define WORKFLOW_NORMAL_REQUESTREADINGSNODE2 7
-#define WORKFLOW_NORMAL_REQUESTREADINGSNODE3 8
-#define WORKFLOW_NORMAL_REQUESTREADINGSNODE4 9
-#define WORKFLOW_NORMAL_REQUESTREADINGSNODE5 10
-#define WORKFLOW_NORMAL_REQUESTREADINGSNODE6 11
-#define WORKFLOW_NORMAL_REQUESTREADINGSNODE7 12
-
-#define WORKFLOW_NORMAL_PROCESSREADINGSNODE1 13
-#define WORKFLOW_NORMAL_PROCESSREADINGSNODE2 14
-#define WORKFLOW_NORMAL_PROCESSREADINGSNODE3 15
-#define WORKFLOW_NORMAL_PROCESSREADINGSNODE4 16
-#define WORKFLOW_NORMAL_PROCESSREADINGSNODE5 17
-#define WORKFLOW_NORMAL_PROCESSREADINGSNODE6 18
-#define WORKFLOW_NORMAL_PROCESSREADINGSNODE7 19
+#define WORKFLOW_PROCESSREADINGSNODE1 13
+#define WORKFLOW_PROCESSREADINGSNODE2 14
+#define WORKFLOW_PROCESSREADINGSNODE3 15
+#define WORKFLOW_PROCESSREADINGSNODE4 16
+#define WORKFLOW_PROCESSREADINGSNODE5 17
+#define WORKFLOW_PROCESSREADINGSNODE6 18
+#define WORKFLOW_PROCESSREADINGSNODE7 19
+#endif
 
 typedef enum mb_datatype {
     MB_DATATYPE_INT32 = 0,
@@ -253,30 +258,32 @@ class EVSEModbus {
     void loop();
     void configureModbusMode(uint8_t newmode);
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     void broadcastSysConfigToNodes(uint16_t values[]);
     void broadcastErrorFlagsToWorkerNodes(uint16_t flags);
     void broadcastSolarStopTimerToNodes(uint16_t value);
     void broadcastControllerModeToNodes(uint16_t newMode);
     void broadcastMasterBalancedCurrent(uint16_t balancedChargeCurrent[]);
     void sendNewStatusToNode(uint8_t nodeNr, uint16_t values[]);
+#endif
 
     void updateSettings();
     void resetSettings();
-    void evMeterResetKwhOnCharging();
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     void setPvMeter(uint8_t value);
+    void evMeterResetKwhOnCharging();
     void evMeterResetKwhOnStandby();
-
-    void setSensorboxWifiMode(uint8_t mode) { SB2_WIFImode = mode; }
-    uint8_t getSensorboxWifiMode() { return SB2_WIFImode; }
-
     int32_t getEvMeterEnergy() { return evMeterEnergy; };
-
-    // Type of PV electric meter (0: Disabled / Constants EM_*)
-    uint8_t pvMeter = PV_METER_DISABLED;
-    uint8_t pvMeterAddress = PV_METER_ADDRESS;
     // Type of EV electric meter (0: Disabled / Constants EM_*)
     uint8_t evMeter = EV_METER_DISABLED;
     uint8_t evMeterAddress = EV_METER_ADDRESS;
+    // Type of PV electric meter (0: Disabled / Constants EM_*)
+    uint8_t pvMeter = PV_METER_DISABLED;
+    uint8_t pvMeterAddress = PV_METER_ADDRESS;
+#endif
+
+    void setSensorboxWifiMode(uint8_t mode) { SB2_WIFImode = mode; }
+    uint8_t getSensorboxWifiMode() { return SB2_WIFImode; }
 
     uint8_t grid = GRID_3WIRE;
     uint8_t mainsMeter = MAINS_METER_DISABLED;
@@ -284,11 +291,13 @@ class EVSEModbus {
     // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1:
     // Home+EVSE / 2: Home)
     uint8_t mainsMeterMeasure = MAINS_METER_MEASURE;
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     // kWh meter value energy charged. (Wh) (will reset if state changes from
     // A->B)
     int32_t energyCharged = 0;
     // Measured Charge power in Watt by kWh meter
     int32_t powerMeasured = 0;
+#endif
 
     struct Sensorbox SB2;
 
@@ -318,11 +327,15 @@ class EVSEModbus {
    protected:
     static void modbusOnClientError(Error error, uint32_t token);
     static void modbusOnClientData(ModbusMessage msg, uint32_t token);
+    static ModbusMessage onModbusMainsMeterResponse(ModbusMessage msg);
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     static ModbusMessage onModbusNodeRequest(ModbusMessage request);
     static ModbusMessage onModbusServerbroadcast(ModbusMessage msg);
-    static ModbusMessage onModbusMainsMeterResponse(ModbusMessage msg);
-    static ModbusMessage onModbusEVMeterResponse(ModbusMessage msg);
+#endif
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     static ModbusMessage onModbusPVMeterResponse(ModbusMessage msg);
+    static ModbusMessage onModbusEVMeterResponse(ModbusMessage msg);
+#endif
 
    private:
     ModbusClientRTU* MBclient = NULL;
@@ -332,22 +345,24 @@ class EVSEModbus {
     void writeEpromSettings();
     void validateSettings();
 
+    void modbusClientDataHandler(ModbusMessage msg, uint32_t token);
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     // NodeNr (1-7)
     void requestNodeConfig(uint8_t NodeNr);
     void receiveNodeConfig(uint8_t* buf, uint8_t NodeNr);
     void requestNodeStatus(uint8_t NodeNr);
     void receiveNodeStatus(uint8_t* buf, uint8_t NodeNr);
-    void modbusClientDataHandler(ModbusMessage msg, uint32_t token);
     ModbusMessage modbusNodeRequestHandler(ModbusMessage request);
     void modbusBbroadcastHandler(ModbusMessage msg);
+    uint8_t mapModbusRegister2MenuItemID();
+#endif
     void modbusMainsMeterResponseHandler(ModbusMessage msg);
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     void modbusEVMeterResponseHandler(ModbusMessage msg);
     void modbusPVMeterResponseHandler(ModbusMessage msg);
-    uint8_t mapModbusRegister2MenuItemID();
+#endif
 
     void modbusWorkflow();
-    void modbusWorkflowNormalMode();
-    void modbusWorkflowSolarSmartMode();
 
     // last CT communication, to calculate timeout
     unsigned long lastCTRequestMillis = 0;
@@ -359,12 +374,14 @@ class EVSEModbus {
     // TCP timeout set to 2000 ms
     ModbusServerRTU* MBserver = NULL;
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     // if set, reset EV kwh meter at state transition B->C . Cleared when
     // charging, reset to 1 when disconnected (state A)
     uint8_t evMeterResetKwh = EVMETER_RESET_KWH_POWERUP;
     // kWh meter value is stored once EV is connected to EVSE (Wh)
     int32_t evMeterEnergyAtStart = 0;
     int32_t evMeterEnergy = 0;
+#endif
 
     // Used by SmartEVSE fuctions
     int32_t CM[3] = {0, 0, 0};
@@ -380,16 +397,10 @@ class EVSEModbus {
         {true, 0, 0, 0, 0, 0, 0},  {false, 1, 0, 0, 0, 0, 0}, {false, 1, 0, 0, 0, 0, 0}, {false, 1, 0, 0, 0, 0, 0},
         {false, 1, 0, 0, 0, 0, 0}, {false, 1, 0, 0, 0, 0, 0}, {false, 1, 0, 0, 0, 0, 0}, {false, 1, 0, 0, 0, 0, 0}};
 
-    // ########################### Modbus main functions
-    // ###########################
-
     void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity);
     void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value);
     void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t* values, uint8_t count);
     void ModbusDecode(uint8_t* buf, uint8_t len);
-
-    // ########################### EVSE modbus functions
-    // ###########################
 
     void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count);
     signed int receiveMeasurement(uint8_t* buf,
@@ -401,8 +412,8 @@ class EVSEModbus {
     signed int receiveEnergyMeasurement(uint8_t* buf, uint8_t Meter);
     void requestPowerMeasurement(uint8_t Meter, uint8_t Address);
     signed int receivePowerMeasurement(uint8_t* buf, uint8_t Meter);
-    void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
-    uint8_t receiveCurrentMeasurement(uint8_t* buf, uint8_t Meter, signed int* var);
+    void requestMainsCurrentMeasurement(uint8_t Meter, uint8_t Address);
+    uint8_t receiveMainsCurrentMeasurement(uint8_t* buf, uint8_t Meter, signed int* var);
 
     void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data);
     void combineBytes(void* var, uint8_t* buf, uint8_t pos, uint8_t endianness, MBDataType dataType);

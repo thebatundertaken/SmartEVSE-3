@@ -50,6 +50,7 @@ const char* PREFS_MAINSMETERMEASURE_KEY = "MainsMMeasure";
 const char* PREFS_MAINSMETER_KEY = "MainsMeter";
 const char* PREFS_SB2_WIFI_MODE_KEY = "SB2WIFImode";
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
 void EVSEModbus::evMeterResetKwhOnCharging() {
     if (evMeter != EV_METER_DISABLED && evMeterResetKwh != EVMETER_RESET_KWH_OFF) {
         // store kwh measurement at start of charging.
@@ -66,16 +67,18 @@ void EVSEModbus::evMeterResetKwhOnStandby() {
         evMeterResetKwh = EVMETER_RESET_KWH_ON;
     }
 }
-
-void EVSEModbus::setPvMeter(uint8_t value) {
-    pvMeter = (mainsMeterMeasure == MAINS_METER_MEASURE) ? PV_METER_DISABLED : value;
-}
+#endif
 
 void EVSEModbus::modbusOnClientError(Error error, uint32_t token) {
     // ModbusError wraps the error code and provides a readable error message for
     // it
     ModbusError me(error);
     // Serial.printf("Error response: %02X - %s\n", error, (const char *)me);
+}
+
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+void EVSEModbus::setPvMeter(uint8_t value) {
+    pvMeter = (mainsMeterMeasure == MAINS_METER_MEASURE) ? PV_METER_DISABLED : value;
 }
 
 void EVSEModbus::broadcastSysConfigToNodes(uint16_t values[]) {
@@ -118,7 +121,9 @@ void EVSEModbus::receiveNodeConfig(uint8_t* buf, uint8_t NodeNr) {
     // Reset flag on node
     ModbusWriteSingleRequest(NodeNr + 1u, MODBUS_REG_RESET, 0);
 }
+#endif
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
 // Monitor EV Meter responses, and update Enery and Power measurements
 // Does not send any data back.
 ModbusMessage EVSEModbus::onModbusEVMeterResponse(ModbusMessage msg) {
@@ -172,9 +177,10 @@ void EVSEModbus::modbusPVMeterResponseHandler(ModbusMessage request) {
     //        Serial.print("PVMeter Response\n");
     if (pvMeter != PV_METER_DISABLED && MB.Address == pvMeterAddress && MB.Register == EMConfig[pvMeter].IRegister) {
         // packet from PV electric meter
-        receiveCurrentMeasurement(MB.Data, pvMeter, PV);
+        receiveMainsCurrentMeasurement(MB.Data, pvMeter, PV);
     }
 }
+#endif
 
 //
 // Monitor Mains Meter responses, and update Irms values
@@ -194,19 +200,21 @@ void EVSEModbus::modbusMainsMeterResponseHandler(ModbusMessage msg) {
     // process only Responses, as otherwise MB.Data is unitialized, and it will throw an exception
     if (MB.Register == EMConfig[mainsMeter].IRegister && MB.Type == MODBUS_RESPONSE) {
         // Serial.print("Mains Meter Response\n");
-        x = receiveCurrentMeasurement(MB.Data, mainsMeter, CM);
+        x = receiveMainsCurrentMeasurement(MB.Data, mainsMeter, CM);
 
         // when data is ok
         if (x) {
             for (x = 0; x < 3; x++) {
+#if EVSE_FEATFLAG_ENABLE_EVMETER
                 // Calculate difference of Mains and PV electric meter
                 if (pvMeter != PV_METER_DISABLED) {
                     // CurrentMeter and PV resolution are 1mA
                     CM[x] = CM[x] - PV[x];
                 }
 
-                // sprintf(sprintfStr, "[EVSEModbus] mains meter L[%u] = %d", x, (signed int)(CM[x] / 100));
-                // EVSELogger::info(sprintfStr);
+// sprintf(sprintfStr, "[EVSEModbus] mains meter L[%u] = %d", x, (signed int)(CM[x] / 100));
+// EVSELogger::info(sprintfStr);
+#endif
             }
 
             evseController.mainsMeterReadings(CM[0], CM[1], CM[2]);
@@ -214,6 +222,7 @@ void EVSEModbus::modbusMainsMeterResponseHandler(ModbusMessage msg) {
     }
 }
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
 // Request handler for modbus messages addressed to -this- Node/Slave EVSE.
 // Sends response back to Master
 ModbusMessage EVSEModbus::onModbusNodeRequest(ModbusMessage request) {
@@ -351,242 +360,6 @@ void EVSEModbus::modbusBbroadcastHandler(ModbusMessage msg) {
 }
 
 /**
- * Master requests Node configuration over modbus
- * Master -> Node
- *
- * @param uint8_t NodeNr (1-7)
- */
-void EVSEModbus::requestNodeConfig(uint8_t NodeNr) {
-    ModbusReadInputRequest(NodeNr + 1u, 4, MODBUS_FUNCTION_NODE_CONFIG_REGISTER, 2);
-}
-
-/**
- * Master requests Node status over modbus
- * Master -> Node
- *
- * @param uint8_t NodeNr (1-7)
- */
-void EVSEModbus::requestNodeStatus(uint8_t NodeNr) {
-    Node[NodeNr].Online = false;
-    ModbusReadInputRequest(NodeNr + 1u, 4, MODBUS_FUNCTION_NODE_STATUS_REGISTER, 8);
-}
-
-/**
- * Master receives Node status over modbus
- * Node -> Master
- *
- * @param uint8_t NodeAdr (1-7)
- */
-void EVSEModbus::receiveNodeStatus(uint8_t* buf, uint8_t NodeNr) {
-    Node[NodeNr].Online = evseCluster.isLoadBalancerMaster() ? true : false;
-    Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
-    evseCluster.setClusterNodeStatus(NodeNr, buf[1], buf[3], (buf[15] * 10));
-    // Serial.printf("[EVSEModbus] ReceivedNode[%u]Status State:%u Error:%u,
-    // BalancedMax:%u\n", NodeNr, balancedState[NodeNr], balancedError[NodeNr],
-    // BalancedMax[NodeNr]
-    // );
-}
-
-// Data handler for Master
-// Responses from Slaves/Nodes are handled here
-void EVSEModbus::modbusOnClientData(ModbusMessage msg, uint32_t token) {
-    evseModbus.modbusClientDataHandler(msg, token);
-}
-
-// Data handler for Master
-// Responses from Slaves/Nodes are handled here
-void EVSEModbus::modbusClientDataHandler(ModbusMessage msg, uint32_t token) {
-    uint8_t address = msg.getServerID();
-
-    if (address == mainsMeterAddress) {
-        // Serial.print("MainsMeter data\n");
-        modbusMainsMeterResponseHandler(msg);
-        return;
-    }
-
-    if (address == evMeterAddress) {
-        // Serial.print("EV Meter data\n");
-        modbusEVMeterResponseHandler(msg);
-        return;
-    }
-
-    if (address == pvMeterAddress) {
-        // Serial.print("PV Meter data\n");
-        modbusPVMeterResponseHandler(msg);
-        // Only responses to FC 03/04 are handled here. FC 06/10 response is only
-        // a acknowledge.
-        return;
-    }
-
-    ModbusDecode((uint8_t*)msg.data(), msg.size());
-
-    if (MB.Address > 1 && MB.Address <= NR_EVSES && (MB.Function == 03 || MB.Function == 04)) {
-        // Packet from Node EVSE
-        if (MB.Register == MODBUS_FUNCTION_NODE_STATUS_REGISTER) {
-            // Node status
-            //    Serial.print("Node Status received\n");
-            receiveNodeStatus(evseModbus.MB.Data, MB.Address - 1u);
-        } else if (MB.Register == MODBUS_FUNCTION_NODE_CONFIG_REGISTER) {
-            // Node EV meter settings
-            //    Serial.print("Node EV Meter settings received\n");
-            receiveNodeConfig(MB.Data, MB.Address - 1u);
-        }
-    }
-}
-
-void EVSEModbus::modbusWorkflowNormalMode() {
-    // --------------------------------------------------------------
-    // ------------- Cluster of EVs in Normal mode ------------------
-    // --------------------------------------------------------------
-    switch (workflowModbusRequest) {
-            // ------------- Retrieve data from EVs nodes -------------------
-        case WORKFLOW_NORMAL_REQUESTREADINGSNODE1:
-        case WORKFLOW_NORMAL_REQUESTREADINGSNODE2:
-        case WORKFLOW_NORMAL_REQUESTREADINGSNODE3:
-        case WORKFLOW_NORMAL_REQUESTREADINGSNODE4:
-        case WORKFLOW_NORMAL_REQUESTREADINGSNODE5:
-        case WORKFLOW_NORMAL_REQUESTREADINGSNODE6:
-        case WORKFLOW_NORMAL_REQUESTREADINGSNODE7:
-            if (!evseCluster.isLoadBalancerMaster()) {
-                // Skip to process data
-                workflowModbusRequest = WORKFLOW_NORMAL_PROCESSREADINGSNODE1;
-                break;
-            }
-
-            // Master, request Node 1-8 status
-            // NR_EVSES = 8 (0 - 7), substract master (pos 0) => then 6u
-            requestNodeStatus(workflowModbusRequest - 6u);
-            workflowModbusRequest++;
-            break;
-
-            // ------------- Process data from EVs nodes -------------------
-        case WORKFLOW_NORMAL_PROCESSREADINGSNODE1:
-        case WORKFLOW_NORMAL_PROCESSREADINGSNODE2:
-        case WORKFLOW_NORMAL_PROCESSREADINGSNODE3:
-        case WORKFLOW_NORMAL_PROCESSREADINGSNODE4:
-        case WORKFLOW_NORMAL_PROCESSREADINGSNODE5:
-        case WORKFLOW_NORMAL_PROCESSREADINGSNODE6:
-        case WORKFLOW_NORMAL_PROCESSREADINGSNODE7:
-            if (!evseCluster.isLoadBalancerMaster()) {
-                // Skip but give some time for CT data to be sent/receive over bus
-                workflowModbusRequest++;
-                break;
-            }
-
-            // Master, process Node 1-8 status
-            // NR_EVSES = 8 (0 - 7), substract master (pos 0) => then 6u plus 7
-            // nodes
-            // => 13u
-            evseCluster.processAllNodeStates(workflowModbusRequest - 13u);
-            workflowModbusRequest++;
-            break;
-
-        default:
-            evseCluster.onCTDataReceived();
-            workflowModbusRequest = WORKFLOW_FINISHED;
-            // Serial.printf("Task free ram: %u\n", uxTaskGetStackHighWaterMark(
-            // NULL
-            // ));
-    }
-}
-
-void EVSEModbus::modbusWorkflowSolarSmartMode() {
-    switch (workflowModbusRequest) {
-        case WORKFLOW_SOLARSMART_REQUESTPVREADINGS:
-            EVSELogger::debug("[EVSEModbus] Workflow[SS] requesting PV readings");
-            if (pvMeter != PV_METER_DISABLED) {
-                // PV kwh meter enabled then read it
-                // Serial.printf("[EVSEModbus] Workflow[SS] pvMeter=%u,
-                // pvMeterAddress=%u\n", pvMeter, pvMeterAddress);
-                requestCurrentMeasurement(pvMeter, pvMeterAddress);
-            }
-            workflowModbusRequest = WORKFLOW_SOLARSMART_REQUESTMAINSREADINGS;
-            break;
-
-        case WORKFLOW_SOLARSMART_REQUESTMAINSREADINGS:
-            EVSELogger::debug("[EVSEModbus] Workflow[SS] requesting mains readings");
-            if (mainsMeter != MAINS_METER_DISABLED) {
-                // Sensorbox or kWh meter that measures -all- currents
-                // Serial.printf("[EVSEModbus] Workflow[SS] mainsMeter=%u,
-                // mainsMeterAddress=%u\n", mainsMeter, mainsMeterAddress);
-                requestCurrentMeasurement(mainsMeter, mainsMeterAddress);
-            }
-            workflowModbusRequest = WORKFLOW_SOLARSMART_FINDNEXTONLINESMARTEVSE;
-            break;
-
-        case WORKFLOW_SOLARSMART_FINDNEXTONLINESMARTEVSE:
-            // Find next online SmartEVSE
-
-            EVSELogger::debug("[EVSEModbus] Workflow[SS] checking EVSE config");
-            do {
-                workflowPollingEVNodeNumber++;
-                if (workflowPollingEVNodeNumber >= NR_EVSES)
-                    workflowPollingEVNodeNumber = 0;
-            } while (Node[workflowPollingEVNodeNumber].Online == false);
-
-            // Request Configuration if changed
-            if (Node[workflowPollingEVNodeNumber].ConfigChanged == 0) {
-                // If no config changed skip
-                workflowModbusRequest = WORKFLOW_SOLARSMART_REQUESTEVPOWER;
-                break;
-            }
-
-            requestNodeConfig(workflowPollingEVNodeNumber);
-            workflowModbusRequest = WORKFLOW_SOLARSMART_REQUESTEVENERGY;
-            break;
-
-        case WORKFLOW_SOLARSMART_REQUESTEVENERGY:
-            // Request Energy if EV meter is configured
-
-            EVSELogger::debug("[EVSEModbus] Workflow[SS] requesting EVSE config");
-            // EV kWh meter, Energy measurement (total charged kWh)
-            // Request Energy if EV meter is configured
-            if (Node[workflowPollingEVNodeNumber].EVMeter == 0) {
-                // If no meter skip
-                workflowModbusRequest = WORKFLOW_SKIP;
-                break;
-            }
-
-            requestEnergyMeasurement(Node[workflowPollingEVNodeNumber].EVMeter,
-                                     Node[workflowPollingEVNodeNumber].EVAddress);
-            workflowModbusRequest = WORKFLOW_SOLARSMART_REQUESTEVPOWER;
-            break;
-
-        case WORKFLOW_SOLARSMART_REQUESTEVPOWER:
-            // Request Power if EV meter is configured
-
-            EVSELogger::debug("[EVSEModbus] Workflow[SS] requesting EV readings");
-            // EV kWh meter, Power measurement (momentary power in Watt)
-            if (Node[workflowPollingEVNodeNumber].EVMeter == 0) {
-                // If no meter skip
-                workflowModbusRequest = WORKFLOW_SKIP;
-                break;
-            }
-
-            requestPowerMeasurement(Node[workflowPollingEVNodeNumber].EVMeter,
-                                    Node[workflowPollingEVNodeNumber].EVAddress);
-            workflowModbusRequest = WORKFLOW_SKIP;
-            break;
-
-        default:
-            EVSELogger::debug("[EVSEModbus] Workflow[SS] default");
-            evseCluster.onCTDataReceived();
-            workflowModbusRequest = WORKFLOW_FINISHED;
-            // Serial.printf("Task free ram: %u\n", uxTaskGetStackHighWaterMark(
-            // NULL
-            // ));
-    }
-}
-
-void EVSEModbus::modbusWorkflow() {
-    if (evseController.mode == MODE_NORMAL) {
-        modbusWorkflowNormalMode();
-    } else {
-        modbusWorkflowSolarSmartMode();
-    }
-}
-
-/**
  * Map a Modbus register to an item ID (MENU_xxx or STATUS_xxx)
  *
  * @return uint8_t ItemID
@@ -625,6 +398,215 @@ uint8_t EVSEModbus::mapModbusRegister2MenuItemID() {
     return 0;
 }
 
+/**
+ * Master requests Node configuration over modbus
+ * Master -> Node
+ *
+ * @param uint8_t NodeNr (1-7)
+ */
+void EVSEModbus::requestNodeConfig(uint8_t NodeNr) {
+    ModbusReadInputRequest(NodeNr + 1u, 4, MODBUS_FUNCTION_NODE_CONFIG_REGISTER, 2);
+}
+
+/**
+ * Master requests Node status over modbus
+ * Master -> Node
+ *
+ * @param uint8_t NodeNr (1-7)
+ */
+void EVSEModbus::requestNodeStatus(uint8_t NodeNr) {
+    Node[NodeNr].Online = false;
+    ModbusReadInputRequest(NodeNr + 1u, 4, MODBUS_FUNCTION_NODE_STATUS_REGISTER, 8);
+}
+
+/**
+ * Master receives Node status over modbus
+ * Node -> Master
+ *
+ * @param uint8_t NodeAdr (1-7)
+ */
+void EVSEModbus::receiveNodeStatus(uint8_t* buf, uint8_t NodeNr) {
+    Node[NodeNr].Online = evseCluster.isLoadBalancerMaster() ? true : false;
+    Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
+    evseCluster.setClusterNodeStatus(NodeNr, buf[1], buf[3], (buf[15] * 10));
+    // Serial.printf("[EVSEModbus] ReceivedNode[%u]Status State:%u Error:%u,
+    // BalancedMax:%u\n", NodeNr, balancedState[NodeNr], balancedError[NodeNr],
+    // BalancedMax[NodeNr]
+    // );
+}
+#endif
+
+// Data handler for Master
+// Responses from Slaves/Nodes are handled here
+void EVSEModbus::modbusOnClientData(ModbusMessage msg, uint32_t token) {
+    evseModbus.modbusClientDataHandler(msg, token);
+}
+
+// Data handler for Master
+// Responses from Slaves/Nodes are handled here
+void EVSEModbus::modbusClientDataHandler(ModbusMessage msg, uint32_t token) {
+    uint8_t address = msg.getServerID();
+
+    if (address == mainsMeterAddress) {
+        // Serial.print("MainsMeter data\n");
+        modbusMainsMeterResponseHandler(msg);
+        return;
+    }
+
+#if EVSE_FEATFLAG_ENABLE_EVMETER
+    if (address == evMeterAddress) {
+        // Serial.print("EV Meter data\n");
+        modbusEVMeterResponseHandler(msg);
+        return;
+    }
+
+    if (address == pvMeterAddress) {
+        // Serial.print("PV Meter data\n");
+        modbusPVMeterResponseHandler(msg);
+        // Only responses to FC 03/04 are handled here. FC 06/10 response is only
+        // a acknowledge.
+        return;
+    }
+#endif
+
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+    ModbusDecode((uint8_t*)msg.data(), msg.size());
+
+    if (MB.Address > 1 && MB.Address <= NR_EVSES && (MB.Function == 03 || MB.Function == 04)) {
+        // Packet from Node EVSE
+        if (MB.Register == MODBUS_FUNCTION_NODE_STATUS_REGISTER) {
+            // Node status
+            //    Serial.print("Node Status received\n");
+            receiveNodeStatus(evseModbus.MB.Data, MB.Address - 1u);
+        } else if (MB.Register == MODBUS_FUNCTION_NODE_CONFIG_REGISTER) {
+            // Node EV meter settings
+            //    Serial.print("Node EV Meter settings received\n");
+            receiveNodeConfig(MB.Data, MB.Address - 1u);
+        }
+    }
+#endif
+}
+
+void EVSEModbus::modbusWorkflow() {
+    switch (workflowModbusRequest) {
+        case WORKFLOW_REQUESTPVREADINGS:
+#if EVSE_FEATFLAG_ENABLE_EVMETER
+            EVSELogger::debug("[EVSEModbus] Workflow[SS] requesting PV readings");
+            if (evseController.mode != MODE_NORMAL && pvMeter != PV_METER_DISABLED) {
+                // PV kwh meter enabled then read it
+                // Serial.printf("[EVSEModbus] Workflow[SS] pvMeter=%u,
+                // pvMeterAddress=%u\n", pvMeter, pvMeterAddress);
+                requestMainsCurrentMeasurement(pvMeter, pvMeterAddress);
+            }
+#endif
+            workflowModbusRequest = WORKFLOW_REQUESTMAINSREADINGS;
+            break;
+
+        case WORKFLOW_REQUESTMAINSREADINGS:
+            EVSELogger::debug("[EVSEModbus] Workflow[SS] requesting mains readings");
+            if (evseController.mode != MODE_NORMAL && mainsMeter != MAINS_METER_DISABLED) {
+                // Sensorbox or kWh meter that measures -all- currents
+                // Serial.printf("[EVSEModbus] Workflow[SS] mainsMeter=%u,
+                // mainsMeterAddress=%u\n", mainsMeter, mainsMeterAddress);
+                requestMainsCurrentMeasurement(mainsMeter, mainsMeterAddress);
+            }
+            workflowModbusRequest = WORKFLOW_FINDNEXTONLINESMARTEVSE;
+            break;
+
+        case WORKFLOW_FINDNEXTONLINESMARTEVSE:
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+            // Find next online SmartEVSE
+            EVSELogger::debug("[EVSEModbus] Workflow[SS] checking EVSE config");
+            do {
+                workflowPollingEVNodeNumber++;
+                if (workflowPollingEVNodeNumber >= NR_EVSES)
+                    workflowPollingEVNodeNumber = 0;
+            } while (Node[workflowPollingEVNodeNumber].Online == false);
+
+            // Request Configuration if changed
+            if (Node[workflowPollingEVNodeNumber].ConfigChanged) {
+                requestNodeConfig(workflowPollingEVNodeNumber);
+                break;
+            }
+#endif
+            workflowModbusRequest = WORKFLOW_REQUESTEVENERGY;
+            break;
+
+        case WORKFLOW_REQUESTEVENERGY:
+#if EVSE_FEATFLAG_ENABLE_EVMETER
+            // Request Energy if EV meter is configured
+            EVSELogger::debug("[EVSEModbus] Workflow[SS] requesting EVSE config");
+            // EV kWh meter, Energy measurement (total charged kWh)
+            // Request Energy if EV meter is configured
+            if (Node[workflowPollingEVNodeNumber].EVMeter != EV_METER_DISABLED) {
+                requestEnergyMeasurement(Node[workflowPollingEVNodeNumber].EVMeter,
+                                         Node[workflowPollingEVNodeNumber].EVAddress);
+            }
+#endif
+
+            workflowModbusRequest = WORKFLOW_REQUESTEVPOWER;
+            break;
+
+        case WORKFLOW_REQUESTEVPOWER:
+#if EVSE_FEATFLAG_ENABLE_EVMETER
+            // Request Power if EV meter is configured
+
+            EVSELogger::debug("[EVSEModbus] Workflow[SS] requesting EV readings");
+            // EV kWh meter, Power measurement (momentary power in Watt)
+            if (Node[workflowPollingEVNodeNumber].EVMeter != EV_METER_DISABLED) {
+                requestPowerMeasurement(Node[workflowPollingEVNodeNumber].EVMeter,
+                                        Node[workflowPollingEVNodeNumber].EVAddress);
+            }
+#endif
+
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+            workflowModbusRequest = WORKFLOW_REQUESTREADINGSNODE1;
+#else
+            workflowModbusRequest = WORKFLOW_SKIP;
+#endif
+            break;
+
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+        case WORKFLOW_REQUESTREADINGSNODE1:
+        case WORKFLOW_REQUESTREADINGSNODE2:
+        case WORKFLOW_REQUESTREADINGSNODE3:
+        case WORKFLOW_REQUESTREADINGSNODE4:
+        case WORKFLOW_REQUESTREADINGSNODE5:
+        case WORKFLOW_REQUESTREADINGSNODE6:
+        case WORKFLOW_REQUESTREADINGSNODE7:
+            if (evseCluster.isLoadBalancerMaster()) {
+                // Master, Request Node 1-7 status
+                requestNodeStatus(workflowModbusRequest - WORKFLOW_REQUESTREADINGSNODE1 + 1);
+            }
+            workflowModbusRequest++;
+            break;
+
+        case WORKFLOW_PROCESSREADINGSNODE1:
+        case WORKFLOW_PROCESSREADINGSNODE2:
+        case WORKFLOW_PROCESSREADINGSNODE3:
+        case WORKFLOW_PROCESSREADINGSNODE4:
+        case WORKFLOW_PROCESSREADINGSNODE5:
+        case WORKFLOW_PROCESSREADINGSNODE6:
+        case WORKFLOW_PROCESSREADINGSNODE7:
+            if (evseCluster.isLoadBalancerMaster()) {
+                // Master, process Node 1-7 status
+                evseCluster.processAllNodeStates(workflowModbusRequest - WORKFLOW_PROCESSREADINGSNODE1 + 1);
+            }
+
+            workflowModbusRequest++;
+            break;
+#endif
+
+        default:
+            EVSELogger::debug("[EVSEModbus] Workflow[SS] default");
+            evseCluster.onCTDataReceived();
+            workflowModbusRequest = WORKFLOW_FINISHED;
+            // Serial.printf("Task free ram: %u\n", uxTaskGetStackHighWaterMark(
+            // NULL
+            // ));
+    }
+}
+
 void EVSEModbus::readEpromSettings() {
     Preferences preferences;
     if (preferences.begin(PREFS_MODBUS_NAMESPACE, true) != true) {
@@ -636,10 +618,12 @@ void EVSEModbus::readEpromSettings() {
     if (preferences.isKey(PREFS_EVMETER_KEY)) {
         firstRun = false;
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
         evMeter = preferences.getUChar(PREFS_EVMETER_KEY, EV_METER_DISABLED);
         evMeterAddress = preferences.getUChar(PREFS_EVMETERADDRESS_KEY, EV_METER_ADDRESS);
         pvMeter = preferences.getUChar(PREFS_PVMETER_KEY, PV_METER_DISABLED);
         pvMeterAddress = preferences.getUChar(PREFS_PVMADDRESS_KEY, PV_METER_ADDRESS);
+#endif
         grid = preferences.getUChar(PREFS_GRID_KEY, GRID_3WIRE);
         mainsMeterAddress = preferences.getUChar(PREFS_MAINSMETERADDRESS_KEY, MAINS_METER_ADDRESS);
         mainsMeter = preferences.getUChar(PREFS_MAINSMETER_KEY, MAINS_METER_DISABLED);
@@ -661,10 +645,12 @@ void EVSEModbus::readEpromSettings() {
     preferences.end();
 
     if (firstRun) {
+#if EVSE_FEATFLAG_ENABLE_EVMETER
         evMeter = EV_METER_DISABLED;
         evMeterAddress = EV_METER_ADDRESS;
         pvMeter = PV_METER_DISABLED;
         pvMeterAddress = PV_METER_ADDRESS;
+#endif
         grid = GRID_3WIRE;
         mainsMeterAddress = MAINS_METER_ADDRESS;
         mainsMeter = MAINS_METER_DISABLED;
@@ -693,6 +679,7 @@ void EVSEModbus::validateSettings() {
         mainsMeterAddress = MM_SENSORBOX_ADDRESS;
     }
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     // Disable PV reception if not configured
     if (mainsMeterMeasure == MAINS_METER_MEASURE) {
         pvMeter = PV_METER_DISABLED;
@@ -700,6 +687,7 @@ void EVSEModbus::validateSettings() {
 
     Node[0].EVMeter = evMeter;
     Node[0].EVAddress = evMeterAddress;
+#endif
 
     // Default to modbus input registers
     if (EMConfig[MM_CUSTOM].Function != 3) {
@@ -726,10 +714,12 @@ void EVSEModbus::writeEpromSettings() {
         return;
     }
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     preferences.putUChar(PREFS_EVMETER_KEY, evMeter);
     preferences.putUChar(PREFS_EVMETERADDRESS_KEY, evMeterAddress);
     preferences.putUChar(PREFS_PVMETER_KEY, pvMeter);
     preferences.putUChar(PREFS_PVMADDRESS_KEY, pvMeterAddress);
+#endif
     preferences.putUChar(PREFS_GRID_KEY, grid);
     preferences.putUChar(PREFS_MAINSMETERADDRESS_KEY, mainsMeterAddress);
     preferences.putUChar(PREFS_MAINSMETERMEASURE_KEY, mainsMeterMeasure);
@@ -763,7 +753,9 @@ void EVSEModbus::updateSettings() {
     for (uint8_t i = 0; i < MODBUS_SYS_CONFIG_COUNT; i++) {
         values[i] = evseMenu.getMenuItemValue(MENU_MODE + i);
     }
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     broadcastSysConfigToNodes(values);
+#endif
 }
 
 void EVSEModbus::resetSettings() {
@@ -813,15 +805,18 @@ void EVSEModbus::configureModbusMode(uint8_t newmode) {
         // EVSELogger::debug("task free ram: %u",
         // uxTaskGetStackHighWaterMark(NULL));
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
         // Register worker. at serverID 'LoadBl', all function codes
         MBserver->registerWorker(evseCluster.getLoadBl(), ANY_FUNCTION_CODE, &onModbusNodeRequest);
         // Also add handler for all broadcast messages from Master.
         MBserver->registerWorker(BROADCAST_ADR, ANY_FUNCTION_CODE, &onModbusServerbroadcast);
+#endif
 
         if (mainsMeter != MAINS_METER_DISABLED) {
             MBserver->registerWorker(mainsMeterAddress, ANY_FUNCTION_CODE, &onModbusMainsMeterResponse);
         }
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
         if (evMeter != EV_METER_DISABLED) {
             MBserver->registerWorker(evMeterAddress, ANY_FUNCTION_CODE, &onModbusEVMeterResponse);
         }
@@ -829,12 +824,14 @@ void EVSEModbus::configureModbusMode(uint8_t newmode) {
         if (pvMeter != PV_METER_DISABLED) {
             MBserver->registerWorker(pvMeterAddress, ANY_FUNCTION_CODE, &onModbusPVMeterResponse);
         }
+#endif
 
         // Start ModbusRTU Node background task
         MBserver->start();
         return;
     }
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     // Change worker id
     if ((newmode != MODBUS_START_MODE) && newmode > 1) {
         // Register worker. at serverID 'LoadBl', all function codes
@@ -843,6 +840,7 @@ void EVSEModbus::configureModbusMode(uint8_t newmode) {
         evseCluster.setLoadBl(newmode);
         MBserver->registerWorker(newmode, ANY_FUNCTION_CODE, &onModbusNodeRequest);
     }
+#endif
 }
 
 void EVSEModbus::setup() {
@@ -864,11 +862,7 @@ void EVSEModbus::loop() {
     // EVSE will process broadcast every 100ms
     if ((millis() - lastCTRequestMillis) >= DEFAULT_CT_REQUEST_PERIOD) {
         lastCTRequestMillis = millis();
-        // Default EVSE or master in LB mode, send broadcast to Nodes
-        if (evseCluster.amIMasterOrLBDisabled()) {
-            workflowModbusRequest = evseController.mode == MODE_NORMAL ? WORKFLOW_NORMAL_REQUESTREADINGSNODE1
-                                                                       : WORKFLOW_SOLARSMART_REQUESTPVREADINGS;
-        }
+        workflowModbusRequest = WORKFLOW_REQUESTPVREADINGS;
     }
 
     // Every 2 seconds, request measurements from modbus meters
@@ -1280,7 +1274,7 @@ signed int EVSEModbus::receivePowerMeasurement(uint8_t* buf, uint8_t Meter) {
  * @param uint8_t Meter
  * @param uint8_t Address
  */
-void EVSEModbus::requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
+void EVSEModbus::requestMainsCurrentMeasurement(uint8_t Meter, uint8_t Address) {
     switch (Meter) {
         case MM_API:
             break;
@@ -1321,7 +1315,7 @@ void EVSEModbus::requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
  * @param pointer to Current (mA)
  * @return uint8_t error
  */
-uint8_t EVSEModbus::receiveCurrentMeasurement(uint8_t* buf, uint8_t Meter, signed int* var) {
+uint8_t EVSEModbus::receiveMainsCurrentMeasurement(uint8_t* buf, uint8_t Meter, signed int* var) {
     uint8_t x, offset;
 
     switch (Meter) {

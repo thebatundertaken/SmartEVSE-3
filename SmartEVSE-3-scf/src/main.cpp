@@ -62,13 +62,17 @@ void onTimer100ms(void* parameter) {
             evseLockActuator.loop();
         }
 
+#if EVSE_FEATFLAG_ENABLE_RFID
         if (evseRFID.isEnabled()) {
             evseRFID.loop();
         }
+#endif
 
+#if EVSE_FEATFLAG_ENABLE_LEDS
         if (evseRgbLeds.ledsEnabled) {
             evseRgbLeds.loop();
         }
+#endif
 
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
@@ -83,12 +87,16 @@ void setup() {
     evseController.setup();
     evseModbus.setup();
     evseCluster.setup();
+#if EVSE_FEATFLAG_ENABLE_RFID
     evseRFID.setup();
+#endif
     evseLockActuator.setup();
     evseWifi.setup();
     evseMenu.setup();
     evseButtons.setup();
+#if EVSE_FEATFLAG_ENABLE_LEDS
     evseRgbLeds.setup();
+#endif
     evseScreen.setup();
 
     createTasks();

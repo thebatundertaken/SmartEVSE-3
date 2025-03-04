@@ -235,8 +235,12 @@ void EVSELockActuator::loop() {
     if (status == STATUS_LOCKED) {
         //  One RFID card can lock/unlock the charging socket (like a public charging station)
         // The charging socket is unlocked when charging stops.
-        if ((evseRFID.isEnabled() && evseRFID.rfidAccessBit == RFID_ACCESS_GRANTED) ||
-            evseController.state == STATE_A_STANDBY) {
+        if (evseController.state == STATE_A_STANDBY
+#if EVSE_FEATFLAG_ENABLE_RFID
+            || (evseRFID.isEnabled() && evseRFID.rfidAccessBit == RFID_ACCESS_GRANTED)
+#endif
+
+        ) {
             setUnlockCable(true);
         }
     } else {

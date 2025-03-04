@@ -28,26 +28,26 @@
 #include "EVSEController.h"
 
 class EVSEScreen {
- public:
-  EVSEScreen(){};
+   public:
+    EVSEScreen() {};
 
-  void setup();
-  void redraw();
-  void lightUp();
-  void resetLCD();
-  void onUserActivity();
-  unsigned long ScrollTimerHelpMenu = 0;
-  uint8_t LCDpos = 0;
+    void setup();
+    void redraw();
+    void lightUp();
+    void resetLCD();
+    void onUserActivity();
+    unsigned long ScrollTimerHelpMenu = 0;
+    uint8_t LCDpos = 0;
 
- private:
-  void lightFadeOut();
-  void drawMenu();
+   private:
+    void lightFadeOut();
+    void drawMenu();
 
-  uint8_t evseControllerOldState = STATE_A_STANDBY;
-  uint8_t evseControllerOldErrorFlags = 0;
-  uint8_t evseControllerOldMode = 0;
-  uint8_t lcdBrightness = 0;
-  unsigned long backlightTimer = 0;
+    uint8_t evseControllerOldState = STATE_A_STANDBY;
+    uint8_t evseControllerOldErrorFlags = 0;
+    uint8_t evseControllerOldMode = 0;
+    uint8_t lcdBrightness = 0;
+    unsigned long backlightTimer = 0;
 };
 
 extern EVSEScreen evseScreen;

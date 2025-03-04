@@ -40,16 +40,25 @@
 #define MENU_LOCK 3         // Cable lock
 #define MENU_MIN_EV 4       // MIN Charge Current the EV will accept
 #define MENU_MAX_CURRENT 5  // MAX Charge Current for this EVSE
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
 #define MENU_POWER_SHARE 6  // Load Balance
-#define MENU_SWITCH 7       // External Start/Stop button
-#define MENU_RCMON 8        // Residual Current Monitor
-#define MENU_RFIDREADER 9   // Use RFID reader
-
+#endif
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
+#define MENU_SWITCH 7  // External Start/Stop button
+#endif
+#if EVSE_FEATFLAG_ENABLE_RCMON
+#define MENU_RCMON 8  // Residual Current Monitor
+#endif
+#if EVSE_FEATFLAG_ENABLE_RFID
+#define MENU_RFIDREADER 9  // Use RFID reader
+#endif
 #define MENU_EVMETER 10         // Type of EV electric meter
 #define MENU_EVMETERADDRESS 11  // Address of EV electric meter
 #define MENU_MODE 12            // EVSE mode
-#define MENU_CIRCUIT 13         // EVSE Circuit max Current
-#define MENU_GRID 14            // Grid type to which the Sensorbox is connected
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+#define MENU_CIRCUIT 13  // EVSE Circuit max Current
+#endif
+#define MENU_GRID 14  // Grid type to which the Sensorbox is connected
 #define MENU_SENSORBOX_WIFI 15
 #define MENU_SOLAR_BOOST 16
 // #define MENU_CALIBRATION 15              // CT calibration value
@@ -57,12 +66,14 @@
 #define MENU_SOLAR_START 18              // Surplus energy start Current
 #define MENU_SOLAR_STOP_TIME_MINUTES 19  // Stop solar charging at 6A after this time
 
-#define MENU_IMPORT 20              // Allow grid power when solar charging
-#define MENU_MAINSMETER 21          // Type of Mains electric meter
-#define MENU_MAINSMETERADDRESS 22   // Address of Mains electric meter
-#define MENU_MAINSMETERMEASURE 23   // What does Mains electric meter measure
-#define MENU_PVMETER 24             // Type of PV electric meter
-#define MENU_PVMETERADDRESS 25      // Address of PV electric meter
+#define MENU_IMPORT 20             // Allow grid power when solar charging
+#define MENU_MAINSMETER 21         // Type of Mains electric meter
+#define MENU_MAINSMETERADDRESS 22  // Address of Mains electric meter
+#define MENU_MAINSMETERMEASURE 23  // What does Mains electric meter measure
+#if EVSE_FEATFLAG_ENABLE_EVMETER
+#define MENU_PVMETER 24         // Type of PV electric meter
+#define MENU_PVMETERADDRESS 25  // Address of PV electric meter
+#endif
 #define MENU_EMCUSTOM_ENDIANESS 26  // Byte order of custom electric meter
 #define MENU_EMCUSTOM_DATATYPE 27   // Data type of custom electric meter
 #define MENU_EMCUSTOM_FUNCTION 28   // Modbus Function (3/4) of custom electric meter
@@ -77,7 +88,9 @@
 #define MENU_EMCUSTOM_EDIVISOR 36   // Divisor for Energy (kWh) of custom electric meter (10^x)
 #define MENU_EMCUSTOM_READMAX 37    // Maximum register read (not implemented)
 #define MENU_MAX_TEMPERATURE 38
+#if EVSE_FEATFLAG_ENABLE_LEDS
 #define MENU_LEDS 39
+#endif
 
 #define MENU_WIFI 40
 #define MENU_EXIT 41
@@ -104,21 +117,42 @@ const struct {
     {"EV MIN", I18N_MENU_MIN, MIN_EV_CURRENT, 16, MIN_EV_CURRENT},
     // Max Charge current (A)
     {"EVSE MAX", I18N_MENU_MAX, 6, (MAX_MAINS_HARD_LIMIT / 10), MAX_DEVICE_CURRENT},
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
     {"PWR SHARE", I18N_MENU_POWER_SHARE, 0, CLUSTER_NUM_EVSES, LOAD_BALANCER_DISABLED},
+#else
+    {"PWR SHARE", "", 0, 0, 0},
+#endif
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
     // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
     {"SWITCH", I18N_MENU_SW, 0, 4, SWITCH_DISABLED},
-    // Residual Current Monitor on RCM (0:Disable / 1:Enable)
+#else
+    {"SWITCH", "", 0, 0, 0},
+#endif
+// Residual Current Monitor on RCM (0:Disable / 1:Enable)
+#if EVSE_FEATFLAG_ENABLE_RCMON
     {"RCMON", I18N_MENU_RCMON, 0, 1, RC_MON_DISABLED},
+#else
+    {"RCMON", "", 0, 0, 0},
+#endif
+#if EVSE_FEATFLAG_ENABLE_RFID
     // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete /
     // 4:Delate All)
     {"RFID", I18N_MENU_RFID, 0, 5, RFID_READER_DISABLED},
+#else
+    {"RFID", "", 0, 0, 0},
+#endif
 
-    //----- System configuration -----
+//----- System configuration -----
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     // Type of EV electric meter (0: Disabled / Constants EM_*)
     {"EV METER", I18N_MENU_EVEM, 0, MM_CUSTOM, EV_METER_DISABLED},
     // Address of EV electric meter (10 - 247)
     {"EV ADDR", I18N_MENU_EVAD, MIN_EV_METER_ADDRESS, MAX_EV_METER_ADDRESS, EV_METER_ADDRESS},
+#else
+    {"EV METER", "", 0, 0, 0},
+    {"EV ADDR", "", 0, 0, 0},
+#endif
     // EVSE mode (0:Normal / 1:Smart)
     {"MODE", I18N_MENU_MODE, 0, 2, MODE_NORMAL},
     // Max current of the EVSE circuit (A)
@@ -144,10 +178,15 @@ const struct {
     // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1:
     // Home+EVSE / 2: Home)
     {"MAINS MSRE", I18N_MENU_MAINM, 0, 1, MAINS_METER_MEASURE},
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     // Type of PV electric meter (0: Disabled / Constants EM_*)
     {"PV METER", I18N_MENU_PVEM, 0, MM_CUSTOM, PV_METER_DISABLED},
     // Address of PV electric meter (5 - 254)
     {"PV ADDR", I18N_MENU_PVAD, MIN_EV_METER_ADDRESS, MAX_EV_METER_ADDRESS, PV_METER_ADDRESS},
+#else
+    {"PV METER", "", 0, 0, 0},
+    {"PV ADDR", "", 0, 0, 0},
+#endif
     // Byte order of custom electric meter
     {"BYTE ORD", I18N_MENU_EMBO, 0, 3, EMCUSTOM_ENDIANESS},
     // Data type of custom electric meter
@@ -173,7 +212,11 @@ const struct {
     {"ENE DIVI", I18N_MENU_EMEDIV, 0, 7, EMCUSTOM_EDIVISOR},
     {"READ MAX", I18N_MENU_EMREAD, 3, 255, 3},
     {"MAX TEMP", I18N_MENU_TEMPERATURE, 40, 65, DEFAULT_MAX_TEMPERATURE},
+#if EVSE_FEATFLAG_ENABLE_LEDS
     {"LEDS", I18N_MENU_LEDS, 0, 1, DEFAULT_LEDS_ENABLED_VALUE},
+#else
+    {"LEDS", "", 0, 0, 0},
+#endif
 
     {"WIFI", I18N_MENU_WIFI, 0, 2, WIFI_MODE_DISABLED},
     {"EXIT", I18N_MENU_EXIT, 0, 0, 0}};

@@ -94,8 +94,14 @@ bool EVSEController::isVehicleConnected() {
 
 // Set EVSE mode
 void EVSEController::switchMode(uint8_t newMode) {
+#if EVSE_FEATFLAG_ENABLE_RFID
+    setAccess(true);
+#endif
+
     mode = newMode;
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     evseCluster.setMasterNodeControllerMode(mode);
+#endif
 
     cleanupNoPowerTimersFlags();
     if (mode != MODE_SMART) {
@@ -249,6 +255,7 @@ void EVSEController::onNodeReceivedError(uint8_t newErrorFlags) {
     }
 }
 
+#if EVSE_FEATFLAG_ENABLE_RFID
 void EVSEController::setAccess(bool access) {
     evseRFID.rfidAccessBit = access ? RFID_ACCESS_GRANTED : RFID_NO_ACCESS;
 
@@ -257,6 +264,7 @@ void EVSEController::setAccess(bool access) {
         stopChargingOnError();
     }
 }
+#endif
 
 void EVSEController::onCTCommunicationLost() {
     if (errorFlags & ERROR_FLAG_CT_NOCOMM) {
@@ -268,7 +276,9 @@ void EVSEController::onCTCommunicationLost() {
     EVSELogger::info("[EVSEController] CT communication lost. Stopping charging");
     stopChargingOnError();
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     evseCluster.setMasterNodeErrorflags(errorFlags);
+#endif
     evseCluster.resetBalancedStates();
 }
 
@@ -312,7 +322,9 @@ void EVSEController::onPowerBackOn() {
     errorFlags &= ~ERROR_FLAG_NO_SUN;
     cleanupNoPowerTimersFlags();
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     evseCluster.setMasterNodeErrorflags(errorFlags);
+#endif
 }
 
 void EVSEController::onSolarStopTimer() {
@@ -536,7 +548,9 @@ void EVSEController::setState(uint8_t NewState) {
             timerAlarmWrite(timerA, PWM_100, true);
 
             cleanupNoPowerTimersFlags();
+#if EVSE_FEATFLAG_ENABLE_EVMETER
             evseModbus.evMeterResetKwhOnStandby();
+#endif
             chargeDelaySeconds = 0;
             resetChargeCurrent();
             break;
@@ -554,7 +568,9 @@ void EVSEController::setState(uint8_t NewState) {
             break;
 
         case STATE_C_CHARGING:
+#if EVSE_FEATFLAG_ENABLE_EVMETER
             evseModbus.evMeterResetKwhOnCharging();
+#endif
             CONTACTOR1_ON;
             CONTACTOR2_ON;
             break;
@@ -569,7 +585,9 @@ void EVSEController::setState(uint8_t NewState) {
             break;
 
         case STATE_MODBUS_COMM_C:
+#if EVSE_FEATFLAG_ENABLE_EVMETER
             evseModbus.evMeterResetKwhOnCharging();
+#endif
             break;
     }
 
@@ -694,7 +712,9 @@ void EVSEController::setSolarStopTimer(uint16_t timer) {
     }
 
     solarStopTimer = timer;
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     evseCluster.setMasterSolarStopTimer(solarStopTimer);
+#endif
 }
 
 void EVSEController::setSolarBoost(bool active) {
@@ -756,6 +776,7 @@ int16_t EVSEController::calcSolarBoostCurrent() {
     return solarBoostCurrent;
 }
 
+#if EVSE_FEATFLAG_ENABLE_RCMON
 // RCM = Residual Current Monitor
 // Clear RCM error bit, by pressing any button
 void EVSEController::resetRCMErrorFlag() {
@@ -783,7 +804,9 @@ void EVSEController::sampleRCMSensor() {
         }
     }
 }
+#endif
 
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
 void EVSEController::onExternalSwitchInputPulledLow() {
     switch (externalSwitch) {
         case SWITCH_DISABLED:
@@ -793,12 +816,16 @@ void EVSEController::onExternalSwitchInputPulledLow() {
             break;
 
         case SWITCH_ACCESS_BUTTON:
+#if EVSE_FEATFLAG_ENABLE_RFID
             // Toggle Access bit on/off
             setAccess(!evseRFID.rfidAccessBit);
+#endif
             break;
 
         case SWITCH_ACCESS_SWITCH:
+#if EVSE_FEATFLAG_ENABLE_RFID
             setAccess(true);
+#endif
             break;
 
         case SWITCH_SMARTSOLAR_BUTTON:
@@ -821,15 +848,19 @@ void EVSEController::onExternalSwitchInputPulledLow() {
             break;
     }
 
+#if EVSE_FEATFLAG_ENABLE_RCMON
     // Reset RCM error when button is pressed. RCM was tripped, but RCM level is
     // back to normal
     resetRCMErrorFlag();
+#endif
 }
 
 void EVSEController::onExternalSwitchInputReleased() {
     switch (externalSwitch) {
         case SWITCH_ACCESS_SWITCH:
+#if EVSE_FEATFLAG_ENABLE_RFID
             setAccess(false);
+#endif
             break;
 
         case SWITCH_SMARTSOLAR_BUTTON:
@@ -873,6 +904,7 @@ void EVSEController::sampleExternalSwitch() {
         onExternalSwitchInputReleased();
     }
 }
+#endif
 
 void EVSEController::resetChargeCurrent() {
     //  Do not exceed cable max capacity
@@ -942,10 +974,14 @@ void EVSEController::readEpromSettings() {
     if (preferences.isKey(PREFS_RCMON_KEY)) {
         firstRun = false;
 
+#if EVSE_FEATFLAG_ENABLE_RCMON
         RCmon = preferences.getUChar(PREFS_RCMON_KEY, RC_MON_DISABLED);
+#endif
         mode = preferences.getUChar(PREFS_MODE_KEY, MODE_NORMAL);
         config = preferences.getUChar(PREFS_CONFIG_KEY, CONFIG_SOCKET);
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
         externalSwitch = preferences.getUChar(PREFS_SWITCH_KEY, SWITCH_DISABLED);
+#endif
         maxDeviceCurrent = preferences.getUShort(PREFS_MAXCURRENT_KEY, MAX_DEVICE_CURRENT);
         minEVCurrent = preferences.getUShort(PREFS_MINCURRENT_KEY, MIN_EV_CURRENT);
         maxMains = preferences.getUShort(PREFS_MAXMAINS_KEY, MAX_MAINS);
@@ -959,10 +995,14 @@ void EVSEController::readEpromSettings() {
     preferences.end();
 
     if (firstRun) {
+#if EVSE_FEATFLAG_ENABLE_RCMON
         RCmon = RC_MON_DISABLED;
+#endif
         mode = MODE_NORMAL;
         config = CONFIG_SOCKET;
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
         externalSwitch = SWITCH_DISABLED;
+#endif
         maxDeviceCurrent = MAX_DEVICE_CURRENT;
         minEVCurrent = MIN_EV_CURRENT;
         maxMains = MAX_MAINS;
@@ -1003,10 +1043,14 @@ void EVSEController::writeEpromSettings() {
         return;
     }
 
+#if EVSE_FEATFLAG_ENABLE_RCMON
     preferences.putUChar(PREFS_RCMON_KEY, RCmon);
+#endif
     preferences.putUChar(PREFS_MODE_KEY, mode);
     preferences.putUChar(PREFS_CONFIG_KEY, config);
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
     preferences.putUChar(PREFS_SWITCH_KEY, externalSwitch);
+#endif
     preferences.putUShort(PREFS_MAXCURRENT_KEY, maxDeviceCurrent);
     preferences.putUShort(PREFS_MINCURRENT_KEY, minEVCurrent);
     preferences.putUShort(PREFS_MAXMAINS_KEY, maxMains);
@@ -1160,8 +1204,12 @@ void EVSEController::setup() {
 }
 
 void EVSEController::loop() {
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
     sampleExternalSwitch();
+#endif
+#if EVSE_FEATFLAG_ENABLE_RCMON
     sampleRCMSensor();
+#endif
     sampleControlPilotLine();
 
     // once a second, measure temperature (range -40 .. +125C)

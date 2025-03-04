@@ -34,7 +34,9 @@ const char i18nStrMotor[] = "Motor";
 const char i18nStrDisabled[] = "Disabled";
 const char i18nStrLoadBl[9][9] = {"Disabled", "Master", "Node 1", "Node 2", "Node 3",
                                   "Node 4",   "Node 5", "Node 6", "Node 7"};
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
 const char i18nStrSwitch[5][10] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S"};
+#endif
 const char i18nStrGrid[3][10] = {"4 wire", "3 wire", "1 phase"};
 const char i18nStrSensorboxWifi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
 const char i18nStrEnabled[] = "Enabled";
@@ -45,6 +47,8 @@ const char i18nStrEmCustomFunction3[] = "3:Hold. Reg";
 const char i18nStrEmCustomFunction4[] = "4:Input. Reg";
 
 const char i18nStrMainsHomeEVSE[] = "Home+EVSE";
+
+#if EVSE_FEATFLAG_ENABLE_RFID
 const char i18nStrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
 const char i18nStrRFIDStatus[8][20] = {"Ready",
                                        "Card present",
@@ -54,10 +58,14 @@ const char i18nStrRFIDStatus[8][20] = {"Ready",
                                        "Card not in storage",
                                        "Card storage full",
                                        "Invalid"};
+#endif
+
 const char i18nStrMeter[10][20] = {"Disabled", "Sensorbox", "API",       "Phoenix", "Finder",
                                    "Eastron",  "ABB",       "SolarEdge", "WAGO",    "Custom"};
 const char i18nStrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
+#if EVSE_FEATFLAG_ENABLE_LEDS
 const char i18nStrLeds[2][10] = {"Disabled", "Enabled"};
+#endif
 const char i18nStrSolarBoost[2][10] = {"Disabled", "Enabled"};
 
 const char i18nStrStateName[11][10] = {"A",      "B",         "C",        "D",  "COMM_B", "COMM_B_OK",
@@ -80,10 +88,18 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_MENU_MAX "MAX Charge Current EVSE will dispatch"
 #define I18N_MENU_POWER_SHARE "Share Power between multiple SmartEVSEs (2-8)"
 #define I18N_MENU_SW "Switch function control on pin SW"
+#if EVSE_FEATFLAG_ENABLE_RCMON
 #define I18N_MENU_RCMON "Residual Current Monitor on pin RCM"
+#endif
+#if EVSE_FEATFLAG_ENABLE_RFID
 #define I18N_MENU_RFID "RFID reader, learn/remove cards"
+#endif
+#if EVSE_FEATFLAG_ENABLE_EVMETER
 #define I18N_MENU_EVEM "Type of EV electric meter"
 #define I18N_MENU_EVAD "Address of EV electric meter"
+#define I18N_MENU_PVEM "Type of PV electric meter"
+#define I18N_MENU_PVAD "Address of PV electric meter"
+#endif
 #define I18N_MENU_MODE "Normal, Smart or Solar EVSE mode"
 #define I18N_MENU_CIRCUIT "EVSE Circuit max Current"
 #define I18N_MENU_GRID "Grid type to which the Sensorbox is connected"
@@ -97,8 +113,6 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_MENU_MAINEM "Type of mains electric meter"
 #define I18N_MENU_MAINAD "Address of mains electric meter"
 #define I18N_MENU_MAINM "Mains electric meter scope (What does it measure?)"
-#define I18N_MENU_PVEM "Type of PV electric meter"
-#define I18N_MENU_PVAD "Address of PV electric meter"
 #define I18N_MENU_EMBO "Byte order of custom electric meter"
 #define I18N_MENU_EMDATA "Data type of custom electric meter"
 #define I18N_MENU_EMFUNC "Modbus Function of custom electric meter"
@@ -116,11 +130,21 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_MENU_LEDS "Enable or disabled RGB leds"
 #define I18N_MENU_EXIT "EXIT menu and save settings"
 
+#if EVSE_FEATFLAG_ENABLE_RFID
 #define I18N_RFID_CARDSTORED "Card Stored"
 #define I18N_RFID_CARDALREADY "Card already stored!"
 #define I18N_RFID_CARDDELETED "Card Deleted"
 #define I18N_RFID_CARDNOTFOUND "Card not in storage!"
 #define I18N_RFID_STORAGEFULL "Card storage full!"
+#define I18N_STATE_READYRFIDON1 "PRESENT"
+#define I18N_STATE_READYRFIDON2 "RFID CARD"
+
+#define I18N_RFID_INVALID1 "INVALID"
+#define I18N_RFID_INVALID2 "RFID CARD"
+
+#define I18N_ACCESSDENIED1 "ACCESS"
+#define I18N_ACCESSDENIED2 "DENIED"
+#endif
 
 #define I18N_ERROR_NOSERIALCOM1 "ERROR NO"
 #define I18N_ERROR_NOSERIALCOM2 "SERIAL COM"
@@ -162,15 +186,6 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 #define I18N_STATE_READY2 "CHARGE"
 #define I18N_STATE_READY2DELAY "CHARGE %u"
 
-#define I18N_STATE_READYRFIDON1 "PRESENT"
-#define I18N_STATE_READYRFIDON2 "RFID CARD"
-
-#define I18N_RFID_INVALID1 "INVALID"
-#define I18N_RFID_INVALID2 "RFID CARD"
-
-#define I18N_ACCESSDENIED1 "ACCESS"
-#define I18N_ACCESSDENIED2 "DENIED"
-
 #define I18N_MODE_SOLAR "SOLAR"
 #define I18N_MODE_SMART "SMART"
 
@@ -199,7 +214,9 @@ const char i18nStrErrorNameWeb[9][20] = {"None",       "Not enough power", "Comm
 
 const char* geti18nStrMeterText(uint8_t statusCode);
 
+#if EVSE_FEATFLAG_ENABLE_RFID
 const char* geti18nRfidStatusText(uint8_t code);
+#endif
 
 const char* geti18nStateText(uint8_t stateCode);
 

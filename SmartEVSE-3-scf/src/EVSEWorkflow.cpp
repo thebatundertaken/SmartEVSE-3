@@ -42,8 +42,11 @@ void EVSEWorkflow::workflowStandby() {
 
         case CONTROL_PILOT_9V:
             // switch to State B ?
-            if (evseController.errorFlags || evseController.isChargeDelayed() || !evseRFID.isRFIDAccessGranted() ||
-                evseController.state == STATE_MODBUS_COMM_B) {
+            if (evseController.errorFlags || evseController.isChargeDelayed()
+#if EVSE_FEATFLAG_ENABLE_RFID
+                || !evseRFID.isRFIDAccessGranted()
+#endif
+                || evseController.state == STATE_MODBUS_COMM_B) {
                 break;
             }
 

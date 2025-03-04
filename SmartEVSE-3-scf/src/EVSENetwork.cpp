@@ -34,6 +34,7 @@
 void EVSENetwork::getWebUIData(AsyncWebServerRequest* request) {
     DynamicJsonDocument doc(1200);
     doc["version"] = String(EVSE_VERSION);
+    doc["version_little"] = EVSE_LITTLE == 1 ? true : false;
     doc["hostname"] = String(evseWifi.getApHostname());
 
     doc["controller"]["vehicleConnected"] = evseController.isVehicleConnected();
@@ -74,24 +75,30 @@ void EVSENetwork::getWebUIData(AsyncWebServerRequest* request) {
         doc["controller"]["switchOnTime"] = -1;
         doc["controller"]["switchOffTime"] = -1;
     }
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     doc["cluster"]["loadbl"] = evseCluster.getLoadBl();
+#endif
 
     doc["modbus"]["mainsMeterText"] = geti18nStrMeterText(evseModbus.mainsMeter);
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     doc["modbus"]["evMeterText"] = geti18nStrMeterText(evseModbus.evMeter);
-    doc["modbus"]["pvMeterText"] = geti18nStrMeterText(evseModbus.pvMeter);
-    doc["modbus"]["lastMainsMeterResponse"] = evseController.getLastMainsMeterResponse();
-    doc["modbus"]["powerMeasured"] = evseModbus.powerMeasured;
-    doc["modbus"]["grid"] = evseModbus.grid;
     // in kWh, precision 1 decimal
     doc["modbus"]["evMeterEnergy"] = round(evseModbus.getEvMeterEnergy() / 100) / 10;
+    doc["modbus"]["pvMeterText"] = geti18nStrMeterText(evseModbus.pvMeter);
+    doc["modbus"]["powerMeasured"] = evseModbus.powerMeasured;
     // in kWh, precision 1 decimal
     doc["modbus"]["energyCharged"] = round(evseModbus.energyCharged / 100) / 10;
+#endif
+    doc["modbus"]["lastMainsMeterResponse"] = evseController.getLastMainsMeterResponse();
+    doc["modbus"]["grid"] = evseModbus.grid;
     doc["modbus"]["overrideCurrent"] = evseCluster.getOverrideCurrent();
 
+#if EVSE_FEATFLAG_ENABLE_RFID
     doc["rfid"]["reader"] = evseRFID.RFIDReader;
     doc["rfid"]["status"] = evseRFID.RFIDstatus;
     doc["rfid"]["statusText"] = evseRFID.isEnabled() ? geti18nRfidStatusText(evseRFID.RFIDstatus) : "";
     doc["rfid"]["accessBit"] = evseRFID.rfidAccessBit == RFID_ACCESS_GRANTED ? true : false;
+#endif
 
     doc["nerd"]["controller"]["CP"] = evseController.getControlPilot();
     doc["nerd"]["maxCurrentAvailable"] = evseController.getMaxCurrentAvailable();
@@ -118,17 +125,14 @@ void EVSENetwork::postSettings(AsyncWebServerRequest* request) {
         updateSettings = true;
         switch (mode.toInt()) {
             case MODE_NORMAL:
-                evseController.setAccess(true);
                 evseController.switchMode(MODE_NORMAL);
                 break;
 
             case MODE_SOLAR:
-                evseController.setAccess(true);
                 evseController.switchMode(MODE_SOLAR);
                 break;
 
             case MODE_SMART:
-                evseController.setAccess(true);
                 evseController.switchMode(MODE_SMART);
                 break;
 

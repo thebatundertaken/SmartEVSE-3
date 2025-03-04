@@ -110,6 +110,7 @@
 // Allow the use of grid power when solar charging (Amps)
 #define SOLAR_IMPORT_CURRENT 0
 
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
 // External Switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B /
 // 4:Smart-Solar S) 0= Charge on plugin, 1= (Push)Button on IO2 is used to
 // Start/Stop charging.
@@ -118,6 +119,7 @@
 #define SWITCH_ACCESS_SWITCH 2
 #define SWITCH_SMARTSOLAR_BUTTON 3
 #define SWITCH_SMARTSOLAR_SWITCH 4
+#endif
 
 // Smart-Solar Button or hold button for 1,5 second to STOP charging
 #define SWITCH_SMARTSOLAR_BUTTON_LONGPRESSED_MILLIS 1500
@@ -139,7 +141,9 @@ class EVSEController {
 
     void switchMode(uint8_t newMode);
     void setState(uint8_t NewState);
+#if EVSE_FEATFLAG_ENABLE_RFID
     void setAccess(bool access);
+#endif
     bool isChargeDelayed() { return chargeDelaySeconds > 0; };
     bool isVehicleConnected();
     uint8_t getChargeDelaySeconds() { return chargeDelaySeconds; };
@@ -147,8 +151,10 @@ class EVSEController {
     void updateSettings();
     void resetSettings();
 
-    // RCM = Residual Current Monitor
+#if EVSE_FEATFLAG_ENABLE_RCMON
     void resetRCMErrorFlag();
+#endif
+
     void setSolarStopTimer(uint16_t Timer);
     void onCTCommunicationLost();
     void onNodeReceivedError(uint8_t newErrorFlags);
@@ -198,17 +204,19 @@ class EVSEController {
     uint8_t mode = MODE_NORMAL;
     uint8_t state = STATE_A_STANDBY;
     uint8_t errorFlags = ERROR_FLAG_NO_ERROR;
+#if EVSE_FEATFLAG_ENABLE_RCMON
     // Residual Current Monitor (0:Disable / 1:Enable)
     uint8_t RCmon = RC_MON_DISABLED;
+#endif
     // Momentary current per Phase (23 = 2.3A) (resolution 100mA). Max 3 phases supported
     int16_t Irms[3] = {0, 0, 0};
     uint16_t solarStopTimer = 0;
     // Temperature EVSE in deg C (-50 to +125)
     int8_t temperature = 0;
     int8_t maxTemperature = DEFAULT_MAX_TEMPERATURE;
-    // External switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B /
-    // 4:Smart-Solar S)
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
     uint8_t externalSwitch = SWITCH_DISABLED;
+#endif
     // Max Charge current (A) allowed by the EVSE device
     uint16_t maxDeviceCurrent = MAX_DEVICE_CURRENT;
     // Minimal current the EV is happy with (A)
@@ -232,13 +240,19 @@ class EVSEController {
     void stopChargingOnError();
     void sampleADC();
     void sampleTemperatureSensor();
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
     void sampleExternalSwitch();
+#endif
+#if EVSE_FEATFLAG_ENABLE_RCMON
     void sampleRCMSensor();
+#endif
     void sampleControlPilotLine();
     void sampleProximityPilot();
     void onCPpulse();
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
     void onExternalSwitchInputPulledLow();
     void onExternalSwitchInputReleased();
+#endif
     bool isEnoughPower();
     void waitForEnoughPower();
     void onPowerBackOn();

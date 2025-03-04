@@ -55,6 +55,7 @@ void EVSECluster::setMasterNodeBalancedCurrent(uint16_t current) {
     balancedChargeCurrent[0] = current;
 }
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
 void EVSECluster::setMasterNodeControllerMode(uint8_t mode) {
     if (!evseCluster.amIMasterOrLBDisabled()) {
         return;
@@ -78,6 +79,7 @@ void EVSECluster::setMasterSolarStopTimer(uint16_t solarStopTimer) {
 
     evseModbus.broadcastSolarStopTimerToNodes(solarStopTimer);
 }
+#endif
 
 bool EVSECluster::amIMasterOrLBDisabled() {
     return LoadBl == LOAD_BALANCER_MASTER || LoadBl == LOAD_BALANCER_DISABLED;
@@ -176,6 +178,7 @@ void EVSECluster::setWorkerNodeMasterBalancedCurrent(uint16_t current) {
     evseController.setChargeCurrent(balancedChargeCurrent[0]);
 }
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
 /**
  * Master checks node status requests, and responds with new state
  * @param uint8_t NodeAdr (1-7)
@@ -229,6 +232,7 @@ void EVSECluster::processAllNodeStates(uint8_t nodeNr) {
         evseModbus.sendNewStatusToNode(nodeNr + 1, values);
     }
 }
+#endif
 
 // Total power used by EVSEs cluster. In memory value, might not match real value even using evMeter
 int16_t EVSECluster::getClusterCurrent() {
@@ -503,6 +507,7 @@ void EVSECluster::adjustChargeCurrent() {
         recalcBalancedChargeCurrent();
     }
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     if (isLoadBalancerMaster()) {
         // If there is no enough power
         if (evseController.errorFlags & ERROR_FLAG_LESS_6A) {
@@ -513,6 +518,7 @@ void EVSECluster::adjustChargeCurrent() {
             evseModbus.broadcastMasterBalancedCurrent(balancedChargeCurrent);
         }
     }
+#endif
 
     evseController.setChargeCurrent(balancedChargeCurrent[0]);
 }

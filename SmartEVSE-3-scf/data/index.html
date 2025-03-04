@@ -312,6 +312,9 @@
             initiated = true;
             $('#hostname').text(data.hostname);
             $('#version').append(data.version);
+            if (data.version_little) {
+              $('#version').append(" little");
+            }
             currentVersion = data.version;
             document.title = data.hostname;
           }
@@ -391,30 +394,44 @@
           }
 
           $('#temp').text(data.controller.temperature + "°C / " + data.controller.maxTemperature + "°C");
-          $('#rfid').text((data.rfid.reader == 0) ? "Not installed" : "Enabled [" + data.rfid.statusText + "]");
-          $('#power_share').text((data.cluster.loadbl == 0) ? "Disabled" : (data.cluster.loadbl == 1 ? "Master" : "Node [" + data.cluster.loadbl + "]"));
-          $('#rfid_access').text((data.rfid.accessBit == 0) ? "No access" : "Granted");
-          if (data.rfid.reader == 0) {
-            $('#rfid_access_box').hide();
+          if (data.rfid) {
+            $('#rfid_box').show();
+            $('#rfid').text((data.rfid.reader == 0) ? "Not installed" : "Enabled [" + data.rfid.statusText + "]");
+            $('#rfid_access').text((data.rfid.accessBit == 0) ? "No access" : "Granted");
+            if (data.rfid.reader == 0) {
+              $('#rfid_access_box').hide();
+            }
+            else {
+              $('#rfid_access_box').show();
+            }
           }
           else {
-            $('#rfid_access_box').show();
+            $('#rfid_box').hide();
+            $('#rfid_access_box').hide();
           }
 
           $('#current_min').text(data.controller.minEVCurrent.toFixed(0) + "A");
           $('#current_max').text(data.controller.maxMains.toFixed(0) + "A");
           $('#device_max').text(data.controller.maxDeviceCurrent.toFixed(0) + "A");
-          if (data.cluster.loadbl > 0) {
-            $("#override_current_box").show();
-            if (data.modbus.overrideCurrent > 0) {
-              $('#override_current').text((data.modbus.overrideCurrent / 10).toFixed(1) + "A");
+
+          if (data.cluster) {
+            $("#powershare_box").show();
+            $('#power_share').text((data.cluster.loadbl == 0) ? "Disabled" : (data.cluster.loadbl == 1 ? "Master" : "Node [" + data.cluster.loadbl + "]"));
+            if (data.cluster.loadbl > 0) {
+              $("#override_current_box").show();
+              if (data.modbus.overrideCurrent > 0) {
+                $('#override_current').text((data.modbus.overrideCurrent / 10).toFixed(1) + "A");
+              }
+              else {
+                $('#override_current').text("--");
+              }
             }
             else {
-              $('#override_current').text("--");
+              $("#override_current_box").hide();
             }
           }
           else {
-            $("#override_current_box").hide();
+            $("#powershare_box").hide();
           }
 
           $('#cable_max').text(data.controller.cableMaxCapacity.toFixed(0) + "A");
@@ -475,13 +492,13 @@
             }
           }
 
-          if (data.modbus.evMeterText == "Disabled" || data.controller.mode == 0) {
+          if (data.controller.mode == 0 || !data.modbus.evMeterText || data.modbus.evMeterText == "Disabled") {
             $('#with_evmeter').hide();
           } else {
             $('#with_evmeter').show();
             $('#evmeter_description').text(data.modbus.evMeterText);
-            $('#evmeter_power').text(data.modbus.powerMeasured.toFixed(1) + " kW");
             $('#evmeter_total_kwh').text(data.modbus.evMeterEnergy.toFixed(1) + " kWh");
+            $('#evmeter_power').text(data.modbus.powerMeasured.toFixed(1) + " kW");
             $('#evmeter_charged_kwh').text(data.modbus.energyCharged.toFixed(1) + " kWh");
           }
 
@@ -923,7 +940,7 @@
                           <div class="h5 mb-0 text-muted text-end" id="device_max"></div>
                         </div>
                       </div>
-                      <div class="row g-0 align-items-center">
+                      <div class="row g-0 align-items-center" id="powershare_box">
                         <div class="col-auto h5 mb-0 me-3">
                           <i class="bi bi-diagram-3"></i> Power sharing:
                         </div>
@@ -931,7 +948,7 @@
                           <div class="h5 mb-0 text-muted text-end" id="power_share"></div>
                         </div>
                       </div>
-                      <div class="row g-0 align-items-center">
+                      <div class="row g-0 align-items-center" id="rfid_box">
                         <div class="col-auto h5 mb-0 me-3">
                           <i class="bi bi-credit-card"></i> RFID:
                         </div>

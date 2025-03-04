@@ -17,6 +17,7 @@
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ; THE SOFTWARE.
 */
+#if EVSE_FEATFLAG_ENABLE_RFID
 
 #ifndef __ONEWIRE_H
 #define __ONEWIRE_H
@@ -25,4 +26,5 @@ void ReadRFIDlist();
 void DeleteAllRFID();
 void CheckRFID();
 
+#endif
 #endif

@@ -2,8 +2,10 @@ SmartEVSE v3
 =========
 [![GitHub release](https://img.shields.io/github/release/thebatundertaken/SmartEVSE-3.svg)](https://github.com/thebatundertaken/SmartEVSE-3/releases)
 
+An open source EVSE (Electric Vehicle Supply Equipment).
+
 # Changes to original firmware v3.0.0
-- Adaptation for a 3 phases installation with 1 phase fixed cable or socket
+- Adaptation for a 3 phases installation with single phase fixed cable or socket
 - New solar boost feature to allow charging over max mains when solar power surplus available
 - Device screen on Smart/Solar mode renders decimal amps for phases consumption
 - Added scheduled charging with switch on and off time (operating hours)
@@ -59,7 +61,8 @@ $~$
 $~$
 # Building the firmware
 * Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
-* Compile `firmware.bin`: platformio run
+* Compile `firmware.bin`: platformio run -e release
+* Compile `firmware_little.bin`: platformio run -e release_little
 * Compile `spiffs.bin`: platformio run -t buildfs
 
 $~$
@@ -70,7 +73,7 @@ $~$
 File `firmware.bin` contains C++ compiled code and file `spiffs.bin` contains embeded webserver HTML content.
 
 > [!CAUTION]
-> YOU CANNOT FLASH THE DEVICE WITH ANOTHER FILENAME rather than `firmware.bin` and `spiffs.bin`!
+> YOU CANNOT FLASH HTML content WITH ANOTHER FILENAME rather than `spiffs.bin`!
 
 
 ### Option 1: WiFi flashing

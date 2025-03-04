@@ -374,6 +374,7 @@ void GLCDControllerRCMError() {
     }
 }
 
+#if EVSE_FEATFLAG_ENABLE_RFID
 void GLCDRFID() {
     switch (evseRFID.RFIDstatus) {
         case RFID_STATUS_CARDSTORED:
@@ -406,6 +407,7 @@ void GLCDRFID() {
     evseScreen.lightUp();
     evseMenu.resetInactivityTimer();
 }
+#endif
 
 void GLCDWifiPortalCountdown() {
     glcd_clrln(0, 0);
@@ -526,6 +528,7 @@ void GLCDAnimateEVEnergyFlow() {
     // Show energy flow 'blob' between House and Car
     GLCD_write_buf(0x0A, 0);
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     if (getLCDToggle() && evseModbus.evMeter != EV_METER_DISABLED) {
         if (evseModbus.powerMeasured < 9950) {
             sprintfl(LCDStr, I18N_POWERMEASURED_FORMAT_SHORT, evseModbus.powerMeasured, 3, 1);
@@ -537,6 +540,9 @@ void GLCDAnimateEVEnergyFlow() {
         // 0);
         sprintfl(LCDStr, I18N_POWERAMPS_FORMAT, evseController.getChargeCurrent(), 1, 0);
     }
+#else
+    sprintfl(LCDStr, I18N_POWERAMPS_FORMAT, evseController.getChargeCurrent(), 1, 0);
+#endif
     GLCD_write_buf_str(85, 2, LCDStr, GLCD_ALIGN_CENTER);
 }
 
@@ -548,17 +554,21 @@ void circleChargingMessage() {
             break;
 
         case 2:
+#if EVSE_FEATFLAG_ENABLE_EVMETER
             if (evseModbus.evMeter != EV_METER_DISABLED) {
                 sprintfl(LCDStr, I18N_STATE_CHARGINGPOWER, evseModbus.powerMeasured, 3, 1);
                 GLCD_print_buf2(5, LCDStr);
             }
+#endif
             break;
 
         case 3:
+#if EVSE_FEATFLAG_ENABLE_EVMETER
             if (evseModbus.evMeter != EV_METER_DISABLED) {
                 sprintfl(LCDStr, I18N_STATE_CHARGINGENERGY, evseModbus.energyCharged, 3, 2);
                 GLCD_print_buf2(5, LCDStr);
             }
+#endif
             break;
 
         case 4:
@@ -601,11 +611,13 @@ void GLCDSmartSolarMode() {
 
     GLCDAnimateMainsEnergyFlow();
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
     // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD
     if (evseModbus.evMeter != EV_METER_DISABLED) {
         sprintfl(LCDStr, I18N_ENERGYCHARGED_FORMAT, evseModbus.energyCharged, 3, 1);
         GLCD_write_buf_str(89, 1, LCDStr, GLCD_ALIGN_LEFT);
     }
+#endif
 
     bool LCDToggle = getLCDToggle();
     switch (evseController.state) {
@@ -702,7 +714,9 @@ void GLCDNormalMode() {
         return;
     }
 
+#if EVSE_FEATFLAG_ENABLE_RFID
     if (evseRFID.isRFIDAccessGranted()) {
+#endif
         if (evseController.isChargeDelayed()) {
             // Charge delayed
             GLCD_print_buf2(2, (const char*)I18N_STATE_READY1);
@@ -715,6 +729,7 @@ void GLCDNormalMode() {
         }
 
         return;
+#if EVSE_FEATFLAG_ENABLE_RFID
     }
 
     if (evseRFID.isEnabled()) {
@@ -733,6 +748,7 @@ void GLCDNormalMode() {
 
     GLCD_print_buf2(2, (const char*)I18N_ACCESSDENIED1);
     GLCD_print_buf2(4, (const char*)I18N_ACCESSDENIED2);
+#endif
 }
 
 void GLCDHoldForMenu() {
@@ -773,6 +789,7 @@ void GLCDMenu() {
 
             break;
 
+#if EVSE_FEATFLAG_ENABLE_RFID
         case MENU_RFIDREADER:
             if (evseMenu.subMenu) {
                 GLCDRFID();
@@ -780,6 +797,7 @@ void GLCDMenu() {
                 GLCD_print_menu(4, evseMenu.getMenuItemi18nText(evseMenu.currentMenuOption));
             }
             break;
+#endif
 
         case MENU_SENSORBOX_WIFI:
             if (evseMenu.subMenu && (evseModbus.SB2.WIFImode != evseModbus.getSensorboxWifiMode())) {

@@ -31,6 +31,7 @@ const char* geti18nStrMeterText(uint8_t statusCode) {
     return "Unknown";
 }
 
+#if EVSE_FEATFLAG_ENABLE_RFID
 const char* geti18nRfidStatusText(uint8_t code) {
     if (code < 8) {
         return i18nStrRFIDStatus[code];
@@ -38,6 +39,7 @@ const char* geti18nRfidStatusText(uint8_t code) {
 
     return "Unknown";
 }
+#endif
 
 const char* geti18nStateText(uint8_t stateCode) {
     if (stateCode < 11) {

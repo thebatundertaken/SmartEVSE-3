@@ -26,55 +26,57 @@
 #include "EVSEScreen.h"
 
 void EVSEButtons::setup() {
-  // Nothing to do
+    // Nothing to do
 }
 
 // Sample the three < o > buttons
 //         Value: 1 2 4
 //         Bit: 0:Pressed / 1:Released
 void EVSEButtons::sampleButtons() {
-  buttonState = 0;
+    buttonState = 0;
 
-  // As the buttons are shared with the SPI lines going to the LCD,
-  // we have to make sure that this does not interfere by write actions to the LCD.
-  // Therefore updating the LCD is also done in this task.
-  // disconnect MOSI pin
-  pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);
-  pinMode(PIN_LCD_SDO_B3, INPUT);
-  pinMode(PIN_LCD_A0_B2, INPUT);
-  // sample buttons < o >
-  if (digitalRead(PIN_LCD_SDO_B3)) {
-    buttonState = 4;  // > (right)
-  }
+    // As the buttons are shared with the SPI lines going to the LCD,
+    // we have to make sure that this does not interfere by write actions to the LCD.
+    // Therefore updating the LCD is also done in this task.
+    // disconnect MOSI pin
+    pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);
+    pinMode(PIN_LCD_SDO_B3, INPUT);
+    pinMode(PIN_LCD_A0_B2, INPUT);
+    // sample buttons < o >
+    if (digitalRead(PIN_LCD_SDO_B3)) {
+        buttonState = 4;  // > (right)
+    }
 
-  if (digitalRead(PIN_LCD_A0_B2)) {
-    buttonState |= 2;  // o (middle)
-  }
+    if (digitalRead(PIN_LCD_A0_B2)) {
+        buttonState |= 2;  // o (middle)
+    }
 
-  if (digitalRead(PIN_IO0_B1)) {
-    buttonState |= 1;  // < (left)
-  }
+    if (digitalRead(PIN_IO0_B1)) {
+        buttonState |= 1;  // < (left)
+    }
 
-  pinMode(PIN_LCD_SDO_B3, OUTPUT);
-  // re-attach MOSI pin
-  pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false);
-  pinMode(PIN_LCD_A0_B2, OUTPUT);
+    pinMode(PIN_LCD_SDO_B3, OUTPUT);
+    // re-attach MOSI pin
+    pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false);
+    pinMode(PIN_LCD_A0_B2, OUTPUT);
 }
 
 void EVSEButtons::loop() {
-  sampleButtons();
+    sampleButtons();
 
-  // No button pressed nor long pressed
-  if ((buttonState == BUTTON_NONE_MASK) && (buttonState == oldButtonState)) {
-    return;
-  }
+    // No button pressed nor long pressed
+    if ((buttonState == BUTTON_NONE_MASK) && (buttonState == oldButtonState)) {
+        return;
+    }
 
-  oldButtonState = buttonState;
+    oldButtonState = buttonState;
 
-  // Clear RCM error by pressing any button
-  evseController.resetRCMErrorFlag();
-  evseMenu.onButtonChanged(buttonState);
-  evseScreen.onUserActivity();
+#if EVSE_FEATFLAG_ENABLE_RCMON
+    // Clear RCM error by pressing any button
+    evseController.resetRCMErrorFlag();
+#endif
+    evseMenu.onButtonChanged(buttonState);
+    evseScreen.onUserActivity();
 }
 
 EVSEButtons evseButtons;

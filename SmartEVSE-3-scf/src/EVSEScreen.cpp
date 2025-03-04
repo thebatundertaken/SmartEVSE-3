@@ -161,7 +161,12 @@ void EVSEScreen::redraw() {
         }
     }
 
-    if (evseController.mode == MODE_NORMAL || !evseRFID.isRFIDAccessGranted()) {
+    if (evseController.mode == MODE_NORMAL
+#if EVSE_FEATFLAG_ENABLE_RFID
+        || !evseRFID.isRFIDAccessGranted()
+#endif
+
+    ) {
         GLCDNormalMode();
         return;
     }

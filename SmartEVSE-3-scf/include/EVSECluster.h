@@ -34,7 +34,7 @@
 
 class EVSECluster {
    public:
-    EVSECluster(){};
+    EVSECluster() {};
 
     uint8_t getLoadBl() { return LoadBl; };
     void setLoadBl(uint8_t value) { LoadBl = value; };
@@ -47,14 +47,15 @@ class EVSECluster {
     bool amIMasterOrLBDisabled();
     bool amIWorkerNode();
 
-    void processAllNodeStates(uint8_t nodeNr);
-
     void setMasterNodeBalancedState(uint8_t state);
     void setMasterNodeBalancedMax(uint16_t newBalancedMax);
     void setMasterNodeBalancedCurrent(uint16_t current);
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+    void processAllNodeStates(uint8_t nodeNr);
     void setMasterNodeControllerMode(uint8_t mode);
     void setMasterNodeErrorflags(uint8_t errorFlags);
     void setMasterSolarStopTimer(uint16_t solarStopTimer);
+#endif
 
     void resetBalancedStates();
     void setClusterNodeStatus(uint8_t nodeNr, uint8_t state, uint16_t error, uint16_t maxChargeCurrent);

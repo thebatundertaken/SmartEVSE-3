@@ -86,6 +86,7 @@ void EVSEMenu::buildMenuItems() {
                 MenuItems[m++] = MENU_MAINSMETERMEASURE;
                 MenuItems[m++] = MENU_SOLAR_BOOST;
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
                 // PV not measured by Mains electric meter?
                 if (evseModbus.mainsMeterMeasure) {
                     MenuItems[m++] = MENU_PVMETER;
@@ -93,18 +94,24 @@ void EVSEMenu::buildMenuItems() {
                         MenuItems[m++] = MENU_PVMETERADDRESS;
                     }
                 }
+#endif
             }
         }
 
+#if EVSE_FEATFLAG_ENABLE_EVMETER
         MenuItems[m++] = MENU_EVMETER;
         if (evseModbus.evMeter != EV_METER_DISABLED) {
             MenuItems[m++] = MENU_EVMETERADDRESS;
         }
+#endif
 
         if (evseCluster.amIMasterOrLBDisabled()) {
             // Custom electric meter used?
-            if (evseModbus.mainsMeter == MM_CUSTOM || evseModbus.pvMeter == MM_CUSTOM ||
-                evseModbus.evMeter == MM_CUSTOM) {
+            if (evseModbus.mainsMeter == MM_CUSTOM
+#if EVSE_FEATFLAG_ENABLE_EVMETER
+                || evseModbus.pvMeter == MM_CUSTOM || evseModbus.evMeter == MM_CUSTOM
+#endif
+            ) {
                 MenuItems[m++] = MENU_EMCUSTOM_ENDIANESS;
                 MenuItems[m++] = MENU_EMCUSTOM_DATATYPE;
                 MenuItems[m++] = MENU_EMCUSTOM_FUNCTION;
@@ -120,17 +127,27 @@ void EVSEMenu::buildMenuItems() {
         }
     }
 
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
     MenuItems[m++] = MENU_POWER_SHARE;
     if (evseCluster.isLoadBalancerMaster()) {
         MenuItems[m++] = MENU_CIRCUIT;
     }
+#endif
 
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
     MenuItems[m++] = MENU_SWITCH;
+#endif
+#if EVSE_FEATFLAG_ENABLE_RCMON
     MenuItems[m++] = MENU_RCMON;
+#endif
+#if EVSE_FEATFLAG_ENABLE_RFID
     MenuItems[m++] = MENU_RFIDREADER;
+#endif
 
     MenuItems[m++] = MENU_MAX_TEMPERATURE;
+#if EVSE_FEATFLAG_ENABLE_LEDS
     MenuItems[m++] = MENU_LEDS;
+#endif
     MenuItems[m++] = MENU_WIFI;
     MenuItems[m++] = MENU_EXIT;
 
@@ -142,7 +159,9 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
         case MENU_CONFIG:
             return evseController.config;
         case MENU_MODE:
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
         case NODE_STATUS_MODE:
+#endif
             return evseController.mode;
         case MENU_SOLAR_START:
             return evseController.solarStartCurrent;
@@ -150,22 +169,28 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseController.solarStopTimeMinutes;
         case MENU_IMPORT:
             return evseController.solarImportCurrent;
-        case MENU_POWER_SHARE:
-            return evseCluster.getLoadBl();
         case MENU_MAX_MAINS:
             return evseController.maxMains;
         case MENU_MIN_EV:
             return evseController.minEVCurrent;
         case MENU_MAX_CURRENT:
             return evseController.maxDeviceCurrent;
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+        case MENU_POWER_SHARE:
+            return evseCluster.getLoadBl();
         case MENU_CIRCUIT:
             return evseCluster.getMaxCircuit();
+#endif
         case MENU_LOCK:
             return evseLockActuator.getLockType();
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
         case MENU_SWITCH:
             return evseController.externalSwitch;
+#endif
+#if EVSE_FEATFLAG_ENABLE_RCMON
         case MENU_RCMON:
             return evseController.RCmon;
+#endif
         case MENU_GRID:
             return evseModbus.grid;
         case MENU_MAINSMETER:
@@ -174,6 +199,7 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseModbus.mainsMeterAddress;
         case MENU_MAINSMETERMEASURE:
             return evseModbus.mainsMeterMeasure;
+#if EVSE_FEATFLAG_ENABLE_EVMETER
         case MENU_PVMETER:
             return evseModbus.pvMeter;
         case MENU_PVMETERADDRESS:
@@ -182,6 +208,7 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseModbus.evMeter;
         case MENU_EVMETERADDRESS:
             return evseModbus.evMeterAddress;
+#endif
         case MENU_EMCUSTOM_ENDIANESS:
             return evseModbus.EMConfig[MM_CUSTOM].Endianness;
         case MENU_EMCUSTOM_DATATYPE:
@@ -204,19 +231,24 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseModbus.EMConfig[MM_CUSTOM].ERegister;
         case MENU_EMCUSTOM_EDIVISOR:
             return evseModbus.EMConfig[MM_CUSTOM].EDivisor;
+#if EVSE_FEATFLAG_ENABLE_RFID
         case MENU_RFIDREADER:
             return evseRFID.RFIDReader;
+#endif
         case MENU_WIFI:
             return evseWifi.getWifiMode();
         case MENU_MAX_TEMPERATURE:
             return evseController.maxTemperature;
+#if EVSE_FEATFLAG_ENABLE_LEDS
         case MENU_LEDS:
             return evseRgbLeds.ledsEnabled ? 1 : 0;
+#endif
         case MENU_SOLAR_BOOST:
             return evseController.isSolarBoost() ? 1 : 0;
         case MENU_SENSORBOX_WIFI:
             return evseModbus.getSensorboxWifiMode();
-        // Status writeable
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+            // Status writeable
         case NODE_STATUS_STATE:
             return evseController.state;
         case NODE_STATUS_ERROR:
@@ -225,8 +257,10 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseController.getChargeCurrent();
         case NODE_STATUS_SOLAR_TIMER:
             return evseController.solarStopTimer;
+#if EVSE_FEATFLAG_ENABLE_RFID
         case NODE_STATUS_ACCESSBIT:
             return evseRFID.rfidAccessBit;
+#endif
         case NODE_STATUS_CONFIG_CHANGED:
             return evseController.statusConfigChanged;
         // Status readonly
@@ -234,10 +268,7 @@ uint16_t EVSEMenu::getMenuItemValue(uint8_t nav) {
             return evseController.getCableMaxCapacity();
         case NODE_STATUS_TEMP:
             return (signed int)evseController.temperature + 273;
-
-            // case STATUS_SERIAL:
-            //   return serialnr;
-
+#endif
         default:
             return 0;
     }
@@ -256,12 +287,6 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
         case MENU_CONFIG:
             evseController.config = val;
             break;
-        case NODE_STATUS_MODE:
-            // Do not change Charge Mode when set to Normal or Load Balancing is
-            // disabled
-            if (evseController.mode == MODE_NORMAL || evseCluster.isLoadBalancerDisabled()) {
-                break;
-            }
         case MENU_MODE:
             evseController.switchMode(val);
             break;
@@ -274,10 +299,6 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
         case MENU_IMPORT:
             evseController.solarImportCurrent = val;
             break;
-        case MENU_POWER_SHARE:
-            evseModbus.configureModbusMode(val);
-            evseCluster.setLoadBl(val);
-            break;
         case MENU_MAX_MAINS:
             evseController.maxMains = val;
             break;
@@ -287,18 +308,19 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
         case MENU_MAX_CURRENT:
             evseController.maxDeviceCurrent = val;
             break;
-        case MENU_CIRCUIT:
-            evseCluster.setMaxCircuit(val);
-            break;
         case MENU_LOCK:
             evseLockActuator.setLockType(val);
             break;
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
         case MENU_SWITCH:
             evseController.externalSwitch = val;
             break;
+#endif
+#if EVSE_FEATFLAG_ENABLE_RCMON
         case MENU_RCMON:
             evseController.RCmon = val;
             break;
+#endif
         case MENU_GRID:
             evseModbus.grid = val;
             break;
@@ -311,6 +333,7 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
         case MENU_MAINSMETERMEASURE:
             evseModbus.mainsMeterMeasure = val;
             break;
+#if EVSE_FEATFLAG_ENABLE_EVMETER
         case MENU_PVMETER:
             evseModbus.setPvMeter(val);
             break;
@@ -323,6 +346,7 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
         case MENU_EVMETERADDRESS:
             evseModbus.evMeterAddress = val;
             break;
+#endif
         case MENU_EMCUSTOM_ENDIANESS:
             evseModbus.EMConfig[MM_CUSTOM].Endianness = val;
             break;
@@ -356,22 +380,41 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
         case MENU_EMCUSTOM_EDIVISOR:
             evseModbus.EMConfig[MM_CUSTOM].EDivisor = val;
             break;
+#if EVSE_FEATFLAG_ENABLE_RFID
         case MENU_RFIDREADER:
             evseRFID.setRFIDReader(val);
             break;
+#endif
         case MENU_WIFI:
             evseWifi.setWifiMode(val);
             break;
         case MENU_MAX_TEMPERATURE:
             evseController.maxTemperature = val;
             break;
+#if EVSE_FEATFLAG_ENABLE_LEDS
         case MENU_LEDS:
             evseRgbLeds.ledsEnabled = (val == 1);
             break;
+#endif
         case MENU_SOLAR_BOOST:
             evseController.setSolarBoost(val == 1);
             break;
-        // Status writeable
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
+        case NODE_STATUS_MODE:
+            // This prevents slave from waking up from OFF mode when Masters' solarstoptimer starts to count
+            if (evseController.mode != val) {
+                evseController.switchMode(val);
+            }
+            break;
+        case MENU_POWER_SHARE:
+            evseModbus.configureModbusMode(val);
+            evseCluster.setLoadBl(val);
+            break;
+        case MENU_CIRCUIT:
+            evseCluster.setMaxCircuit(val);
+            break;
+
+            // Status writeable
         case NODE_STATUS_STATE:
             evseController.setState(val);
             break;
@@ -388,15 +431,18 @@ uint8_t EVSEMenu::setMenuItemValue(uint8_t nav, uint16_t val) {
             evseController.setSolarStopTimer(val);
             break;
 
+#if EVSE_FEATFLAG_ENABLE_RFID
         case NODE_STATUS_ACCESSBIT:
             if (val == 0 || val == 1) {
                 evseController.setAccess(val);
             }
             break;
+#endif
 
         case NODE_STATUS_CONFIG_CHANGED:
             evseController.statusConfigChanged = val;
             break;
+#endif
 
         case MENU_SENSORBOX_WIFI:
             evseModbus.setSensorboxWifiMode(val);
@@ -436,15 +482,19 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
                 return Str;
             } else
                 return i18nStrDisabled;
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
         case MENU_POWER_SHARE:
             /*if (controller->externalMaster && value == 1)
                 return "Node 0";
             else*/
             return i18nStrLoadBl[evseCluster.getLoadBl()];
+#endif
         case MENU_MAX_MAINS:
         case MENU_MIN_EV:
         case MENU_MAX_CURRENT:
+#if EVSE_FEATFLAG_ENABLE_POWERSHARE
         case MENU_CIRCUIT:
+#endif
         case MENU_IMPORT:
             sprintf(Str, I18N_MENUIMPORT_FORMAT, value);
             return Str;
@@ -458,21 +508,29 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
                 default:
                     return i18nStrDisabled;
             }
+#if EVSE_FEATFLAG_ENABLE_EXTSWITCH
         case MENU_SWITCH:
             return i18nStrSwitch[evseController.externalSwitch];
+#endif
+#if EVSE_FEATFLAG_ENABLE_RCMON
         case MENU_RCMON:
             return (evseController.RCmon == RC_MON_DISABLED) ? i18nStrDisabled : i18nStrEnabled;
+#endif
         case MENU_MAINSMETER:
+#if EVSE_FEATFLAG_ENABLE_EVMETER
         case MENU_PVMETER:
         case MENU_EVMETER:
+#endif
             return geti18nStrMeterText(value);
         case MENU_GRID:
             return i18nStrGrid[evseModbus.grid];
         case MENU_SENSORBOX_WIFI:
             return i18nStrSensorboxWifi[evseModbus.getSensorboxWifiMode()];
         case MENU_MAINSMETERADDRESS:
+#if EVSE_FEATFLAG_ENABLE_EVMETER
         case MENU_PVMETERADDRESS:
         case MENU_EVMETERADDRESS:
+#endif
         case MENU_EMCUSTOM_UREGISTER:
         case MENU_EMCUSTOM_IREGISTER:
         case MENU_EMCUSTOM_PREGISTER:
@@ -526,15 +584,19 @@ const char* EVSEMenu::getMenuItemi18nText(uint8_t nav) {
         case MENU_EMCUSTOM_EDIVISOR:
             sprintf(Str, "%lu", pow_10[value]);
             return Str;
+#if EVSE_FEATFLAG_ENABLE_RFID
         case MENU_RFIDREADER:
             return i18nStrRFIDReader[evseRFID.RFIDReader];
+#endif
         case MENU_WIFI:
             return i18nStrWiFi[evseWifi.getWifiMode()];
         case MENU_MAX_TEMPERATURE:
             sprintf(Str, I18N_TEMPERATURE_FORMAT, value, 0x0C);
             return Str;
+#if EVSE_FEATFLAG_ENABLE_LEDS
         case MENU_LEDS:
             return i18nStrLeds[evseRgbLeds.ledsEnabled ? 1 : 0];
+#endif
         case MENU_SOLAR_BOOST:
             return i18nStrSolarBoost[evseController.isSolarBoost() ? 1 : 0];
         case MENU_EXIT:
@@ -644,11 +706,15 @@ void EVSEMenu::handleButtonOPressed() {
 void EVSEMenu::updateSettings() {
     evseController.updateSettings();
     evseWifi.updateSettings();
+#if EVSE_FEATFLAG_ENABLE_RFID
     evseRFID.updateSettings();
+#endif
     evseLockActuator.updateSettings();
     evseModbus.updateSettings();
     evseCluster.updateSettings();
+#if EVSE_FEATFLAG_ENABLE_LEDS
     evseRgbLeds.updateSettings();
+#endif
 
     evseController.statusConfigChanged = 1;
 }
@@ -675,7 +741,9 @@ void EVSEMenu::handleButtonArrowPressed(uint8_t buttons) {
                 uint16_t value = 0;
 
                 switch (currentMenuOption) {
+#if EVSE_FEATFLAG_ENABLE_EVMETER
                     case MENU_EVMETER:
+                    case MENU_PVMETER:
                         // do not display the Sensorbox here
                         value = getMenuItemValue(currentMenuOption);
                         do {
@@ -684,6 +752,7 @@ void EVSEMenu::handleButtonArrowPressed(uint8_t buttons) {
                         } while (value == MM_SENSORBOX);
                         setMenuItemValue(currentMenuOption, value);
                         break;
+#endif
 
                     default:
                         value = getMenuItemValue(currentMenuOption);
@@ -775,12 +844,14 @@ void EVSEMenu::checkExitMenuOnInactivity() {
     // the menu when learning/deleting cards
     while (currentMenuOption != MENU_NO_OPTION) {
         if ((millis() - inactivityTimer) > (MENU_INACTIVITY_TIMEOUT_SECONDS * 1000)) {
+#if EVSE_FEATFLAG_ENABLE_RFID
             // Corner case: RFID reader is storaging or deleting data... it might take
             // longer than timeout
             if (currentMenuOption == MENU_RFIDREADER && subMenu) {
                 EVSELogger::debug("EVSEMenu] Canceling menu exit due to RFID submenu");
                 continue;
             }
+#endif
 
             // Corner case: WiFi portal and WiFi configuration
             if ((currentMenuOption == MENU_WIFI || currentMenuOption == MENU_SENSORBOX_WIFI) && subMenu) {
@@ -799,8 +870,10 @@ void EVSEMenu::checkExitMenuOnInactivity() {
             delay(100);
             evseCluster.resetSettings();
             delay(100);
+#if EVSE_FEATFLAG_ENABLE_RFID
             evseRFID.resetSettings();
             delay(100);
+#endif
             evseLockActuator.resetSettings();
             delay(100);
             break;
@@ -836,8 +909,10 @@ void EVSEMenu::onButtonChanged(uint8_t buttons) {
 
 bool EVSEMenu::shouldRedrawMenu() {
     return (buttonReleased == 1 || currentMenuOption == MENU_ENTER ||
-            (currentMenuOption == MENU_RFIDREADER && subMenu) || (currentMenuOption == MENU_WIFI && subMenu) ||
-            (currentMenuOption == MENU_SENSORBOX_WIFI && subMenu));
+#if EVSE_FEATFLAG_ENABLE_RFID
+            (currentMenuOption == MENU_RFIDREADER && subMenu) ||
+#endif
+            (currentMenuOption == MENU_WIFI && subMenu) || (currentMenuOption == MENU_SENSORBOX_WIFI && subMenu));
 }
 
 void EVSEMenu::setup() {

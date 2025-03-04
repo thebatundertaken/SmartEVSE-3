@@ -18,6 +18,7 @@
 ; THE SOFTWARE.
  */
 
+#if EVSE_FEATFLAG_ENABLE_RFID
 #include "OneWire.h"
 
 #include <Arduino.h>
@@ -326,3 +327,4 @@ void CheckRFID() {
             break;
     }
 }
+#endif

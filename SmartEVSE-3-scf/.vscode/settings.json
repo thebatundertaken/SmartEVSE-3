@@ -6,7 +6,12 @@
     "sstream": "cpp",
     "regex": "cpp",
     "*.tcc": "cpp",
-    "algorithm": "cpp"
+    "algorithm": "cpp",
+    "chrono": "cpp",
+    "cmath": "cpp",
+    "bitset": "cpp",
+    "initializer_list": "cpp",
+    "utility": "cpp"
   },
   "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, ColumnLimit: 120 }"
 }

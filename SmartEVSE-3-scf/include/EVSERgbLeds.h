@@ -18,6 +18,8 @@
 ; THE SOFTWARE.
  */
 
+#if EVSE_FEATFLAG_ENABLE_LEDS
+
 #ifndef __EVSERGBLEDS
 #define __EVSERGBLEDS
 
@@ -26,35 +28,36 @@
 #define DEFAULT_LEDS_ENABLED_VALUE 0  // Default leds OFF
 
 struct RgbColor {
-  uint8_t R = 0;
-  uint8_t G = 0;
-  uint8_t B = 0;
+    uint8_t R = 0;
+    uint8_t G = 0;
+    uint8_t B = 0;
 };
 
 class EVSERgbLeds {
- public:
-  EVSERgbLeds(){};
+   public:
+    EVSERgbLeds() {};
 
-  void setup();
-  void loop();
-  RgbColor getRgbColor() { return color; };
-  void updateSettings();
-  bool ledsEnabled = DEFAULT_LEDS_ENABLED_VALUE == 1;
+    void setup();
+    void loop();
+    RgbColor getRgbColor() { return color; };
+    void updateSettings();
+    bool ledsEnabled = DEFAULT_LEDS_ENABLED_VALUE == 1;
 
- private:
-  void adjustLeds();
-  void adjustLedsByPwm();
-  void readEpromSettings();
-  void writeEpromSettings();
+   private:
+    void adjustLeds();
+    void adjustLedsByPwm();
+    void readEpromSettings();
+    void writeEpromSettings();
 
-  // RGB leds
-  RgbColor color;
-  // Raw Counter before being converted to PWM value
-  uint8_t ledCount = 0;
-  // PWM value 0-255
-  uint8_t ledPwm = 0;
+    // RGB leds
+    RgbColor color;
+    // Raw Counter before being converted to PWM value
+    uint8_t ledCount = 0;
+    // PWM value 0-255
+    uint8_t ledPwm = 0;
 };
 
 extern EVSERgbLeds evseRgbLeds;
 
+#endif
 #endif
