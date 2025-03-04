@@ -2,19 +2,18 @@ SmartEVSE v3
 =========
 [![GitHub release](https://img.shields.io/github/release/thebatundertaken/SmartEVSE-3.svg)](https://github.com/thebatundertaken/SmartEVSE-3/releases)
 
-Changes to original firmware v3.0.0
-- Adaptation for a 3 phases installation with 1 phase fixed cable
-- New solar boost feature to allow charging over max mains when solar power surplus available, useful for 3 phases installation and 1 phase charging cable
-- Fixed smart mode power rebalance on 3 phases grid
+# Changes to original firmware v3.0.0
+- Adaptation for a 3 phases installation with 1 phase fixed cable or socket
+- New solar boost feature to allow charging over max mains when solar power surplus available
 - Device screen on Smart/Solar mode renders decimal amps for phases consumption
 - Added scheduled charging with switch on and off time (operating hours)
 - New web status page (UI design, Rest API and no webSockets)
 - New max EVSE temperature menu and settings
 - New RGB leds enabled/disabled menu and settings
+- Support for API meter readings (Sensorbox v2)
 - Massive code refactor to C++ objects
 - Improved timers and tasks
-- Support for API meter readings (Sensorbox v2)
-- Special thanks to **serkri** for his work (https://github.com/serkri/SmartEVSE-3)
+- Special thanks to **Serkri** for his work (https://github.com/serkri/SmartEVSE-3)
 
 ![Status page](./pictures/statuspage.jpg)
 
@@ -25,12 +24,22 @@ Changes to original firmware v3.0.0
 ![Status page](./pictures/device.jpg)
 
 $~$
-## Device configuration
+# Menu options and configuration
 
-[Device configuration and all menu options explained](docs/configuration.md)<br>
-[Official SmartEVSE 3 manual](manual/SmartEVSEv3_install_v3.0.pdf)<br>
+- [Device configuration and all menu options explained](docs/configuration.md)<br>
 
-## Setting up WiFi
+- [Official SmartEVSE 3 manual](manual/SmartEVSEv3_install_v3.0.pdf)<br>
+
+$~$
+# How to install the hardware
+
+- [3 phases mains with 1 phase charger wiring diagrama and electrical installation](docs/installation.md)
+
+
+<br>
+
+$~$
+# Setting up WiFi
 
 > Documentation from: https://github.com/tzapu/WiFiManager
 
@@ -48,7 +57,7 @@ $~$
 
 
 $~$
-## Building the firmware
+# Building the firmware
 * Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
 * Compile `firmware.bin`: platformio run
 * Compile `spiffs.bin`: platformio run -t buildfs
@@ -122,11 +131,3 @@ esptool.py.exe --chip esp32 --port COM4 --before default_reset --after hard_rese
 ```
 esptool.py.exe --chip esp32 --port COM4 erase_flash
 ```
-
-
-$~$
-# Official documentation
-
-[Hardware installation](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/installation.md)<br>
-[Operation](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/operation.md)<br>
-[Building and Flashing the firmware](https://github.com/SmartEVSE/SmartEVSE-3/blob/master/docs/building_flashing.md)<br>
