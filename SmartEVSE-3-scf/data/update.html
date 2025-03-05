@@ -121,7 +121,7 @@
       //asset_id=result.data.assets.filter(function(entry){ return entry.name==="firmware.signed.bin";})[0].id;
       //console.log(asset_id);
       //console.log(JSON.stringify(result.data.assets));
-      document.getElementById(element).innerHTML = result.data.tag_name;
+      document.getElementById(element).innerHTML = "<a href=\"" + result.data.html_url + "\" target=\"_blank\">" + result.data.tag_name + "</a>";
     } catch (error) {
       console.error(error.message);
     }
