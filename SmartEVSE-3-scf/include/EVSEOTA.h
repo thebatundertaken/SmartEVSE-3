@@ -27,13 +27,15 @@
 #define SPI_PARTITION_SIZE 0x90000
 
 class EVSEOTA {
- public:
-  static void updateGETRequestHandler(AsyncWebServerRequest* request);
-  static void updatePOSTRequestHandler(AsyncWebServerRequest* request);
-  static void updateMultipartUploadHandler(AsyncWebServerRequest* request,
-                                           String filename, size_t index,
-                                           uint8_t* data, size_t len,
-                                           bool final);
+   public:
+    static void updateGETRequestHandler(AsyncWebServerRequest* request);
+    static void updatePOSTRequestHandler(AsyncWebServerRequest* request);
+    static void updateMultipartUploadHandler(AsyncWebServerRequest* request,
+                                             String filename,
+                                             size_t index,
+                                             uint8_t* data,
+                                             size_t len,
+                                             bool final);
 };
 
 #endif

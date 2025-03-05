@@ -28,12 +28,14 @@
 #include "EVSELogger.h"
 
 void EVSEOTA::updatePOSTRequestHandler(AsyncWebServerRequest* request) {
-    bool shouldReboot = !Update.hasError();
-    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", shouldReboot ? "OK" : "FAIL");
+    bool updateSuccessful = !Update.hasError();
+    AsyncWebServerResponse* response =
+        request->beginResponse(200, "text/plain", updateSuccessful ? "OK" : Update.errorString());
     response->addHeader("Connection", "close");
     request->send(response);
-    delay(500);
-    if (shouldReboot) {
+
+    if (updateSuccessful) {
+        delay(500);
         ESP.restart();
     }
 }
@@ -44,32 +46,43 @@ void EVSEOTA::updateMultipartUploadHandler(AsyncWebServerRequest* request,
                                            uint8_t* data,
                                            size_t len,
                                            bool final) {
+    char sprintChar[255];
     if (!index) {
+        filename.toLowerCase();
         EVSELogger::info("\nUpdate Start:");
         EVSELogger::info(filename);
-        if (filename == "spiffs.bin") {
-            EVSELogger::info("\nSPIFFS partition write");
+        if (filename.indexOf("spiffs") >= 0) {
+            EVSELogger::info("[EVSEOTA] SPIFFS partition update in progress");
             if (!Update.begin(SPI_PARTITION_SIZE, U_SPIFFS)) {
                 Update.printError(Serial);
             }
-        } else if (!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000), U_FLASH) {
+        } else if (filename.indexOf("firmware") >= 0 && !Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000),
+                   U_FLASH) {
+            EVSELogger::info("[EVSEOTA] Firmware update in progress");
             Update.printError(Serial);
+        } else {
+            sprintf(sprintChar, "[EVSEOTA] FAIL: Invalid filename '%s'", filename);
+            EVSELogger::warn(sprintChar);
         }
     }
 
     if (!Update.hasError()) {
         if (Update.write(data, len) != len) {
+            sprintf(sprintChar, "[EVSEOTA] FAIL: file wasn't written. %s", Update.errorString());
+            EVSELogger::warn(sprintChar);
             Update.printError(Serial);
         } else {
-            EVSELogger::info("bytes written");
-            EVSELogger::info(std::to_string(index + len).c_str());
+            sprintf(sprintChar, "[EVSEOTA] bytes written %s", std::to_string(index + len).c_str());
+            EVSELogger::info(sprintChar);
         }
     }
 
     if (final) {
         if (Update.end(true)) {
-            EVSELogger::info("Update successful");
+            EVSELogger::info("[EVSEOTA] Update successful");
         } else {
+            sprintf(sprintChar, "[EVSEOTA] FAIL: %s", Update.errorString());
+            EVSELogger::warn(sprintChar);
             Update.printError(Serial);
         }
     }
