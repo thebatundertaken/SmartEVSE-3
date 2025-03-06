@@ -22,7 +22,7 @@ $~$
 | --- | --- | --- |
 | **MODE** | Sets how device will determine maximum charge for EV | **Normal** The EV will charge with the current at MAX *(device maximum capacity)*.<br/><br/>**Smart** The EV will charge with a dynamic charge current, depending on house consumption. It will determine the available charge based on MAINSMET data *(consumption)* and MAINS MAX *(available)*, but it will never exceed device maximum capacity *(MAX)*.<br/><br/>**Solar** The EV will charge when solar power is available
 | **CONFIG** | Configure your SmartEVSE with a Type 2 Socket or a fixed cable | **Socket** Your SmartEVSE is connected to a socket, so it will need to sense the cable used for its maximum capacity.<br/><br/>**Fixed** Your SmartEVSE is connected to a fixed cable, so EVSE MAX will determine your maximum charge current.
-| **EV MIN** | Set minimum charge current the EV will accept *(Only available in Smart or Solar mode)* | 5 - 16A
+| **EV MIN** | Set minimum charge current the EV will accept *(Only available in Smart or Solar mode)* | 5 - 16A <br />*Note: recommended 5A for Tesla, 6A for Renault, 7A for Hyundai and Kia*
 | **MAINS MAX** | Set maximum Mains current (contracted power) *(Only available in Smart or Solar mode)* | 10 - 200A
 | **EVSE MAX** | Set maximum charge current for the SmartEVSE.<br/>*Note: if CONFIG is set to **Fixed**, set this value according to the maximum current that your fixed cable can carry*. | 10 - 80A
 | **LOCK** | Enable or disable the locking actuator *(only available if CONFIG is set to **Socket**)* | **Disabled** No lock is used.<br/><br/>**Solenoid** Dostar, DUOSIDA DSIEC-ELB or Ratio lock.<br/><br/>**Motor** Signal wire reversed, DUOSIDA DSIEC-EL or Phoenix Contact.
@@ -67,3 +67,14 @@ Up to eight SmartEVSE modules can share one mains supply.
     - EV MIN Set to the lowest allowable charging current for all connected EV’s.
   - On the Nodes configure the following:
     - EVSE MAX Set the maximum charging current for the EV connected to -this- SmartEVSE.
+   
+   
+$~$
+# Troubleshooting
+
+## Renault Zoe "battery charging is impossible" error
+
+- **Solution 1**: check your PE wiring. Zoe is the only car that does the ***ground impedance test***, if the ground is not good (neutral to ground voltage is over 2V and resistance is more than 100 ohm) Zoe will not charge. 
+- **Solution 2 (mind blow)**: Turn on the vehicle, roll it forward and backward to ***straighten the wheels***, and then attempt to charge again.
+
+
