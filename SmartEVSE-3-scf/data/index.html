@@ -535,6 +535,13 @@
       }
     }
 
+    function modifyMainsMax() {
+      let value = prompt("Enter new Mains MAX value (5 - 80)");
+      if (value != null && parseInt(value) >= 5 && parseInt(value) <= 80) {
+        $.post("/settings?maxmains=" + parseInt(value));
+      }
+    }
+
     function disableOperatingHours() {
       $.post("/settings?disableOperatingHours=y");
     }
@@ -1114,8 +1121,10 @@
                                 class="bi bi-bug"></i> Console</button>
                             <button onclick="resetFlags()" class="btn btn-outline-secondary me-2 mb-2" type="button"><i
                                 class="bi bi-eraser"></i> Clear errors</button>
-                            <button onclick="forceCharge()" class="btn btn-outline-secondary me-2 mb-2" type="button"><i
-                                class="bi bi-lightning"></i> Force Charge</button>
+                            <button onclick="modifyMainsMax()" class="btn btn-outline-secondary me-2 mb-2"
+                              type="button"><i class="bi bi-ev-station"></i> Change Mains Max</button>
+                            <button onclick=" forceCharge()" class="btn btn-outline-secondary me-2 mb-2"
+                              type="button"><i class="bi bi-lightning"></i> Force Charge</button>
                             <button onclick="forceDisconnect()" class="btn btn-outline-secondary me-2 mb-2"
                               type="button"><i class="bi bi-power"></i> Force Disconnect</button>
                             <button onclick="reboot()" class="btn btn-outline-secondary me-2 mb-2" type="button"><i
