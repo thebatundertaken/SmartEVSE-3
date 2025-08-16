@@ -74,18 +74,21 @@
       min-width: 40px !important;
     }
 
-    #solar_boost_check_label {
+    #solar_boost_check_label,
+    #hidden_surplus_check_label {
       margin: 5px 0 0 0;
     }
 
-    #solar_boost_check {
+    #solar_boost_check,
+    #hidden_surplus_check {
       border: solid 2px #777;
       width: 75px;
       height: 1.8em;
       margin: 0 5px -15px 0;
     }
 
-    #solar_boost_check:checked {
+    #solar_boost_check:checked,
+    #hidden_surplus_check:checked {
       border: solid 2px #888;
       background-color: #712cf9;
     }
@@ -222,6 +225,7 @@
     let lastReceivedCTSeconds = null;
     let intervalHandler = null;
     let prevSolarBoost = null;
+    let prevHiddenSurplus = null;
     let lastCheckForUpdate = null;
     let currentVersion = null;
 
@@ -380,9 +384,12 @@
           $('#charge_current').text((data.controller.chargeCurrent / 10).toFixed(1) + "A");
 
           prevSolarBoost = data.controller.solarBoost;
+          prevHiddenSurplus = data.controller.hiddenSurplus;
           if (data.controller.mode != 1) {
             $("#solar_boost_current_box").hide();
             $("#solar_boost_check_box").hide();
+            $("#idden_surplus_current_box").hide();
+            $("#idden_surplus_check_box").hide();
           }
           else {
             $("#solar_boost_check_box").show();
@@ -391,6 +398,10 @@
               $('#solar_boost_current').text((data.controller.solarBoostCurrent / 10).toFixed(1) + "A");
             }
             renderSolarBoostCheck();
+
+            $("#idden_surplus_check_box").show();
+            $('#hidden_surplus_check').prop("checked", data.controller.hiddenSurplus);
+            renderHiddenSurplusCheck();
           }
 
           $('#temp').text(data.controller.temperature + "°C / " + data.controller.maxTemperature + "°C");
@@ -565,6 +576,28 @@
       if (prevSolarBoost != solarBoost) {
         $.post("/settings?solarBoost=" + (solarBoost ? '1' : '0'));
         prevSolarBoost = solarBoost;
+      }
+    }
+
+    function renderHiddenSurplusCheck() {
+      let hiddenSurplus = $("#hidden_surplus_check").prop("checked");
+      if (hiddenSurplus) {
+        $('#hidden_surplus_check_label').text("Active");
+        $('#hidden_surplus_current_box').show();
+      }
+      else {
+        $('#hidden_surplus_current_box').hide();
+        $('#hidden_surplus_check_label').text("Disabled");
+      }
+    }
+
+    function hiddenSurplusChanged() {
+      renderHiddenSurplusCheck();
+
+      let hiddenSurplus = $("#hidden_surplus_check").prop("checked");
+      if (prevHiddenSurplus != hiddenSurplus) {
+        $.post("/settings?hiddenSurplus=" + (hiddenSurplus ? '1' : '0'));
+        prevHiddenSurplus = hiddenSurplus;
       }
     }
 
@@ -1017,7 +1050,17 @@
                             id="solar_boost_check_label">--</label>
                         </div>
                       </div>
-                      <!-- <div class="row g-0 align-items-center mb-3 form-check form-switch"> -->
+                      <div class="row g-0 align-items-center mb-3" id="solar_boost_check_box">
+                        <div class="col-auto h5 mb-3 me-3">
+                          <i class="bi bi-bar-chart"></i> Hidden surplus:
+                        </div>
+                        <div class="col-auto h5 mb-4 form-check form-switch">
+                          <input class="form-check-input" type="checkbox" role="switch" id="hidden_surplus_check"
+                            onchange="hiddenSurplusChanged()">
+                          <label class="form-check-label" for="hidden_surplus_check"
+                            id="hidden_surplus_check_label">--</label>
+                        </div>
+                      </div>
 
                       <div class="row g-0 align-items-center mb-3">
                         <div class="col-auto h5 mb-0 me-3">

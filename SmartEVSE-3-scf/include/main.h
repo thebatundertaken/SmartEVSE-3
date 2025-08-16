@@ -50,6 +50,6 @@
 #endif
 
 // SmartEVSE software version
-#define EVSE_VERSION "4.0.24"
+#define EVSE_VERSION "4.0.25"
 
 #endif

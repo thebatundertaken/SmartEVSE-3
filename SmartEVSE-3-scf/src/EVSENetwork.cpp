@@ -43,6 +43,7 @@ void EVSENetwork::getWebUIData(AsyncWebServerRequest* request) {
     doc["controller"]["maxMains"] = evseController.maxMains;
     doc["controller"]["maxDeviceCurrent"] = evseController.maxDeviceCurrent;
     doc["controller"]["solarBoost"] = evseController.isSolarBoost();
+    doc["controller"]["hiddenSurplus"] = evseController.isHiddenSurplus();
     doc["controller"]["solarBoostCurrent"] = evseController.getSolarBoostCurrent();
     doc["controller"]["mode"] = evseController.mode;
     doc["controller"]["modeText"] = evseController.mode == MODE_SMART
@@ -185,6 +186,13 @@ void EVSENetwork::postSettings(AsyncWebServerRequest* request) {
     if (request->hasParam("solarBoost")) {
         bool active = request->getParam("solarBoost")->value().toInt() == 1;
         evseController.setSolarBoost(active);
+        updateSettings = true;
+        doc["mode"] = "OK";
+    }
+
+    if (request->hasParam("hiddenSurplus")) {
+        bool hiddenSurplusActive = request->getParam("hiddenSurplus")->value().toInt() == 1;
+        evseController.setHiddenSurplus(hiddenSurplusActive);
         updateSettings = true;
         doc["mode"] = "OK";
     }

@@ -126,6 +126,8 @@
 
 #define SOLAR_BOOST_DISABLED 0
 #define SOLAR_BOOST_ENABLED 1
+#define HIDDEN_SURPLUS_DISABLED 0
+#define HIDDEN_SURPLUS_ENABLED 1
 #define DEFAULT_SOLARBOOST_INCREASE_FACTOR 0.95f
 
 extern portMUX_TYPE rtc_spinlock;
@@ -194,7 +196,9 @@ class EVSEController {
     uint16_t getMainsExtraSolarSurplus();
 
     bool isSolarBoost() { return solarBoost; };
+    bool isHiddenSurplus() { return hiddenSurplus; };
     void setSolarBoost(bool active);
+    void setHiddenSurplus(bool active);
     int16_t getSolarBoostCurrent() { return solarBoostCurrent; };
     int16_t calcSolarBoostCurrent();
 
@@ -289,7 +293,7 @@ class EVSEController {
 
     // Solar boost
     bool solarBoost = SOLAR_BOOST_ENABLED;
-    float solarBoostIncreaseFactor = DEFAULT_SOLARBOOST_INCREASE_FACTOR;
+    bool hiddenSurplus = HIDDEN_SURPLUS_DISABLED;
     int16_t solarBoostCurrent = 0;
 
     // declared volatile, as they are used in a ISR
